@@ -60,3 +60,4 @@ button:disabled { opacity: .4; cursor: default }
 .spark { display: flex; align-items: flex-end; gap: 4px; height: 80px }
 .spark div { flex: 1; background: var(--muted); border-radius: 2px 2px 0 0; min-height: 2px }
 .spark div.hit { background: var(--accent) }
+.alt, .toolbar button { border: 1px solid var(--muted) !important }

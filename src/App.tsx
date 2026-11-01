@@ -29,6 +29,12 @@ export default function App() {
     addEventListener('keydown', h)
     return () => removeEventListener('keydown', h)
   }, [nav])
+  // Browser storage is the working copy; warn before closing with unpushed work.
+  useEffect(() => {
+    const h = (e: BeforeUnloadEvent) => { if (dirty) e.preventDefault() }
+    addEventListener('beforeunload', h)
+    return () => removeEventListener('beforeunload', h)
+  }, [dirty])
   if (!ready) return null
   return (
     <div className="app">

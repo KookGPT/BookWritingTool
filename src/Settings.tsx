@@ -37,7 +37,11 @@ export default function Settings() {
     setMsg('Working...')
     try { setMsg(await fn()) } catch (e) { setMsg(String(e)) }
   }
-  const doPull = async () => { replace(await pull(s), false); return 'Pulled from GitHub.' }
+  const doPull = async () => {
+    if (dirty && !confirm('You have unsynced local changes. Pulling replaces them. Continue?')) return 'Pull cancelled.'
+    replace(await pull(s), false)
+    return 'Pulled from GitHub.'
+  }
   const doPush = async () => { await push(s, book); replace(book, false); return 'Pushed to GitHub.' }
 
   return (
