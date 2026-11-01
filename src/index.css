@@ -36,3 +36,4 @@ select, textarea { padding: .5rem; border-radius: 6px; border: 1px solid var(--m
 .chip { padding: .2rem .6rem; border-radius: 99px; background: var(--panel); color: var(--accent); text-decoration: none; font-size: .9rem }
 a.item { color: var(--fg); text-decoration: none }
 .alt { background: var(--panel); color: var(--fg); align-self: flex-start }
+.page.wide { max-width: 760px }

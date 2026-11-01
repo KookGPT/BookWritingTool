@@ -1,4 +1,6 @@
-import { NavLink, Route, Routes } from 'react-router-dom'
+import { NavLink, Route, Routes, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import Ideas from './Ideas'
 import Settings from './Settings'
 import Wiki from './Wiki'
 import Write from './Write'
@@ -12,6 +14,19 @@ const Soon = ({ name }: { name: string }) => (
 
 export default function App() {
   const { book, dirty, ready } = useBook()
+  const nav = useNavigate()
+  // In-app hotkey: browsers can't register OS-wide shortcuts.
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'i') {
+        e.preventDefault()
+        nav('/ideas')
+        setTimeout(() => document.getElementById('idea-input')?.focus())
+      }
+    }
+    addEventListener('keydown', h)
+    return () => removeEventListener('keydown', h)
+  }, [nav])
   if (!ready) return null
   return (
     <div className="app">
@@ -25,7 +40,8 @@ export default function App() {
           <Route path="/" element={<Soon name="Welcome" />} />
           <Route path="/write" element={<Write />} />
           <Route path="/wiki/:id?" element={<Wiki />} />
-          {tools.filter((t) => t !== 'Write' && t !== 'Wiki').map((t) => <Route key={t} path={`/${t.toLowerCase()}`} element={<Soon name={t} />} />)}
+          <Route path="/ideas" element={<Ideas />} />
+          {tools.filter((t) => !['Write', 'Wiki', 'Ideas'].includes(t)).map((t) => <Route key={t} path={`/${t.toLowerCase()}`} element={<Soon name={t} />} />)}
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>
