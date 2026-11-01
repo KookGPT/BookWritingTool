@@ -92,7 +92,7 @@ function Entry({ entry }: { entry: WikiEntry }) {
         {inChapters.map((c) => <Link key={c.id} to={`/write?c=${c.id}`} className="chip">{c.title}</Link>)}
         {inWiki.map((w) => <Link key={w.id} to={`/wiki/${w.id}`} className="chip">{w.name}</Link>)}
         {onTimeline.map((e) => <Link key={e.id} to={`/timeline?e=${e.id}`} className="chip">{e.title}</Link>)}
-        {!inChapters.length && !inWiki.length && !onTimeline.length && <span className="muted">Nowhere yet. Writing the name (or [[{entry.name}]]) in a chapter links it here.</span>}
+        {!inChapters.length && !inWiki.length && !onTimeline.length && <span className="muted">Nowhere yet. Writing the name or an alias in a chapter links it here.</span>}
       </div>
       <button className="danger" onClick={() => {
         if (!confirm(`Delete ${entry.name}? (It goes to Trash.)`)) return
