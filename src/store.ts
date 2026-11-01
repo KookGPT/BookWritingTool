@@ -22,7 +22,7 @@ export const DEFAULT_TYPES: Record<string, string[]> = {
 }
 export const calendarOf = (b: Book): Calendar => b.config.calendar ?? DEFAULT_CAL
 export const allTypes =(b: Book) => ({ ...DEFAULT_TYPES, ...b.config.types })
-export interface Idea { id: string; text: string; tags: string[]; pinned: boolean }
+export interface Idea { id: string; text: string; tags: string[]; pinned: boolean; description?: string }
 export interface Scene {
   id: string; title: string; summary: string
   chapterId?: string; pov?: string; when?: string // pov/location/characters hold wiki ids; when = in-story date, free text

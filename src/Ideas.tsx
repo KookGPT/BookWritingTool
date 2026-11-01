@@ -19,12 +19,16 @@ export default function Ideas() {
   const drop = (id: string) => update((b) => ({ ...b, ideas: b.ideas.filter((i) => i.id !== id) }))
   const pin = (id: string) =>
     update((b) => ({ ...b, ideas: b.ideas.map((i) => (i.id === id ? { ...i, pinned: !i.pinned } : i)) }))
-  const toScene = (id: string, t: string) => {
-    update((b) => ({ ...b, scenes: [...b.scenes, { id: uid(), title: t.slice(0, 60), summary: t }] }))
+  const describe = (id: string, description: string) =>
+    update((b) => ({ ...b, ideas: b.ideas.map((i) => (i.id === id ? { ...i, description } : i)) }))
+  const toScene = (id: string, t: string, d = '') => {
+    update((b) => ({ ...b, scenes: [...b.scenes, { id: uid(), title: t.slice(0, 60), summary: d || t }] }))
     drop(id)
   }
-  const toWiki = (id: string, t: string, type: string) => {
-    const w: WikiEntry = { id: uid(), type, name: t.replace(/#\w+/g, '').trim().slice(0, 40), fields: {}, notes: t }
+  const toWiki = (id: string, t: string, type: string, d = '') => {
+    const w: WikiEntry = { id: uid(), type, name: t.replace(/#\w+/g, '').trim().slice(0, 40), fields: {}, notes: d ? `${t}
+
+${d}` : t }
     update((b) => ({ ...b, wiki: [...b.wiki, w] }))
     drop(id)
     nav(`/wiki/${w.id}`)
@@ -54,10 +58,15 @@ export default function Ideas() {
       {shown.map((i) => (
         <div key={i.id} className="item">
           <span>{i.pinned && '📌 '}{i.text}</span>
+          {i.description?.trim() && <p className="idea-desc">{i.description}</p>}
+          <details>
+            <summary>{i.description?.trim() ? 'Edit description' : 'Add description'}</summary>
+            <textarea rows={4} aria-label="Idea description" placeholder="Flesh it out: why it matters, how it could play out..." value={i.description ?? ''} onChange={(e) => describe(i.id, e.target.value)} />
+          </details>
           <div className="row">
             <button className="alt" onClick={() => pin(i.id)}>{i.pinned ? 'Unpin' : 'Pin'}</button>
-            <button className="alt" onClick={() => toScene(i.id, i.text)}>→ Scene</button>
-            <select value="" onChange={(e) => e.target.value && toWiki(i.id, i.text, e.target.value)}>
+            <button className="alt" onClick={() => toScene(i.id, i.text, i.description)}>→ Scene</button>
+            <select value="" onChange={(e) => e.target.value && toWiki(i.id, i.text, e.target.value, i.description)}>
               <option value="">→ Wiki...</option>
               {Object.keys(allTypes(book)).map((t) => <option key={t}>{t}</option>)}
             </select>

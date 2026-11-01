@@ -324,3 +324,5 @@ button.ghost.on { background: var(--accent-soft); color: var(--fg) }
 .scene-label b { color: var(--ember) }
 .scene-label a { margin-left: auto; font-size: .75rem }
 .scene-block > div[data-node-view-content] > p:first-child { margin-top: .2em }
+.idea-desc { white-space: pre-wrap; color: var(--fg-2); font-family: var(--serif); margin: .1rem 0 }
+.item details textarea { width: 100%; margin-top: .4rem }
