@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { saveDocx, saveEpub } from './export'
 import { type Book, useBook } from './store'
 import { loadSettings, runSync, saveSettings, useSyncStatus } from './sync'
 
@@ -33,6 +34,8 @@ export default function Settings() {
       <label>Book title<input value={book.title} onChange={(e) => update((b) => ({ ...b, title: e.target.value }))} /></label>
       <h2>Export</h2>
       <div className="row">
+        <button className="alt" onClick={() => saveDocx(book)}>Word (.docx)</button>
+        <button className="alt" onClick={() => saveEpub(book)}>E-book (.epub)</button>
         <button className="alt" onClick={() => download(`${book.title}.md`, toMarkdown(book), 'text/markdown')}>Book as Markdown</button>
         <button className="alt" onClick={() => download(`${book.title}-backup.json`, JSON.stringify(book), 'application/json')}>Full backup (JSON)</button>
       </div>

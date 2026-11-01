@@ -18,6 +18,7 @@ export default function Manuscript() {
   return (
     <div className="manuscript">
       <h1>{book.title}</h1>
+      <button className="alt noprint" onClick={() => window.print()}>Print / Save as PDF</button>
       <p className="muted">
         {book.chapters.length} chapters · {total.toLocaleString()} words · about {Math.round(total / 250)} pages · {Math.max(1, Math.round(total / 238))} min read
       </p>
