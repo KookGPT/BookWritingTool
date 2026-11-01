@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import CalendarPage from './CalendarPage'
 import Icon, { type IconName } from './Icon'
@@ -17,10 +17,12 @@ import Write from './Write'
 import { useBook } from './store'
 import { loadSettings, runSync, useSyncStatus } from './sync'
 
+const WorldPage = lazy(() => import('./world/WorldPage')) // three.js stays out of the main bundle
+
 const NAV: { label: string; items: [path: string, name: string, icon: IconName][] }[] = [
   { label: 'Write', items: [['write', 'Write', 'pen'], ['manuscript', 'Manuscript', 'book']] },
   { label: 'Plan', items: [['timeline', 'Timeline', 'timeline'], ['scenes', 'Scenes', 'list'], ['calendar', 'Calendar', 'calendar'], ['ideas', 'Ideas', 'idea']] },
-  { label: 'World', items: [['wiki', 'Wiki', 'wiki'], ['map', 'Maps', 'map']] },
+  { label: 'World', items: [['wiki', 'Wiki', 'wiki'], ['globe', 'Globe', 'globe'], ['map', 'Maps', 'map']] },
   { label: 'Review', items: [['insights', 'Insights', 'insights'], ['search', 'Search', 'search']] },
 ]
 
@@ -126,6 +128,7 @@ export default function App() {
           <Route path="/ideas" element={<Ideas />} />
           <Route path="/timeline" element={<TimelinePage />} />
           <Route path="/scenes" element={<Scenes />} />
+          <Route path="/globe" element={<Suspense fallback={null}><WorldPage /></Suspense>} />
           <Route path="/map" element={<MapView />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/search" element={<Search />} />

@@ -35,6 +35,7 @@ export function sampleBook(): Book {
       id: 'm1', name: 'The Realm of Vaelen', image: mapImage(), w: 900, h: 560,
       pins: [{ id: 'p1', x: 330, y: 215, label: 'Stormhold', wikiId: 'w4' }, { id: 'p2', x: 560, y: 340, label: 'Pinebound Wood', wikiId: 'w5' }, { id: 'p3', x: 640, y: 190, label: 'Ashport' }],
     }],
+    worlds: [{ id: 'g1', name: 'Vaelen', generatorVersion: 1, seed: 'vaelen', params: { oceanPct: 62, plates: 14, ruggedness: 1, aridity: 0.5, tilt: 23, radiusKm: 6000 } }],
     chapters: [
       { id: 'c1', title: 'The Last Winter Fair', status: 'done', notes: 'Introduce Mira as restless, not reckless. Plant the ember-glass.',
         body: p('The snow came early to Stormhold, and with it the smell of roasting chestnuts and woodsmoke. Mira pulled her cloak tight and pushed through the crowd toward the fair.', 'She had promised Aldric she would stay home. She had also promised herself she would stop making promises she could not keep.', '“You are late,” said the old man at the glass stall, without looking up. “The ember-glass has been waiting.”') + '<hr>' + p('Behind her, the horns of the Ashen Guard sounded twice. Twice meant the king.') },
