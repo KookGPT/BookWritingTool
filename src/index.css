@@ -320,3 +320,7 @@ button.ghost.on { background: var(--accent-soft); color: var(--fg) }
 .scene-text .tiptap { min-height: 12rem; padding: 1rem 1.2rem; font-size: 1.05rem; line-height: 1.8; box-shadow: none; border-radius: var(--r) }
 .writer .drawer { top: 3.4rem; padding-top: 1rem }
 .drawer button.icon { font-size: 1.3rem; line-height: 1 }
+.scene-label { display: flex; align-items: center; gap: .6rem; font-family: var(--sans); font-size: .78rem; color: var(--muted); padding: .35rem 0 .15rem; user-select: none }
+.scene-label b { color: var(--ember) }
+.scene-label a { margin-left: auto; font-size: .75rem }
+.scene-block > div[data-node-view-content] > p:first-child { margin-top: .2em }

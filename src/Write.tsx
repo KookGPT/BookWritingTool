@@ -177,7 +177,7 @@ function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean;
           {insertable.length > 0 ? (
             <select aria-label="Insert a scene" value="" onChange={(e) => e.target.value && insertScene(e.target.value)}>
               <option value="">Insert a draft or finished scene...</option>
-              {insertable.map((s) => <option key={s.id} value={s.id}>{s.title} ({s.status})</option>)}
+              {insertable.map((s) => <option key={s.id} value={s.id}>{s.title} ({s.status}{s.body?.replace(/<[^>]+>/g, '').trim() ? '' : ', no text yet'})</option>)}
             </select>
           ) : <small className="muted">Write scenes in the Scenes tab, set them to drafting or done, then insert them here.</small>}
           {planned.length > 0 && (
