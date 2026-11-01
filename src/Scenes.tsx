@@ -1,4 +1,6 @@
 import { Fragment, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { PlanFields, PlanView } from './ScenePlan'
 import { trashIt } from './history'
 import { fmt } from './calendar'
 import { calendarOf, type Scene, uid, useBook } from './store'
@@ -13,6 +15,8 @@ function SceneForm({ scene, onClose }: { scene: Scene; onClose: () => void }) {
   const chars = book.wiki.filter((w) => w.type === 'character')
   const places = book.wiki.filter((w) => w.type === 'location')
   const here = scene.characters ?? []
+  const status = scene.status ?? 'planned'
+  const planned = status === 'planned'
   const i = book.scenes.findIndex((s) => s.id === scene.id)
   const move = (d: number) =>
     update((b) => {
@@ -24,7 +28,32 @@ function SceneForm({ scene, onClose }: { scene: Scene; onClose: () => void }) {
   return (
     <div className="panel">
       <input className="title" value={scene.title} onChange={(e) => patch({ title: e.target.value })} />
-      <textarea rows={4} placeholder="What happens?" value={scene.summary} onChange={(e) => patch({ summary: e.target.value })} />
+      <div className="row" style={{ alignItems: 'center' }}>
+        <span className={`stage ${status}`}>{status}</span>
+        {planned && <button onClick={() => patch({ status: 'drafting' })}>Start drafting →</button>}
+        {status === 'drafting' && <button onClick={() => patch({ status: 'done' })}>Mark done</button>}
+        {!planned && <button className="alt" onClick={() => patch({ status: 'planned' })}>Back to planning</button>}
+      </div>
+      {planned ? <PlanFields scene={scene} /> : (
+        <>
+          <details>
+            <summary>The plan</summary>
+            <PlanView scene={scene} />
+          </details>
+          <label>Draft notes<textarea rows={4} placeholder="What changed from the plan? What needs fixing on revision?" value={scene.notes ?? ''} onChange={(e) => patch({ notes: e.target.value })} /></label>
+          <div className="row" style={{ alignItems: 'end' }}>
+            <label className="grow">Chapter
+              <select value={scene.chapterId ?? ''} onChange={(e) => patch({ chapterId: e.target.value || undefined })}>
+                <option value="">Not in a chapter yet</option>
+                {book.chapters.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+              </select>
+            </label>
+            {scene.chapterId && <Link className="chip" to={`/write?c=${scene.chapterId}`}>Open chapter ›</Link>}
+          </div>
+        </>
+      )}
+      <details open={planned}>
+        <summary>When, where and who</summary>
       <div className="row" style={{ alignItems: 'end' }}>
         <label>Year
           <input type="number" style={{ width: '6rem' }} value={scene.date?.y ?? ''} placeholder="-"
@@ -46,17 +75,14 @@ function SceneForm({ scene, onClose }: { scene: Scene; onClose: () => void }) {
         <label className="grow">Time note<input value={scene.when ?? ''} placeholder="dawn, midwinter feast..." onChange={(e) => patch({ when: e.target.value })} /></label>
       </div>
       <div className="row">
-        <label>Status
-          <select value={scene.status ?? 'planned'} onChange={(e) => patch({ status: e.target.value as Scene['status'] })}>
-            {STATUSES.map((s) => <option key={s}>{s}</option>)}
-          </select>
-        </label>
-        <label>Chapter
-          <select value={scene.chapterId ?? ''} onChange={(e) => patch({ chapterId: e.target.value || undefined })}>
-            <option value="">none</option>
-            {book.chapters.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
-          </select>
-        </label>
+        {planned && (
+          <label>Chapter
+            <select value={scene.chapterId ?? ''} onChange={(e) => patch({ chapterId: e.target.value || undefined })}>
+              <option value="">none</option>
+              {book.chapters.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+            </select>
+          </label>
+        )}
         <label>POV
           <select value={scene.pov ?? ''} onChange={(e) => patch({ pov: e.target.value || undefined })}>
             <option value="">none</option>
@@ -82,6 +108,7 @@ function SceneForm({ scene, onClose }: { scene: Scene; onClose: () => void }) {
           ))}
         </div>
       </div>
+      </details>
       <div className="row">
         <button className="alt" disabled={i === 0} onClick={() => move(-1)}>← Earlier</button>
         <button className="alt" disabled={i === book.scenes.length - 1} onClick={() => move(1)}>Later →</button>
@@ -100,10 +127,12 @@ function SceneForm({ scene, onClose }: { scene: Scene; onClose: () => void }) {
 export default function Scenes() {
   const { book, update } = useBook()
   const [view, setView] = useState<'board' | 'lanes'>('board')
-  const [sel, setSel] = useState<string | null>(null)
+  const [params] = useSearchParams()
+  const [sel, setSel] = useState<string | null>(params.get('s'))
   const [drag, setDrag] = useState<string | null>(null)
   const scene = book.scenes.find((s) => s.id === sel)
   const name = (id?: string) => book.wiki.find((w) => w.id === id)?.name
+  const chapterOf = (id?: string) => book.chapters.find((c) => c.id === id)?.title
 
   const add = () => {
     const s: Scene = { id: uid(), title: `Scene ${book.scenes.length + 1}`, summary: '', status: 'planned', characters: [] }
@@ -139,6 +168,9 @@ export default function Scenes() {
                   className={`item ${s.id === sel ? 'sel' : ''}`}>
                   <b>{s.title}</b>
                   <small className="muted">{[s.date ? fmt(calendarOf(book), s.date) : s.when, name(s.pov) && `POV ${name(s.pov)}`, name(s.location)].filter(Boolean).join(' · ')}</small>
+                  {st === 'planned'
+                    ? (s.goal || s.summary) && <span className="card-sum">{s.goal ? `Wants: ${s.goal}` : s.summary}</span>
+                    : <small className="muted">{chapterOf(s.chapterId) ?? 'Not in a chapter yet'}</small>}
                 </div>
               ))}
             </div>

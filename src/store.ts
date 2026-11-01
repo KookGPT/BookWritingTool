@@ -28,6 +28,8 @@ export interface Scene {
   chapterId?: string; pov?: string; when?: string // pov/location/characters hold wiki ids; when = in-story date, free text
   location?: string; characters?: string[]; status?: 'planned' | 'drafting' | 'done'
   threads?: string[] // plot thread ids this scene advances
+  goal?: string; conflict?: string; outcome?: string; beats?: string // plan, filled in while status is 'planned'
+  notes?: string // draft notes: what changed from the plan, what to fix on revision
   date?: SDate // in-world date on the book's calendar; `when` stays a free-text note (e.g. "dawn")
 }
 

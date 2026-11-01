@@ -227,7 +227,7 @@ details > summary:hover { color: var(--fg) }
 .editor .tiptap blockquote { border-left: 3px solid var(--ember); margin-left: 0; padding-left: 1.1rem; color: var(--fg-2) }
 .manuscript hr, .editor .tiptap hr { border: 0; text-align: center; margin: 1.6rem 0 }
 .manuscript hr::after, .editor .tiptap hr::after { content: '* * *'; color: var(--muted); letter-spacing: .55em }
-.drawer { position: absolute; top: 0; bottom: 0; width: min(330px, 88vw); z-index: 8; padding: 3.6rem 1rem 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: .5rem; box-shadow: var(--shadow); animation: slide .18s ease-out }
+.drawer { position: absolute; top: 0; bottom: 0; width: min(400px, 88vw); z-index: 8; padding: 3.6rem 1rem 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: .5rem; box-shadow: var(--shadow); animation: slide .18s ease-out }
 .drawer.left { left: 0; border-width: 0 1px 0 0 }
 .drawer.right { right: 0; border-width: 0 0 0 1px; --from: 24px }
 .drawer.left { --from: -24px }
@@ -304,3 +304,14 @@ button.ghost.on { background: var(--accent-soft); color: var(--fg) }
 .tl .row { align-items: center }
 .tl-body, .tl-period, .tl-year { font-family: var(--sans) }
 .tl-drawer { background: var(--surface-solid) }
+
+/* ---------- Scene stages ---------- */
+.stage { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; padding: .2rem .65rem; border-radius: 99px; border: 1px solid var(--border-strong); color: var(--muted) }
+.stage.drafting { color: var(--ember); border-color: var(--ember) }
+.stage.done { color: var(--accent); border-color: var(--accent) }
+.card-sum { font-size: .8rem; color: var(--fg-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
+.planview { padding: .4rem 0; display: flex; flex-direction: column; gap: .5rem; font-family: var(--serif) }
+.planview ol { margin: .2rem 0 0; padding-left: 1.2rem }
+.scene-body { display: flex; flex-direction: column; gap: .5rem; padding-top: .5rem }
+.drawer details.item > summary { color: var(--fg); display: flex; gap: .5rem; align-items: center; justify-content: space-between }
+.drawer > * { flex-shrink: 0 }

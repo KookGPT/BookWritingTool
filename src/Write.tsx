@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import Icon from './Icon'
 import { history, type Snap, snapshot, trashIt } from './history'
-import { type Chapter, mentions, plain, today, uid, useBook, words } from './store'
+import { PlanFields, PlanView, usePatchScene } from './ScenePlan'
+import { type Chapter, mentions, type Scene, plain, today, uid, useBook, words } from './store'
 
 const STATUSES: Chapter['status'][] = ['draft', 'revised', 'done']
 
@@ -37,10 +38,35 @@ function History({ chapter, restore }: { chapter: Chapter; restore: (html: strin
   )
 }
 
+function SceneItem({ scene, remove }: { scene: Scene; remove: () => void }) {
+  const patch = usePatchScene(scene.id)
+  const status = scene.status ?? 'planned'
+  return (
+    <details className="item" open={status === 'planned' && !scene.summary}>
+      <summary><b>{scene.title}</b> <span className={`stage ${status}`}>{status}</span></summary>
+      <div className="scene-body">
+        <input aria-label="Scene title" value={scene.title} onChange={(e) => patch({ title: e.target.value })} />
+        <select aria-label="Scene status" value={status} onChange={(e) => patch({ status: e.target.value as Scene['status'] })}>
+          <option>planned</option><option>drafting</option><option>done</option>
+        </select>
+        {status === 'planned' ? <PlanFields scene={scene} /> : <PlanView scene={scene} />}
+        <div className="row">
+          <Link className="chip" to={`/scenes?s=${scene.id}`}>Open in Scenes ›</Link>
+          <button className="alt" onClick={remove}>Take out of chapter</button>
+        </div>
+      </div>
+    </details>
+  )
+}
+
 function Editor({ chapter, info }: { chapter: Chapter; info: boolean }) {
   const update = useBook((s) => s.update)
   const wiki = useBook((s) => s.book.wiki)
-  const scenes = useBook((s) => s.book.scenes).filter((s) => s.chapterId === chapter.id)
+  const allScenes = useBook((s) => s.book.scenes)
+  const scenes = allScenes.filter((s) => s.chapterId === chapter.id)
+  const loose = allScenes.filter((s) => !s.chapterId)
+  const assign = (id: string, chapterId?: string) => update((b) => ({ ...b, scenes: b.scenes.map((s) => (s.id === id ? { ...s, chapterId } : s)) }))
+  const addScene = () => update((b) => ({ ...b, scenes: [...b.scenes, { id: uid(), title: `Scene ${scenes.length + 1}`, summary: '', status: 'planned', chapterId: chapter.id }] }))
   const [histOpen, setHistOpen] = useState(false)
   const patch = (p: Partial<Chapter>) => {
     if (p.body !== undefined) {
@@ -138,7 +164,18 @@ function Editor({ chapter, info }: { chapter: Chapter; info: boolean }) {
         <aside className="drawer right hide-in-focus" aria-label="Chapter details">
           <h3>Notes</h3>
           <textarea value={chapter.notes} onChange={(e) => patch({ notes: e.target.value })} rows={6} placeholder="Notes for this chapter..." />
-          {scenes.length > 0 && <><h3>Planned scenes</h3><div className="row">{scenes.map((s) => <Link key={s.id} to="/scenes" className="chip">{s.title}</Link>)}</div></>}
+          <h3>Scenes in this chapter</h3>
+          {scenes.map((s) => <SceneItem key={s.id} scene={s} remove={() => assign(s.id, undefined)} />)}
+          {!scenes.length && <p className="muted">No scenes yet. Add one and it files into this chapter.</p>}
+          <div className="row">
+            <button className="alt" onClick={addScene}>+ Add scene</button>
+            {loose.length > 0 && (
+              <select aria-label="Add an existing scene" value="" onChange={(e) => e.target.value && assign(e.target.value, chapter.id)}>
+                <option value="">Add existing...</option>
+                {loose.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+              </select>
+            )}
+          </div>
           {mentioned.length > 0 && <><h3>Mentions</h3><div className="row">{mentioned.map((w) => <Link key={w.id} to={`/wiki/${w.id}`} className="chip">{w.name}</Link>)}</div></>}
           <details onToggle={(e) => setHistOpen(e.currentTarget.open)}>
             <summary>History</summary>
