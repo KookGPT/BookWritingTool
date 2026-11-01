@@ -201,7 +201,6 @@ export default function Wiki() {
           </div>
         )}
         <input placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
-        <Link to="/graph" className="chip" style={{ alignSelf: 'flex-start' }}>Relationship graph</Link>
         {Object.keys(types).map((t) => {
           const group = shown.filter((w) => w.type === t)
           return group.length > 0 && (
