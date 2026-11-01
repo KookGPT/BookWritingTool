@@ -1,0 +1,91 @@
+import { useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { mentions, plain, uid, useBook, type WikiEntry } from './store'
+
+const TYPES: Record<string, string[]> = {
+  character: ['Role', 'Age', 'Appearance', 'Goals'],
+  organization: ['Purpose', 'Leader', 'Headquarters'],
+  location: ['Region', 'Climate'],
+  event: ['Date', 'Location', 'Participants'],
+  item: ['Origin', 'Owner'],
+}
+
+function Entry({ entry }: { entry: WikiEntry }) {
+  const { book, update } = useBook()
+  const nav = useNavigate()
+  const patch = (p: Partial<WikiEntry>) =>
+    update((b) => ({ ...b, wiki: b.wiki.map((w) => (w.id === entry.id ? { ...w, ...p } : w)) }))
+  const keys = [...new Set([...(TYPES[entry.type] ?? []), ...Object.keys(entry.fields)])]
+  const inChapters = book.chapters.filter((c) => mentions(plain(c.body), entry.name))
+  const inWiki = book.wiki.filter((w) => w.id !== entry.id && mentions(`${w.notes} ${Object.values(w.fields).join(' ')}`, entry.name))
+
+  return (
+    <>
+      <div className="row">
+        <input className="grow title" value={entry.name} onChange={(e) => patch({ name: e.target.value })} />
+        <select value={entry.type} onChange={(e) => patch({ type: e.target.value })}>
+          {Object.keys(TYPES).map((t) => <option key={t}>{t}</option>)}
+        </select>
+      </div>
+      {keys.map((k) => (
+        <label key={k}>{k}
+          <input value={entry.fields[k] ?? ''} onChange={(e) => patch({ fields: { ...entry.fields, [k]: e.target.value } })} />
+        </label>
+      ))}
+      <button className="alt" onClick={() => { const k = prompt('Field name?')?.trim(); if (k) patch({ fields: { ...entry.fields, [k]: '' } }) }}>+ Field</button>
+      <label>Notes
+        <textarea rows={8} value={entry.notes} onChange={(e) => patch({ notes: e.target.value })} />
+      </label>
+      <h3>Mentioned in</h3>
+      <div className="row">
+        {inChapters.map((c) => <Link key={c.id} to="/write" className="chip">{c.title}</Link>)}
+        {inWiki.map((w) => <Link key={w.id} to={`/wiki/${w.id}`} className="chip">{w.name}</Link>)}
+        {!inChapters.length && !inWiki.length && <span className="muted">Nowhere yet. Writing the name (or [[{entry.name}]]) in a chapter links it here.</span>}
+      </div>
+      <button className="danger" onClick={() => {
+        if (!confirm(`Delete ${entry.name}?`)) return
+        update((b) => ({ ...b, wiki: b.wiki.filter((w) => w.id !== entry.id) }))
+        nav('/wiki')
+      }}>Delete entry</button>
+    </>
+  )
+}
+
+export default function Wiki() {
+  const { book, update } = useBook()
+  const { id } = useParams()
+  const nav = useNavigate()
+  const [q, setQ] = useState('')
+  const entry = book.wiki.find((w) => w.id === id)
+  const shown = book.wiki.filter((w) => w.name.toLowerCase().includes(q.toLowerCase()))
+
+  const add = (type: string) => {
+    const w: WikiEntry = { id: uid(), type, name: `New ${type}`, fields: {}, notes: '' }
+    update((b) => ({ ...b, wiki: [...b.wiki, w] }))
+    nav(`/wiki/${w.id}`)
+  }
+
+  return (
+    <div className="write">
+      <aside>
+        <select value="" onChange={(e) => e.target.value && add(e.target.value)}>
+          <option value="">+ New entry...</option>
+          {Object.keys(TYPES).map((t) => <option key={t}>{t}</option>)}
+        </select>
+        <input placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+        {Object.keys(TYPES).map((t) => {
+          const group = shown.filter((w) => w.type === t)
+          return group.length > 0 && (
+            <div key={t}>
+              <small className="muted">{t.toUpperCase()}</small>
+              {group.map((w) => (
+                <Link key={w.id} to={`/wiki/${w.id}`} className={`item ${w.id === id ? 'sel' : ''}`}>{w.name}</Link>
+              ))}
+            </div>
+          )
+        })}
+      </aside>
+      <section>{entry ? <Entry key={entry.id} entry={entry} /> : <p className="muted">Pick or add an entry.</p>}</section>
+    </div>
+  )
+}

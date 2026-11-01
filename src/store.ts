@@ -15,7 +15,11 @@ export interface Book {
 }
 
 export const emptyBook = (): Book => ({ title: 'Untitled Book', chapters: [], wiki: [], ideas: [], scenes: [] })
-export const uid = () => crypto.randomUUID().slice(0, 8)
+export const plain = (html: string) => html.replace(/<[^>]+>/g, ' ')
+// Whole-word, case-insensitive name match; also catches [[Name]] links.
+export const mentions = (text: string, name: string) =>
+  !!name.trim() && new RegExp(`\\b${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)
+export const uid =() => crypto.randomUUID().slice(0, 8)
 
 interface State {
   book: Book

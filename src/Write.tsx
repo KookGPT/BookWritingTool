@@ -1,13 +1,15 @@
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { useState } from 'react'
-import { type Chapter, uid, useBook } from './store'
+import { Link } from 'react-router-dom'
+import { type Chapter, mentions, plain, uid, useBook } from './store'
 
 const STATUSES: Chapter['status'][] = ['draft', 'revised', 'done']
 const words = (html: string) => html.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length
 
 function Editor({ chapter }: { chapter: Chapter }) {
   const update = useBook((s) => s.update)
+  const wiki = useBook((s) => s.book.wiki)
   const patch = (p: Partial<Chapter>) =>
     update((b) => ({ ...b, chapters: b.chapters.map((c) => (c.id === chapter.id ? { ...c, ...p } : c)) }))
   const editor = useEditor({
@@ -32,6 +34,14 @@ function Editor({ chapter }: { chapter: Chapter }) {
         <span className="muted">{words(chapter.body)} words</span>
       </div>
       <EditorContent editor={editor} className="editor" />
+      {wiki.filter((w) => mentions(plain(chapter.body), w.name)).length > 0 && (
+        <div className="row">
+          <span className="muted">Mentions:</span>
+          {wiki.filter((w) => mentions(plain(chapter.body), w.name)).map((w) => (
+            <Link key={w.id} to={`/wiki/${w.id}`} className="chip">{w.name}</Link>
+          ))}
+        </div>
+      )}
       <details>
         <summary>Chapter notes</summary>
         <textarea value={chapter.notes} onChange={(e) => patch({ notes: e.target.value })} rows={5} />

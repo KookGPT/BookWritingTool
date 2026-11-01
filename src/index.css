@@ -33,3 +33,6 @@ select, textarea { padding: .5rem; border-radius: 6px; border: 1px solid var(--m
 .editor .tiptap { min-height: 300px; padding: 1rem; border: 1px solid var(--muted); border-radius: 6px; font-family: Georgia, serif; font-size: 1.1rem; line-height: 1.7; outline: none }
 .editor .tiptap p { margin: 0 0 1em }
 .editor .tiptap blockquote { border-left: 3px solid var(--accent); margin-left: 0; padding-left: 1rem }
+.chip { padding: .2rem .6rem; border-radius: 99px; background: var(--panel); color: var(--accent); text-decoration: none; font-size: .9rem }
+a.item { color: var(--fg); text-decoration: none }
+.alt { background: var(--panel); color: var(--fg); align-self: flex-start }
