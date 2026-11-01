@@ -7,7 +7,7 @@ import Icon from './Icon'
 import { history, type Snap, snapshot, trashIt } from './history'
 import { PlanView } from './ScenePlan'
 import { SceneBlock } from './sceneNode'
-import { type Chapter, mentionsEntry, namesOf, needsPlacement, plain, sceneBlocks, syncPlacement, today, uid, useBook, words } from './store'
+import { type Chapter, mentionsEntry, type WikiEntry, namesOf, needsPlacement, plain, sceneBlocks, syncPlacement, today, uid, useBook, words } from './store'
 
 const STATUSES: Chapter['status'][] = ['draft', 'revised', 'done']
 
@@ -37,6 +37,18 @@ function History({ chapter, restore }: { chapter: Chapter; restore: (html: strin
       {!snaps.length && <p className="muted">No snapshots yet. They are taken automatically as you write.</p>}
     </div>
   )
+}
+
+// Wiki names/aliases that continue what was typed: a multi-word phrase must start a name; a single word may start any word of it.
+function wordMatches(wiki: WikiEntry[], q: string) {
+  const ql = q.toLowerCase()
+  return wiki.flatMap((w) => {
+    const hit = namesOf(w).find((n) => {
+      const nl = n.toLowerCase()
+      return nl !== ql && nl.length > ql.length && (q.includes(' ') ? nl.startsWith(ql) : nl.split(' ').some((x) => x.startsWith(ql)))
+    })
+    return hit ? [{ name: hit, label: hit === w.name ? undefined : `${hit} (${w.name})` }] : []
+  }).slice(0, 5)
 }
 
 function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean; closeInfo: () => void }) {
@@ -69,11 +81,13 @@ function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean;
     })
   }
   // [[ autocomplete: suggest wiki names, or create a new entry on the spot.
-  const [ac, setAc] = useState<{ q: string; from: number; idx: number } | null>(null)
+  const [ac, setAc] = useState<{ q: string; from: number; idx: number; word: boolean; x: number; y: number } | null>(null)
   const acRef = useRef(ac)
   acRef.current = ac
   const opts: { name: string; label?: string; create?: boolean }[] = ac
-    ? [
+    ? ac.word
+      ? wordMatches(wiki, ac.q)
+      : [
         ...wiki.flatMap((w) => {
           const hit = namesOf(w).find((n) => n.toLowerCase().includes(ac.q.toLowerCase()))
           return hit ? [{ name: hit, label: hit === w.name ? undefined : `${hit} (${w.name})` }] : []
@@ -86,8 +100,26 @@ function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean;
   const pickRef = useRef<(o?: { name: string; create?: boolean }) => void>(() => {})
   const detect = (e: TiptapEditor) => {
     const { from } = e.state.selection
-    const m = /\[\[([^\]\n]*)$/.exec(e.state.doc.textBetween(Math.max(0, from - 60), from, '\n'))
-    setAc(m ? (prev) => ({ q: m[1], from: from - m[0].length, idx: prev && prev.q === m[1] ? prev.idx : 0 }) : null)
+    const before = e.state.doc.textBetween(Math.max(0, from - 60), from, '\n')
+    const at = (start: number) => { const c = e.view.coordsAtPos(start); return { x: c.left, y: c.bottom } }
+    const m = /\[\[([^\]\n]*)$/.exec(before)
+    if (m) {
+      const start = from - m[0].length
+      setAc((prev) => ({ q: m[1], from: start, idx: prev && prev.q === m[1] ? prev.idx : 0, word: false, ...at(start) }))
+      return
+    }
+    // Plain typing: offer wiki names (or aliases) for the last 1-3 words, Tab to complete.
+    const wiki = useBook.getState().book.wiki
+    const words = /(?:^|[^\w'-])((?:[\w'-]+ ){0,2}[\w'-]{2,})$/.exec(before)?.[1]?.split(' ') ?? []
+    for (let k = words.length; k >= 1; k--) {
+      const q = words.slice(-k).join(' ')
+      if (wordMatches(wiki, q).length) {
+        const start = from - q.length
+        setAc((prev) => ({ q, from: start, idx: prev && prev.q === q ? prev.idx : 0, word: true, ...at(start) }))
+        return
+      }
+    }
+    setAc(null)
   }
   const editor = useEditor({
     extensions: [StarterKit, SceneBlock],
@@ -99,6 +131,12 @@ function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean;
         const a = acRef.current
         if (!a) return false
         const n = optsRef.current.length
+        if (a.word) {
+          if (e.key === 'Tab' && n) pickRef.current(optsRef.current[a.idx])
+          else if (e.key === 'Escape') setAc(null)
+          else return false
+          return true
+        }
         if (e.key === 'ArrowDown') setAc({ ...a, idx: Math.min(a.idx + 1, n - 1) })
         else if (e.key === 'ArrowUp') setAc({ ...a, idx: Math.max(a.idx - 1, 0) })
         else if (e.key === 'Enter' && n) pickRef.current(optsRef.current[a.idx])
@@ -111,7 +149,7 @@ function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean;
   pickRef.current = (o) => {
     if (!o || !ac || !editor) return
     if (o.create) update((b) => ({ ...b, wiki: [...b.wiki, { id: uid(), type: 'character', name: o.name, fields: {}, notes: '' }] }))
-    editor.chain().focus().deleteRange({ from: ac.from, to: editor.state.selection.from }).insertContent(`[[${o.name}]]`).run()
+    editor.chain().focus().deleteRange({ from: ac.from, to: editor.state.selection.from }).insertContent(ac.word ? o.name : `[[${o.name}]]`).run()
     setAc(null)
   }
   // A sync can bring in this chapter's text from the other device; show it instead of overwriting it on the next keystroke.
@@ -152,12 +190,13 @@ function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean;
             <button title="Scene break" onClick={() => editor?.chain().focus().setHorizontalRule().run()}>* * *</button>
           </div>
           {ac && opts.length > 0 && (
-            <div className="ac">
+            <div className="ac" style={{ position: 'fixed', left: ac.x, top: ac.y + 6, zIndex: 50 }}>
               {opts.map((o, n) => (
                 <div key={o.name} className={`opt ${n === ac.idx ? 'on' : ''}`} onMouseDown={(e) => { e.preventDefault(); pickRef.current(o) }}>
                   {o.create ? `+ Create "${o.name}" (character)` : o.label ?? o.name}
                 </div>
               ))}
+              {ac.word && <small className="muted" style={{ padding: '.2rem .8rem' }}>Tab to complete, Esc to dismiss</small>}
             </div>
           )}
           <EditorContent editor={editor} className="editor" />
