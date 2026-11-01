@@ -19,7 +19,7 @@ export default function Search() {
       if (t.toLowerCase().includes(q)) hits.push({ key: c.id, kind: 'chapter', title: c.title, text: snippet(t, q), to: `/write?c=${c.id}` })
     }
     for (const w of book.wiki) {
-      const t = `${w.name} ${Object.values(w.fields).join(' ')} ${w.notes}`
+      const t = `${w.name} ${(w.aliases ?? []).join(" ")} ${Object.values(w.fields).join(" ")} ${w.notes}`
       if (t.toLowerCase().includes(q)) hits.push({ key: w.id, kind: w.type, title: w.name, text: snippet(t, q), to: `/wiki/${w.id}` })
     }
     for (const s of book.scenes) {

@@ -45,7 +45,7 @@ export function sampleBook(): Book {
       { id: 'c4', title: 'What the Ember Remembers', status: 'draft', notes: 'Magic cost: memory. Keep it vivid.', body: '' },
     ],
     wiki: [
-      { id: 'w1', type: 'character', name: 'Mira Vaelen', notes: 'Youngest of the royal wards. Stubborn, curious, hides fear behind jokes.', fields: { Role: 'Protagonist', Age: '19', Appearance: 'Dark braid, ink-stained fingers', Goals: 'Learn who killed the king' }, links: [{ to: 'w2', label: 'mentor' }, { to: 'w3', label: 'member of' }] },
+      { id: 'w1', type: 'character', name: 'Mira Vaelen', aliases: ['Mira', 'the ward'], notes: 'Youngest of the royal wards. Stubborn, curious, hides fear behind jokes.', fields: { Role: 'Protagonist', Age: '19', Appearance: 'Dark braid, ink-stained fingers', Goals: 'Learn who killed the king' }, links: [{ to: 'w2', label: 'mentor' }, { to: 'w3', label: 'member of' }] },
       { id: 'w2', type: 'character', name: 'Captain Aldric', notes: 'Loyal to a fault. Knows more than he says.', fields: { Role: 'Captain of the Ashen Guard', Age: '52' }, links: [{ to: 'w3', label: 'leads' }] },
       { id: 'w3', type: 'organization', name: 'The Ashen Guard', notes: 'Royal protectors sworn to the crown, not the king.', fields: { Purpose: 'Protect the throne', Leader: 'Captain Aldric', Headquarters: 'Stormhold' }, links: [{ to: 'w4', label: 'based in' }] },
       { id: 'w4', type: 'location', name: 'Stormhold', notes: 'Mountain fortress-city, built into a cliff face above the snowline.', fields: { Region: 'Northern peaks', Climate: 'Cold, windy' } },

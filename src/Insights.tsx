@@ -1,4 +1,4 @@
-import { mentions, plain, today, useBook } from './store'
+import { mentionsEntry, plain, today, useBook } from './store'
 
 const dayKey = (back: number) => {
   const d = new Date()
@@ -44,7 +44,7 @@ export default function Insights() {
           {book.chapters.map((c, n) => <span key={c.id} className="head muted" title={c.title}>{n + 1}. {c.title}</span>)}
           {chars.flatMap((w) => [
             <b key={w.id}>{w.name}</b>,
-            ...book.chapters.map((c) => <div key={w.id + c.id} className={`cell ${mentions(plain(c.body), w.name) ? 'on' : ''}`} />),
+            ...book.chapters.map((c) => <div key={w.id + c.id} className={`cell ${mentionsEntry(plain(c.body), w) ? 'on' : ''}`} />),
           ])}
         </div>
       ) : <p className="muted">Add characters in the Wiki and chapters in Write; a character lights up in each chapter that names them.</p>}

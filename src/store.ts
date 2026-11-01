@@ -5,6 +5,7 @@ import { type Calendar, DEFAULT_CAL, type SDate } from './calendar'
 export interface Chapter { id: string; title: string; body: string; status: 'draft' | 'revised' | 'done'; notes: string }
 export interface WikiEntry {
   id: string; type: string; name: string; fields: Record<string, string>; notes: string; image?: string
+  aliases?: string[] // other names this entry goes by; they link and match exactly like the name
   links?: { to: string; label: string }[] // relationships to other wiki entries (to = wiki id)
 }
 
@@ -67,6 +68,8 @@ export const today = () => new Date().toLocaleDateString('en-CA') // YYYY-MM-DD,
 // Whole-word, case-insensitive name match; also catches [[Name]] links.
 export const mentions = (text: string, name: string) =>
   !!name.trim() && new RegExp(`\\b${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)
+export const namesOf = (w: WikiEntry) => [w.name, ...(w.aliases ?? [])].filter((n) => n.trim())
+export const mentionsEntry = (text: string, w: WikiEntry) => namesOf(w).some((n) => mentions(text, n))
 export const uid =() => crypto.randomUUID().slice(0, 8)
 
 // Scenes placed in a chapter live in its HTML as <div data-scene="id" class="scene-block">...</div>.

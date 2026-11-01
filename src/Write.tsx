@@ -7,7 +7,7 @@ import Icon from './Icon'
 import { history, type Snap, snapshot, trashIt } from './history'
 import { PlanView } from './ScenePlan'
 import { SceneBlock } from './sceneNode'
-import { type Chapter, mentions, needsPlacement, plain, sceneBlocks, syncPlacement, today, uid, useBook, words } from './store'
+import { type Chapter, mentionsEntry, namesOf, needsPlacement, plain, sceneBlocks, syncPlacement, today, uid, useBook, words } from './store'
 
 const STATUSES: Chapter['status'][] = ['draft', 'revised', 'done']
 
@@ -72,10 +72,13 @@ function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean;
   const [ac, setAc] = useState<{ q: string; from: number; idx: number } | null>(null)
   const acRef = useRef(ac)
   acRef.current = ac
-  const opts: { name: string; create?: boolean }[] = ac
+  const opts: { name: string; label?: string; create?: boolean }[] = ac
     ? [
-        ...wiki.filter((w) => w.name.toLowerCase().includes(ac.q.toLowerCase())).slice(0, 6).map((w) => ({ name: w.name })),
-        ...(ac.q.trim() && !wiki.some((w) => w.name.toLowerCase() === ac.q.trim().toLowerCase()) ? [{ name: ac.q.trim(), create: true }] : []),
+        ...wiki.flatMap((w) => {
+          const hit = namesOf(w).find((n) => n.toLowerCase().includes(ac.q.toLowerCase()))
+          return hit ? [{ name: hit, label: hit === w.name ? undefined : `${hit} (${w.name})` }] : []
+        }).slice(0, 6),
+        ...(ac.q.trim() && !wiki.some((w) => namesOf(w).some((n) => n.toLowerCase() === ac.q.trim().toLowerCase())) ? [{ name: ac.q.trim(), create: true }] : []),
       ]
     : []
   const optsRef = useRef(opts)
@@ -128,7 +131,7 @@ function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean;
     })
     update((b) => ({ ...b, scenes: b.scenes.map((x) => (x.id === id ? { ...x, chapterId: undefined } : x)) }))
   }
-  const mentioned = wiki.filter((w) => mentions(plain(chapter.body), w.name))
+  const mentioned = wiki.filter((w) => mentionsEntry(plain(chapter.body), w))
   return (
     <>
       <div className="w-scroll">
@@ -152,7 +155,7 @@ function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean;
             <div className="ac">
               {opts.map((o, n) => (
                 <div key={o.name} className={`opt ${n === ac.idx ? 'on' : ''}`} onMouseDown={(e) => { e.preventDefault(); pickRef.current(o) }}>
-                  {o.create ? `+ Create "${o.name}" (character)` : o.name}
+                  {o.create ? `+ Create "${o.name}" (character)` : o.label ?? o.name}
                 </div>
               ))}
             </div>
