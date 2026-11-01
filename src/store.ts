@@ -5,6 +5,7 @@ import { type Calendar, DEFAULT_CAL, type SDate } from './calendar'
 export interface Chapter { id: string; title: string; body: string; status: 'draft' | 'revised' | 'done'; notes: string }
 export interface WikiEntry {
   id: string; type: string; name: string; fields: Record<string, string>; notes: string; image?: string
+  pos?: { x: number; y: number } // where the node sits in the relationship graph
   aliases?: string[] // other names this entry goes by; they link and match exactly like the name
   links?: { to: string; label: string }[] // relationships to other wiki entries (to = wiki id)
 }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { trashIt } from './history'
 import { shrink } from './image'
+import LinkedText, { hasLinks } from './LinkedText'
 import { allTypes, mentionsEntry, namesOf, plain, uid, useBook, type WikiEntry } from './store'
 
 function Entry({ entry }: { entry: WikiEntry }) {
@@ -19,6 +20,7 @@ function Entry({ entry }: { entry: WikiEntry }) {
   const [target, setTarget] = useState('')
   const [label, setLabel] = useState('')
   const [alias, setAlias] = useState('')
+  const [editing, setEditing] = useState(false)
   const [field, setField] = useState('')
   const aliases = entry.aliases ?? []
   const addAlias = () => {
@@ -58,6 +60,7 @@ function Entry({ entry }: { entry: WikiEntry }) {
       {keys.map((k) => (
         <label key={k}>{k}
           <input value={entry.fields[k] ?? ''} onChange={(e) => patch({ fields: { ...entry.fields, [k]: e.target.value } })} />
+          {hasLinks(entry.fields[k] ?? '', book.wiki, entry.id) && <small className="linked-line"><LinkedText text={entry.fields[k]} wiki={book.wiki} selfId={entry.id} /></small>}
         </label>
       ))}
       <div className="row">
@@ -65,7 +68,14 @@ function Entry({ entry }: { entry: WikiEntry }) {
         <button className="alt" disabled={!field.trim()} onClick={addField}>+ Field</button>
       </div>
       <label>Notes
-        <textarea rows={8} value={entry.notes} onChange={(e) => patch({ notes: e.target.value })} />
+        {editing || !entry.notes.trim() ? (
+          <textarea rows={8} autoFocus={editing} value={entry.notes} onFocus={() => setEditing(true)} onBlur={() => setEditing(false)} onChange={(e) => patch({ notes: e.target.value })} />
+        ) : (
+          <div className="notes-view" tabIndex={0} role="button" aria-label="Edit notes" onClick={() => setEditing(true)} onKeyDown={(e) => e.key === 'Enter' && setEditing(true)}>
+            <LinkedText text={entry.notes} wiki={book.wiki} selfId={entry.id} />
+          </div>
+        )}
+        {!editing && entry.notes.trim() && <small className="muted">Click the notes to edit. Names and aliases of other entries are links.</small>}
       </label>
 
       <h3>Relationships</h3>

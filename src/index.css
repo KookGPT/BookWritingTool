@@ -326,3 +326,11 @@ button.ghost.on { background: var(--accent-soft); color: var(--fg) }
 .scene-block > div[data-node-view-content] > p:first-child { margin-top: .2em }
 .idea-desc { white-space: pre-wrap; color: var(--fg-2); font-family: var(--serif); margin: .1rem 0 }
 .item details textarea { width: 100%; margin-top: .4rem }
+
+/* ---------- Wiki links in notes ---------- */
+.notes-view { white-space: pre-wrap; min-height: 8rem; padding: .6rem .8rem; border-radius: var(--r); border: 1px solid var(--border-strong); background: var(--field); color: var(--fg); cursor: text }
+.notes-view:hover { border-color: var(--accent) }
+.wikilink { color: var(--accent); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent); text-underline-offset: 3px }
+.wikilink:hover { text-decoration-color: var(--accent) }
+.linked-line { color: var(--fg-2) }
+.graph-tip { display: flex; align-items: center; gap: .6rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: .35rem .6rem }
