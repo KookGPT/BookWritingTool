@@ -73,3 +73,25 @@ assert.ok(validate({ ...sea, ops: [{ id: 'x', kind: 'range', path: [[1, 1]], hei
 assert.ok(describe(withVolcano).includes('volcano'))
 
 console.log('world: all checks passed')
+
+// layers: validation, picking (points/lines beat the area around them), polygon area
+{
+  const { pickFeature } = await import('../src/world/layers.ts')
+  const { areaKm2 } = await import('../src/world/geo.ts')
+  const lw: World = { ...w('layers'), ops: [{ id: 'r', kind: 'river', name: 'Ashrun', path: [[10, 0], [10, 10]] }], layers: [
+    { id: 'L1', name: 'Cities', kind: 'cities', items: [{ id: 'c1', name: 'Varra', at: [5, 5] }] },
+    { id: 'L2', name: 'Nations', kind: 'regions', items: [{ id: 'n1', name: 'Ash', area: [[0, 0], [0, 20], [20, 20], [20, 0]] }] },
+  ] }
+  assert.deepEqual(validate(lw).errors, [])
+  const bad = validate({ ...lw, layers: [{ id: 'r', name: 'x', kind: 'nope' as never, items: [{ id: 'i', at: [5, 5], path: [[1, 1], [2, 2]] }] }] }).errors
+  assert.ok(bad.some((e) => e.includes('duplicate id "r"')) && bad.some((e) => e.includes('unknown kind')) && bad.some((e) => e.includes('exactly one')), bad.join('\n'))
+  const R = 6000, name = (p: [number, number]) => pickFeature(lw, p, 30, R)?.name
+  assert.equal(name([5.1, 5]), 'Varra')
+  assert.equal(name([10.1, 5]), 'Ashrun')
+  assert.equal(name([15, 15]), 'Ash')
+  assert.equal(name([40, 40]), undefined)
+  assert.equal(pickFeature({ ...lw, layers: lw.layers!.map((l) => ({ ...l, hidden: true })) }, [5.1, 5], 30, R)?.name, undefined)
+  // a 1°x1° square at the equator is about (2πR/360)² km²
+  const a = areaKm2([[0, 0], [0, 1], [1, 1], [1, 0]], R), want = (2 * Math.PI * R / 360) ** 2
+  assert.ok(Math.abs(a / want - 1) < 0.01, `${a} vs ${want}`)
+}

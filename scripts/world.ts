@@ -10,6 +10,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { crc32, deflateSync } from 'node:zlib'
 import { brief, describe, query, validate } from '../src/world/describe.ts'
 import { opCenter, type Op } from '../src/world/ops.ts'
+import { layerColor } from '../src/world/layers.ts'
 import { DEFAULT_PARAMS, makePlanet, toDir, type World } from '../src/world/terrain.ts'
 
 const args = process.argv.slice(2)
@@ -55,7 +56,7 @@ function preview(world: World, out: string) {
     const shade = h > 0 ? Math.max(0.55, Math.min(1.35, 1 + ((h - Math.max(0, e)) + (h - Math.max(0, s))) / px * 4)) : 1
     for (let k = 0; k < 3; k++) rgb[(y * W + x) * 3 + k] = Math.max(0, Math.min(255, c[k] * shade))
   }
-  // feature overlay: rivers blue, ridges/rifts dark, areas yellow outline, point features white rings
+  // feature overlay (layers drawn after): rivers blue, ridges/rifts dark, areas yellow outline, point features white rings
   const put = (lat: number, lon: number, col: number[], r = 1) => {
     const rel = ((lon - Wl) % 360 + 360) % 360
     const cx = Math.floor(rel / (E - Wl) * W), cy = Math.floor((N - lat) / (N - S) * H)
@@ -67,7 +68,7 @@ function preview(world: World, out: string) {
   const line = (pts: [number, number][], col: number[], r: number) => {
     for (let i = 0; i < pts.length - 1; i++) {
       const [a, b] = [pts[i], pts[i + 1]], dlon = ((b[1] - a[1] + 540) % 360) - 180
-      const n = Math.ceil(Math.max(Math.abs(b[0] - a[0]), Math.abs(dlon)) / 180 * H) + 1
+      const n = Math.ceil(Math.max(Math.abs(b[0] - a[0]) / (N - S) * H, Math.abs(dlon) / (E - Wl) * W)) + 1
       for (let s = 0; s <= n; s++) put(a[0] + (b[0] - a[0]) * s / n, ((a[1] + dlon * s / n + 540) % 360) - 180, col, r)
     }
   }
@@ -78,6 +79,16 @@ function preview(world: World, out: string) {
     else {
       const [lat, lon] = opCenter(op)
       for (let a = 0; a < 24; a++) put(lat + 1.2 * Math.sin(a / 24 * 2 * Math.PI), lon + 1.2 * Math.cos(a / 24 * 2 * Math.PI) / Math.max(0.2, Math.cos(lat * Math.PI / 180)), [255, 255, 255])
+    }
+  }
+  // layer items in their layer's colour: lines, polygon outlines, 3x3 dots for points
+  for (const l of world.layers ?? []) {
+    if (l.hidden) continue
+    const hex = layerColor(l), col = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16))
+    for (const it of l.items) {
+      if (it.path) line(it.path, col, 1)
+      else if (it.area) line([...it.area, it.area[0]], col, 1)
+      else if (it.at) put(it.at[0], it.at[1], col, 3)
     }
   }
   // graticule ticks on the edges, so coordinates can be read off the image

@@ -1,6 +1,8 @@
 // 3D globe renderer: cube-sphere quadtree LOD, tiles built in workers, custom orbit/ground camera.
 import * as THREE from 'three'
 import { makePlanet, toDir, toLatLon, type Planet, type World } from './terrain.ts'
+import { layerColor, outline, pickFeature, pointSize, refKey, type Feature } from './layers.ts'
+import type { LatLon } from './geo.ts'
 import { tileAngle, tileCenter, tileIndex, type TileData } from './tile.ts'
 
 const MAX_LEVEL = 15
@@ -10,15 +12,34 @@ const DEG = Math.PI / 180
 
 interface Tile { key: string; face: number; level: number; x: number; y: number; center: THREE.Vector3; mesh?: THREE.Mesh; pending: boolean; used: number }
 interface View { lat: number; lon: number; dist: number; heading: number; tilt: number }
-export interface Hover { lat: number; lon: number; elevation: number; biome: string }
+export interface Hover { lat: number; lon: number; elevation: number; biome: string; feature?: Feature }
 export interface ViewInfo { altitudeKm: number; lat: number; lon: number }
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v))
 const wrap = (d: number) => ((d + 540) % 360) - 180
 
+// Overlays draped on the surface: no depth test (so they read from orbit), and the far side of the planet is
+// hidden per vertex instead. `round` makes points discs with a dark rim.
+const drapeMat = (color: string | number, alpha: number, round = false) => new THREE.ShaderMaterial({
+  depthTest: false, depthWrite: false, transparent: true,
+  uniforms: { exag: { value: 1 }, color: { value: new THREE.Color(color) }, alpha: { value: alpha } },
+  vertexShader: 'attribute float h; attribute float size; uniform float exag; varying float vis; void main(){ vec3 w = position * (1. + h * exag); vis = dot(normalize(position), normalize(cameraPosition - w)); gl_PointSize = size; gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.); }',
+  fragmentShader: `uniform vec3 color; uniform float alpha; varying float vis; void main(){ if (vis < 0.02) discard; vec3 c = color;${round ? ' float r = length(gl_PointCoord - .5); if (r > .5) discard; if (r > .36) c = vec3(.06);' : ''} gl_FragColor = vec4(c, alpha); }`,
+})
+
+// split a lat/lon triangle until its edges are short, so big polygons hug the curved surface
+const splitTri = (a: LatLon, b: LatLon, c: LatLon, out: LatLon[], depth = 0) => {
+  const len = (p: LatLon, q: LatLon) => Math.max(Math.abs(p[0] - q[0]), Math.abs(p[1] - q[1]))
+  if (depth > 5 || Math.max(len(a, b), len(b, c), len(c, a)) < 3) { out.push(a, b, c); return }
+  const m = (p: LatLon, q: LatLon): LatLon => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]
+  const ab = m(a, b), bc = m(b, c), ca = m(c, a)
+  for (const t of [[a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]]) splitTri(t[0], t[1], t[2], out, depth + 1)
+}
+
 export class Globe {
   onHover?: (h: Hover | null) => void
   onView?: (v: ViewInfo) => void
+  onClick?: (f: Feature | undefined, x: number, y: number) => void
   private renderer: THREE.WebGLRenderer
   private scene = new THREE.Scene()
   private camera = new THREE.PerspectiveCamera(40, 1, 1e-6, 100)
@@ -44,7 +65,7 @@ export class Globe {
   private space = new THREE.Color(0x070b0d)
   private sky = new THREE.Color(0x9db4c4)
   private pointers = new Map<number, { x: number; y: number }>()
-  private drag?: { button: number; x: number; y: number }
+  private drag?: { button: number; x: number; y: number; moved: number }
   private mouse?: { x: number; y: number }
   private ro: ResizeObserver
   private canvas: HTMLCanvasElement
@@ -111,46 +132,87 @@ export class Globe {
   }
 
   setWorld(world: World) {
-    // names and notes don't change the ground, so renaming a feature doesn't rebuild the planet
-    const spec = JSON.stringify({ ...world, name: '', ops: (world.ops ?? []).map(({ name: _n, note: _o, wikiId: _w, ...op }) => op) })
-    if (spec === this.spec) return
-    this.spec = spec
+    // names, notes and layers don't change the ground, so editing them doesn't rebuild the planet
+    const spec = JSON.stringify({ ...world, name: '', layers: undefined, ops: (world.ops ?? []).map(({ name: _n, note: _o, wikiId: _w, ...op }) => op) })
+    const layers = JSON.stringify(world.layers ?? [])
+    this.world = world
+    if (spec === this.spec) {
+      if (layers !== this.layersSpec) { this.layersSpec = layers; this.buildOverlays() }
+      return
+    }
+    this.spec = spec; this.layersSpec = layers
     this.planet = makePlanet(world)
     this.gen++
     for (const t of this.tiles.values()) this.drop(t)
     this.tiles.clear(); this.queue = []
-    this.buildRivers()
-    this.dirty = true
+    this.buildOverlays()
   }
+  private world?: World
+  private layersSpec = ''
 
-  // Rivers as lines draped on the surface, so they read from orbit where the carved channel is sub-pixel.
-  // Drawn without depth testing; the shader hides the far side of the planet instead.
-  private rivers?: THREE.LineSegments
-  private buildRivers() {
-    if (this.rivers) { this.scene.remove(this.rivers); this.rivers.geometry.dispose() }
-    this.rivers = undefined
+  // Rivers and layers as draped lines/points/fills, so they read from orbit where carved channels are sub-pixel.
+  private overlays: THREE.Object3D[] = []
+  private drapeGeom(lls: LatLon[], sizes?: number[]) {
     const p = this.planet!, pos: number[] = [], h: number[] = []
-    for (const op of p.world.ops ?? []) {
-      if (op.kind !== 'river') continue
-      const pts = p.course(op).map((ll) => {
-        const d = toDir(ll[0], ll[1])
-        return { d, h: p.surface(d[0], d[1], d[2], p.elevation(d[0], d[1], d[2], 4)) / p.radiusM }
-      })
-      for (let i = 0; i < pts.length - 1; i++) for (const q of [pts[i], pts[i + 1]]) { pos.push(...q.d); h.push(q.h) }
+    for (const ll of lls) {
+      const d = toDir(ll[0], ll[1])
+      pos.push(...d); h.push(p.surface(d[0], d[1], d[2], p.elevation(d[0], d[1], d[2], 4)) / p.radiusM)
     }
-    if (!pos.length) return
     const g = new THREE.BufferGeometry()
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
     g.setAttribute('h', new THREE.Float32BufferAttribute(h, 1))
-    this.rivers = new THREE.LineSegments(g, new THREE.ShaderMaterial({
-      depthTest: false, depthWrite: false, transparent: true,
-      uniforms: { exag: this.exag, color: { value: new THREE.Color(0x4fa3e8) } },
-      vertexShader: 'attribute float h; uniform float exag; varying float vis; void main(){ vec3 w = position * (1. + h * exag); vis = dot(normalize(position), normalize(cameraPosition - w)); gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.); }',
-      fragmentShader: 'uniform vec3 color; varying float vis; void main(){ if (vis < 0.02) discard; gl_FragColor = vec4(color, 0.9); }',
-    }))
-    this.rivers.frustumCulled = false
-    this.rivers.renderOrder = 2
-    this.scene.add(this.rivers)
+    if (sizes) g.setAttribute('size', new THREE.Float32BufferAttribute(sizes.map((s) => s * this.renderer.getPixelRatio()), 1))
+    return g
+  }
+  private segs = (lines: LatLon[][]) => lines.flatMap((l) => l.slice(1).flatMap((q, i) => [l[i], q]))
+  private addOverlay(list: THREE.Object3D[], o: THREE.Mesh | THREE.LineSegments | THREE.Points, order: number) {
+    ;(o.material as THREE.ShaderMaterial).uniforms.exag = this.exag
+    o.frustumCulled = false
+    o.renderOrder = order
+    this.scene.add(o); list.push(o)
+  }
+  private clearOverlays(list: THREE.Object3D[]) {
+    for (const o of list.splice(0) as THREE.Mesh[]) { this.scene.remove(o); o.geometry.dispose(); (o.material as THREE.Material).dispose() }
+  }
+  private buildOverlays() {
+    this.clearOverlays(this.overlays)
+    this.hiKey = ''; this.clearOverlays(this.hi)
+    const p = this.planet!, w = this.world!, add = this.addOverlay.bind(this, this.overlays)
+    const rivers = (w.ops ?? []).flatMap((op) => (op.kind === 'river' ? [p.course(op)] : []))
+    if (rivers.length) add(new THREE.LineSegments(this.drapeGeom(this.segs(rivers)), drapeMat(0x4fa3e8, 0.9)), 2)
+    for (const l of w.layers ?? []) {
+      if (l.hidden) continue
+      const col = layerColor(l), a = l.opacity ?? 1
+      const fills: LatLon[] = []
+      for (const it of l.items) {
+        if (!it.area || it.area.length < 3) continue
+        // triangulate in unwrapped lat/lon (fine unless a region straddles a pole), then subdivide
+        const lon0 = it.area[0][1], ring = it.area.map(([la, lo]): LatLon => [la, lon0 + wrap(lo - lon0)])
+        for (const [i, j, k] of THREE.ShapeUtils.triangulateShape(ring.map(([la, lo]) => new THREE.Vector2(lo, la)), [])) splitTri(ring[i], ring[j], ring[k], fills)
+      }
+      if (fills.length) add(new THREE.Mesh(this.drapeGeom(fills), drapeMat(col, a * 0.3)), 1)
+      const lines = l.items.flatMap((it) => (it.path ? [it.path] : it.area ? [[...it.area, it.area[0]]] : []))
+      if (lines.length) add(new THREE.LineSegments(this.drapeGeom(this.segs(lines)), drapeMat(col, a * 0.9)), 3)
+      const pts = l.items.filter((it) => it.at)
+      if (pts.length) add(new THREE.Points(this.drapeGeom(pts.map((it) => it.at!), pts.map(pointSize)), drapeMat(col, a, true)), 5)
+    }
+    this.dirty = true
+  }
+
+  // hover highlight: the feature's outline drawn white on top
+  private hi: THREE.Object3D[] = []
+  private hiKey = ''
+  private highlight(f: Feature | undefined, ptKm: number) {
+    const key = f ? refKey(f.ref) : ''
+    if (key === this.hiKey) return
+    this.hiKey = key
+    this.clearOverlays(this.hi)
+    this.canvas.style.cursor = f ? 'pointer' : ''
+    if (f) {
+      const lines = outline(f, this.planet!.radiusM / 1000, ptKm, (op) => this.planet!.course(op))
+      this.addOverlay(this.hi, new THREE.LineSegments(this.drapeGeom(this.segs(lines)), drapeMat(0xffffff, 1)), 6)
+    }
+    this.dirty = true
   }
 
   setRelief(m: number) { this.relief = m; this.dirty = true }
@@ -173,7 +235,7 @@ export class Globe {
     c.removeEventListener('pointerup', this.up); c.removeEventListener('pointercancel', this.up)
     c.removeEventListener('pointerleave', this.leave); c.removeEventListener('wheel', this.wheel)
     c.removeEventListener('contextmenu', this.noMenu); c.removeEventListener('keydown', this.key)
-    this.rivers?.geometry.dispose()
+    this.clearOverlays(this.overlays); this.clearOverlays(this.hi)
     this.material.dispose(); this.renderer.dispose()
   }
 
@@ -361,18 +423,27 @@ export class Globe {
     const hit = ray.ray.intersectSphere(new THREE.Sphere(new THREE.Vector3(), 1), new THREE.Vector3())
     return hit?.normalize()
   }
+  // the feature under the cursor, with ~8px of slack on the ground
+  private featureAt(d: THREE.Vector3) {
+    const km = this.planet!.radiusM / 1000
+    const kmPerPx = this.camera.position.distanceTo(d) * 2 * Math.tan(this.camera.fov * DEG / 2) / this.canvas.clientHeight * km
+    const ll = toLatLon(d.x, d.y, d.z)
+    return { f: this.world && pickFeature(this.world, [ll.lat, ll.lon], kmPerPx * 8, km), kmPerPx }
+  }
   private hover(px: number, py: number) {
     const d = this.pick(px, py)
-    if (!d || !this.planet) { this.onHover?.(null); return }
+    if (!d || !this.planet) { this.highlight(undefined, 0); this.onHover?.(null); return }
     const h = this.planet.elevation(d.x, d.y, d.z, 6)
-    this.onHover?.({ ...toLatLon(d.x, d.y, d.z), elevation: h, biome: this.planet.biome(d.x, d.y, d.z, h) })
+    const { f, kmPerPx } = this.drag ? { f: undefined, kmPerPx: 0 } : this.featureAt(d)
+    this.highlight(f, kmPerPx * 7)
+    this.onHover?.({ ...toLatLon(d.x, d.y, d.z), elevation: h, biome: this.planet.biome(d.x, d.y, d.z, h), feature: f })
   }
 
   private down = (e: PointerEvent) => {
     this.canvas.focus()
     this.canvas.setPointerCapture(e.pointerId)
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
-    this.drag = { button: e.button === 2 || e.shiftKey || e.ctrlKey ? 2 : 0, x: e.clientX, y: e.clientY }
+    this.drag = { button: e.button === 2 || e.shiftKey || e.ctrlKey ? 2 : 0, x: e.clientX, y: e.clientY, moved: 0 }
   }
   private move = (e: PointerEvent) => {
     this.mouse = { x: e.clientX, y: e.clientY }
@@ -390,7 +461,7 @@ export class Globe {
     if (prev) this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
     if (!this.drag) { this.dirty = true; return }
     const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y
-    this.drag.x = e.clientX; this.drag.y = e.clientY
+    this.drag.x = e.clientX; this.drag.y = e.clientY; this.drag.moved += Math.abs(dx) + Math.abs(dy)
     const g = this.goal
     if (this.drag.button === 2) {
       g.heading -= dx * 0.005
@@ -404,8 +475,13 @@ export class Globe {
     }
     this.dirty = true
   }
-  private up = (e: PointerEvent) => { this.pointers.delete(e.pointerId); this.drag = undefined }
-  private leave = () => { this.mouse = undefined; this.onHover?.(null) }
+  private up = (e: PointerEvent) => {
+    const click = e.type === 'pointerup' && this.drag?.button === 0 && this.drag.moved < 5 && this.pointers.size === 1
+    this.pointers.delete(e.pointerId); this.drag = undefined
+    const d = click && this.planet ? this.pick(e.clientX, e.clientY) : undefined
+    if (click) this.onClick?.(d && this.featureAt(d).f, e.clientX, e.clientY)
+  }
+  private leave = () => { this.mouse = undefined; this.highlight(undefined, 0); this.onHover?.(null) }
   private wheel = (e: WheelEvent) => { e.preventDefault(); this.zoomBy(Math.exp(e.deltaY * 0.0015)) }
   private noMenu = (e: Event) => e.preventDefault()
   private key = (e: KeyboardEvent) => {

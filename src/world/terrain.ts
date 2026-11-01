@@ -3,6 +3,7 @@
 import { toDir, toLatLon, type Vec } from './geo.ts'
 import { fbm, hash, ridged, rng, simplex } from './noise.ts'
 import { compileOps, riverCourse, type Compiled, type LatLon, type Op } from './ops.ts'
+import type { Layer } from './layers.ts'
 
 export { toDir, toLatLon, type Vec }
 
@@ -14,7 +15,7 @@ export interface WorldParams {
   tilt: number // axial tilt in degrees, widens or narrows climate bands
   radiusKm: number
 }
-export interface World { id: string; name: string; generatorVersion: 1; seed: string; params: WorldParams; ops?: Op[] }
+export interface World { id: string; name: string; generatorVersion: 1; seed: string; params: WorldParams; ops?: Op[]; layers?: Layer[] }
 
 export const DEFAULT_PARAMS: WorldParams = { oceanPct: 64, plates: 14, ruggedness: 1, aridity: 0.5, tilt: 23, radiusKm: 6000 }
 

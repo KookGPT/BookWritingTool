@@ -12,14 +12,14 @@ The user wants worlds built and edited mostly by Claude. A world is `seed + para
 - Always `node scripts/world.ts validate <file>` and fix errors; read warnings; preview the area you changed.
 - `node scripts/world.ts brief <file>` prints the full op reference.
 
-## Globe roadmap (approved plan; phases 1-2 done)
+## Globe roadmap (approved plan; phases 1-3 done)
 
 Goal: a 3D, high-def, zoomable globe that is the book's world map, built and edited mostly by Claude (the user is not artsy, but names features), tied into wiki, timeline and scenes.
 
 - Done, Phase 1 (`7e67600`): procedural planet (`terrain.ts`, `noise.ts`), cube-sphere LOD tiles in workers (`tile.ts`, `terrain.worker.ts`), camera/rendering (`globe.ts`), page (`WorldPage.tsx`).
 - Done, Phase 2 (`9359f2f`): op language (`ops.ts`, `geo.ts`), describe/query/validate/brief (`describe.ts`), CLI `scripts/world.ts`, rivers drawn as lines, panel feature list + import/export + Copy AI brief.
-- Phase 3, next: hover highlights a feature (river, range, lake, region...) under the cursor; click opens a popup (name, type, stats, note, wiki link or "create wiki page", rename). Layers with toggles (eye, colour, opacity): cities/towns (points), regions/nations (polygons), borders (lines), religions, roads/trade routes, custom. Layer items are plain JSON on the world (`layers: Layer[]` with items `{id, name, geometry point|line|polygon in [lat,lon], props, wikiId, note}`), editable by Claude via the same CLI/validate/brief loop. Picking idea: analytic ray-sphere hit (already in `Globe.pick`) + distance tests against ops/items (`opDistKm` in `describe.ts`).
-- Phase 4: flat projections (equirect/Mercator/Robinson), Atlas/parchment style, contour lines, PNG export.
+- Done, Phase 3: layers (`layers.ts`: `world.layers[]` of `{id,name,kind,color?,opacity?,hidden?,items}`, items have one of `at`/`path`/`area` plus `props`, `note`, `wikiId`; validated in `validate`, listed in `describe`/`brief`, drawn by CLI `preview`). Globe draws them as draped points/lines/fills (`buildOverlays`), hover highlights the nearest feature (`pickFeature`), click opens a popup (rename, note, stats, wiki link/create). Panel has layer eye/colour/opacity. Not yet: text labels on the globe, CLI command to add layer items (edit the JSON).
+- Phase 4, next: flat projections (equirect/Mercator/Robinson), Atlas/parchment style, contour lines, PNG export.
 - Phase 5: wiki/scenes/timeline wiring: `place {worldId, lat, lon}` on wiki location entries, pins for timeline events and scene locations, mini-globe inset on wiki pages, time scrubber (reuse `timelineScale.ts`/`calendar.ts`), party route as a great-circle path with travel time, time-aware region layers, measure tool.
 - Phase 6: polish: keep or convert old image maps (`MapView.tsx`), per-op/per-item merge in `merge.ts` (worlds currently merge whole-file), mobile performance caps.
 

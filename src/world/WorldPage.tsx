@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import Icon from '../Icon'
 import { trashIt } from '../history'
 import { uid, useBook } from '../store'
 import { Globe, type Hover } from './globe'
-import { brief, validate } from './describe'
+import { brief, fmtLL, validate } from './describe'
 import { distKm } from './geo'
+import { findFeature, LAYER_KINDS, layerColor, refKey, stats, type FeatureRef, type Layer, type LayerKind } from './layers'
 import { OP_SPECS, opCenter, type Op } from './ops'
 import { DEFAULT_PARAMS, type World, type WorldParams } from './terrain'
 
@@ -32,6 +34,7 @@ export default function WorldPage() {
   const [alt, setAlt] = useState('')
   const [relief, setRelief] = useState(1)
   const [panel, setPanel] = useState(() => innerWidth > 700)
+  const [popup, setPopup] = useState<{ ref: FeatureRef; x: number; y: number } | undefined>()
 
   useEffect(() => { try { if (world) localStorage.setItem('world-sel', world.id) } catch { /* private mode */ } }, [world])
   const hasWorld = !!world
@@ -39,6 +42,10 @@ export default function WorldPage() {
     if (!hasWorld || !canvas.current) return
     const g = new Globe(canvas.current)
     g.onHover = setHover
+    g.onClick = (f, x, y) => {
+      const r = canvas.current!.getBoundingClientRect()
+      setPopup(f && { ref: f.ref, x: x - r.left, y: y - r.top })
+    }
     g.onView = (v) => setAlt(fmtAlt(v.altitudeKm)) // same string = no re-render
     globe.current = g
     return () => { g.dispose(); globe.current = null }
@@ -64,6 +71,17 @@ export default function WorldPage() {
   const [msg, setMsg] = useState('')
   const file = useRef<HTMLInputElement>(null)
   const setOps = (f: (ops: Op[]) => Op[]) => patch({ ops: f(world!.ops ?? []) })
+  const setLayers = (f: (ls: Layer[]) => Layer[]) => patch({ layers: f(world!.layers ?? []) })
+  const patchLayer = (id: string, p: Partial<Layer>) => setLayers((ls) => ls.map((l) => (l.id === id ? { ...l, ...p } : l)))
+  const addLayer = (kind: LayerKind) => setLayers((ls) => [...ls, { id: uid(), name: LAYER_KINDS[kind].label, kind, items: [] }])
+  // name / note / wikiId edits on an op or a layer item, plus wiki page creation in the same update
+  const patchFeature = (ref: FeatureRef, p: { name?: string; note?: string; wikiId?: string }, entry?: { id: string; type: string; name: string }) => update((b) => ({
+    ...b,
+    wiki: entry ? [...b.wiki, { ...entry, fields: {}, notes: p.note ?? '' }] : b.wiki,
+    worlds: b.worlds.map((w) => w.id !== world!.id ? w : 'opId' in ref
+      ? { ...w, ops: (w.ops ?? []).map((o) => (o.id === ref.opId ? { ...o, ...p } : o)) }
+      : { ...w, layers: (w.layers ?? []).map((l) => (l.id !== ref.layerId ? l : { ...l, items: l.items.map((it) => (it.id === ref.itemId ? { ...it, ...p } : it)) })) }),
+  }))
   // rough size of a feature, to pick a sensible zoom when flying to it
   const sizeKm = (op: Op) => {
     if ('radius' in op) return op.radius * 2
@@ -117,7 +135,9 @@ export default function WorldPage() {
     )
   }
 
-  const ops = world.ops ?? []
+  const ops = world.ops ?? [], layers = world.layers ?? []
+  const pf = popup && findFeature(world, popup.ref)
+  const linked = pf?.wikiId ? book.wiki.find((w) => w.id === pf.wikiId) : undefined
   return (
     <div className="globe-page">
       <canvas ref={canvas} tabIndex={0} aria-label={`Globe of ${world.name}. Drag to pan, scroll or plus and minus to zoom, right-drag to tilt and turn, arrow keys to move.`} />
@@ -173,6 +193,28 @@ export default function WorldPage() {
               ))}
             </ul>
           </details>
+          <details className="globe-sec" open={layers.length > 0}>
+            <summary>Layers <span className="muted">{layers.length}</span></summary>
+            {!layers.length && <p className="muted small">Cities, regions, borders, religions, roads. Ask Claude to fill them in, or add an empty one.</p>}
+            <ul className="globe-ops">
+              {layers.map((l) => (
+                <li key={l.id} className="globe-layer">
+                  <button className="ghost icon" aria-pressed={!l.hidden} title={l.hidden ? 'Show' : 'Hide'} aria-label={`${l.hidden ? 'Show' : 'Hide'} ${l.name}`}
+                    onClick={() => patchLayer(l.id, { hidden: !l.hidden })}><Icon name={l.hidden ? 'eyeOff' : 'eye'} size={15} /></button>
+                  <input value={l.name} aria-label="Layer name" onChange={(e) => patchLayer(l.id, { name: e.target.value })} />
+                  <small className="muted">{l.items.length}</small>
+                  <input type="color" value={layerColor(l)} aria-label={`Colour of ${l.name}`} onChange={(e) => patchLayer(l.id, { color: e.target.value })} />
+                  <input type="range" min={0.1} max={1} step={0.05} value={l.opacity ?? 1} aria-label={`Opacity of ${l.name}`} onChange={(e) => patchLayer(l.id, { opacity: Number(e.target.value) })} />
+                  <button className="ghost icon" title="Remove layer" aria-label={`Remove ${l.name}`}
+                    onClick={() => confirm(`Remove the layer "${l.name}" and its ${l.items.length} item(s)?`) && setLayers((ls) => ls.filter((x) => x.id !== l.id))}><Icon name="trash" size={15} /></button>
+                </li>
+              ))}
+            </ul>
+            <select value="" aria-label="Add layer" onChange={(e) => e.target.value && addLayer(e.target.value as LayerKind)}>
+              <option value="">Add layer…</option>
+              {Object.entries(LAYER_KINDS).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
+            </select>
+          </details>
           <details className="globe-sec">
             <summary>Edit with Claude</summary>
             <p className="muted small">Copy the brief and paste it to Claude with what you want ("add a desert south of the Spine"). It returns updated JSON to import, or edits <code>worlds/{world.id}.json</code> in your data repo directly if sync is on.</p>
@@ -187,13 +229,40 @@ export default function WorldPage() {
           <button className="ghost danger" style={{ alignSelf: 'flex-start' }} onClick={remove}>Delete world</button>
         </>}
       </div>
+      {pf && popup && (
+        <div className="globe-popup glass" role="dialog" aria-label={pf.name || pf.type} key={refKey(pf.ref)}
+          style={{ left: Math.min(popup.x + 12, innerWidth - 300), top: Math.min(popup.y + 12, innerHeight - 320) }}>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <small className="muted">{pf.type}</small>
+            <button className="ghost icon" onClick={() => setPopup(undefined)} aria-label="Close"><Icon name="x" size={15} /></button>
+          </div>
+          <input value={pf.name ?? ''} placeholder="Name" aria-label="Name" onChange={(e) => patchFeature(pf.ref, { name: e.target.value })} />
+          <ul className="small muted">
+            <li>{pf.at ? 'At' : 'Around'} {fmtLL(pf.at ?? (pf.path ?? pf.area)![Math.floor((pf.path ?? pf.area)!.length / 2)])}</li>
+            {stats(pf, p.radiusKm).map((s) => <li key={s}>{s}</li>)}
+          </ul>
+          <textarea value={pf.note ?? ''} placeholder="Note" aria-label="Note" rows={3} onChange={(e) => patchFeature(pf.ref, { note: e.target.value })} />
+          <div className="row">
+            {linked
+              ? <Link to={`/wiki/${linked.id}`} className="chip">Open “{linked.name}”</Link>
+              : <button className="alt" disabled={!pf.name} title={pf.name ? '' : 'Name it first'} onClick={() => {
+                  const id = uid()
+                  patchFeature(pf.ref, { wikiId: id }, { id, type: pf.layer?.kind === 'religions' ? 'religion' : 'location', name: pf.name! })
+                }}>Create wiki page</button>}
+            <select value={pf.wikiId ?? ''} aria-label="Linked wiki entry" style={{ flex: 1, minWidth: 0 }} onChange={(e) => patchFeature(pf.ref, { wikiId: e.target.value || undefined })}>
+              <option value="">{linked ? 'Unlink' : 'Link to entry…'}</option>
+              {book.wiki.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          </div>
+        </div>
+      )}
       <div className="globe-zoom">
         <button className="glass icon" onClick={() => globe.current?.zoomBy(0.6)} aria-label="Zoom in"><Icon name="plus" /></button>
         <button className="glass icon" onClick={() => globe.current?.zoomBy(1 / 0.6)} aria-label="Zoom out"><span aria-hidden style={{ fontSize: '1.2rem', lineHeight: 1 }}>−</span></button>
       </div>
       <div className="globe-readout glass" aria-live="off">
         {hover
-          ? <>{fmtLat(hover.lat)} {fmtLon(hover.lon)} · {hover.elevation >= 0 ? `${Math.round(hover.elevation).toLocaleString()} m` : `${Math.round(-hover.elevation).toLocaleString()} m deep`} · {hover.biome}</>
+          ? <>{hover.feature && <strong>{hover.feature.name || hover.feature.type} · </strong>}{fmtLat(hover.lat)} {fmtLon(hover.lon)} · {hover.elevation >= 0 ? `${Math.round(hover.elevation).toLocaleString()} m` : `${Math.round(-hover.elevation).toLocaleString()} m deep`} · {hover.biome}</>
           : <span className="muted">Drag to pan · scroll to zoom · right-drag to tilt</span>}
         <span className="muted"> · alt {alt}</span>
       </div>

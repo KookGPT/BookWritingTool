@@ -64,3 +64,14 @@ export function capOf(pts: Vec[], pad: number) {
   const r = Math.max(0, ...pts.map((v) => angle(c, v))) + pad
   return { c, cos: Math.cos(Math.min(Math.PI, r)) }
 }
+
+/** Area of a spherical polygon in km², by summing signed triangle excesses fanned from the first vertex. */
+export function areaKm2(area: LatLon[], radiusKm: number) {
+  const v = area.map(dirOf), a = v[0]
+  let e = 0
+  for (let i = 1; i < v.length - 1; i++) {
+    const b = v[i], c = v[i + 1]
+    e += 2 * Math.atan2(dot(a, cross(b, c)), 1 + dot(a, b) + dot(b, c) + dot(c, a))
+  }
+  return Math.abs(e) * radiusKm ** 2
+}

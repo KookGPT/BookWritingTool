@@ -368,3 +368,9 @@ button.ghost.on { background: var(--accent-soft); color: var(--fg) }
 .globe-ops small { font-size: .7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .globe-ops button.icon { padding: .3rem }
 .globe-panel .small { font-size: .78rem; margin: 0 }
+.globe-ops li.globe-layer { grid-template-columns: auto minmax(0, 1fr) auto 1.6rem 3.2rem auto }
+.globe-layer input[type=color] { width: 1.6rem; height: 1.6rem; padding: 0; border: 0; background: none }
+.globe-layer input[type=range] { padding: 0; accent-color: var(--accent) }
+.globe-popup { position: absolute; width: 280px; padding: .7rem .8rem; border-radius: var(--r-lg); display: flex; flex-direction: column; gap: .45rem; z-index: 2 }
+.globe-popup ul { margin: 0; padding-left: 1rem }
+.globe-popup input, .globe-popup textarea { width: 100%; font-size: .85rem }

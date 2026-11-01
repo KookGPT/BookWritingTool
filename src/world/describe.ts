@@ -2,6 +2,7 @@
 // Pure (no DOM) so the app and `scripts/world.ts` share them.
 import { angle, dirOf, inPolygon, makePath, pathDist, toDir, type LatLon } from './geo.ts'
 import { OP_KINDS, OP_SPECS, opCenter, type Op } from './ops.ts'
+import { LAYER_KINDS, validateLayers } from './layers.ts'
 import { DEFAULT_PARAMS, makePlanet, type Planet, type World } from './terrain.ts'
 
 const fmtLat = (v: number) => `${Math.abs(v).toFixed(1)}°${v >= 0 ? 'N' : 'S'}`
@@ -105,6 +106,14 @@ export function describe(world: World, planet: Planet = makePlanet(world)) {
   const ops = world.ops ?? []
   lines.push('', ops.length ? `Features (${ops.length}, applied in this order):` : 'Features: none yet (the whole planet is generated).')
   for (const op of ops) lines.push(`- [${op.id}] ${op.kind}${op.name ? ` "${op.name}"` : ''} near ${fmtLL(opCenter(op))}${op.wikiId ? ` (wiki ${op.wikiId})` : ''}`)
+  for (const l of world.layers ?? []) {
+    lines.push('', `Layer [${l.id}] ${l.kind} "${l.name}"${l.hidden ? ' (hidden)' : ''}, ${l.items.length} item(s):`)
+    for (const it of l.items) {
+      const pts = it.at ? [it.at] : it.path ?? it.area ?? []
+      const c: LatLon = it.at ?? [pts.reduce((s, q) => s + q[0], 0) / pts.length, pts.reduce((s, q) => s + q[1], 0) / pts.length]
+      lines.push(`- [${it.id}] ${it.at ? 'point' : it.path ? 'line' : 'area'}${it.name ? ` "${it.name}"` : ''} ${it.at ? 'at' : 'around'} ${fmtLL(c)}${it.props ? ` ${JSON.stringify(it.props)}` : ''}${it.wikiId ? ` (wiki ${it.wikiId})` : ''}`)
+    }
+  }
   return lines.join('\n')
 }
 
@@ -147,6 +156,7 @@ export function validate(world: World): Problems {
     if (op.kind === 'range' && op.height > 9500) warnings.push(`${at}: ${op.height} m is taller than anything on Earth`)
     if (op.kind === 'islands' && (op.count < 1 || op.count > 60)) warnings.push(`${at}: count is clamped to 1..60`)
   })
+  validateLayers(world.layers, ids, errors, warnings)
   if (errors.length) return { errors, warnings }
 
   // geography: rivers should start high, follow low ground (not carve huge gorges) and end at water
@@ -197,6 +207,14 @@ You are editing a fantasy planet for a novel. The planet is generated from \`see
 
 ## Ops
 ${ops}
+
+## Layers
+Overlays that never change the ground: \`layers: [{ id, name, kind, color?, opacity?, hidden?, items: [...] }]\`.
+- kinds: ${Object.entries(LAYER_KINDS).map(([k, s]) => `\`${k}\` (${s.label}, items use \`${s.geom === 'any' ? 'at/path/area' : s.geom}\`)`).join(', ')}.
+- item: \`{ id, name, at | path | area, props?, note?, wikiId? }\` with exactly one of \`at\` [lat, lon], \`path\` (line, >=2 points) or \`area\` (polygon, >=3 points). \`props\` holds free facts as strings/numbers; for cities \`props.type\` = capital | city | town | village sets the marker size.
+- ids are unique across ops, layers and items. color is "#rrggbb", opacity 0..1.
+- e.g. ${Object.entries(LAYER_KINDS).slice(0, 3).map(([k, s]) => `\`${JSON.stringify({ id: k, name: s.label, kind: k, items: [s.example] })}\``).join(' ')}
+- Put cities on coasts, rivers and passes; draw borders along ranges and rivers; roads link cities through low ground.
 
 ## Doing it well
 - Look before you build: \`describe\` the world and \`query\` points to find coasts, highlands and climate.
