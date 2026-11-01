@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { type Book, useBook } from './store'
+import { loadSettings, runSync, saveSettings, useSyncStatus } from './sync'
 
 const download = (name: string, text: string, type: string) => {
   const a = document.createElement('a')
@@ -19,30 +20,12 @@ const toMarkdown = (b: Book) =>
     .replace(/<\/p>/g, '\n\n').replace(/<br\s*\/?>/g, '\n').replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
     .trim()).join('\n\n')
-import { loadSettings, pull, push, saveSettings, status } from './sync'
-
-const STATUS_MSG = {
-  'in-sync': 'In sync.',
-  'local-ahead': 'You have unsynced local changes: push.',
-  'remote-ahead': 'Remote has newer changes: pull.',
-  conflict: 'Conflict: both changed. Push (keep mine) or pull (keep theirs).',
-}
 
 export default function Settings() {
   const [s, setS] = useState(loadSettings)
-  const [msg, setMsg] = useState('')
-  const { book, dirty, update, replace } = useBook()
-  const run = async (fn: () => Promise<string>) => {
-    saveSettings(s)
-    setMsg('Working...')
-    try { setMsg(await fn()) } catch (e) { setMsg(String(e)) }
-  }
-  const doPull = async () => {
-    if (dirty && !confirm('You have unsynced local changes. Pulling replaces them. Continue?')) return 'Pull cancelled.'
-    replace(await pull(s), false)
-    return 'Pulled from GitHub.'
-  }
-  const doPush = async () => { await push(s, book); replace(book, false); return 'Pushed to GitHub.' }
+  const { book, dirty, update } = useBook()
+  const { text, busy } = useSyncStatus()
+  const edit = (p: Partial<typeof s>) => { const n = { ...s, ...p }; setS(n); saveSettings(n) }
 
   return (
     <div className="page">
@@ -55,15 +38,24 @@ export default function Settings() {
       </div>
       <h2>GitHub sync</h2>
       <p className="muted">Use a private data repo (e.g. <code>you/bookwriting-data</code>, with a <code>main</code> branch) and a fine-grained token with Contents read/write on that repo only. Stored only in this browser.</p>
-      <label>Data repo<input value={s.repo} placeholder="owner/bookwriting-data" onChange={(e) => setS({ ...s, repo: e.target.value.trim() })} /></label>
-      <label>Token<input type="password" value={s.token} onChange={(e) => setS({ ...s, token: e.target.value.trim() })} /></label>
+      <label>Data repo<input value={s.repo} placeholder="owner/bookwriting-data" onChange={(e) => edit({ repo: e.target.value.trim() })} /></label>
+      <label>Token<input type="password" value={s.token} onChange={(e) => edit({ token: e.target.value.trim() })} /></label>
+      <label className="check">
+        <input type="checkbox" checked={s.auto !== false} onChange={(e) => edit({ auto: e.target.checked })} />
+        Sync automatically (on open, when you return to the app, and 20 seconds after you stop typing)
+      </label>
       <div className="row">
-        <button onClick={() => run(async () => STATUS_MSG[await status(s, dirty)])}>Check</button>
-        <button onClick={() => run(doPull)}>Pull (keep theirs)</button>
-        <button onClick={() => run(doPush)}>Push (keep mine)</button>
+        <button disabled={busy} onClick={() => runSync()}>Sync now</button>
       </div>
-      <p>{dirty ? '● Unsynced local changes' : '✓ Nothing unsynced'}</p>
-      <p>{msg}</p>
+      <p>{dirty ? '● Unsynced local changes' : '✓ Everything synced'}</p>
+      <p>{text}</p>
+      <details>
+        <summary>Advanced: force one side to win</summary>
+        <div className="row" style={{ paddingTop: '.5rem' }}>
+          <button className="danger" disabled={busy} onClick={() => confirm('Replace EVERYTHING on this device with what is on GitHub?') && runSync('pull')}>Replace local with GitHub</button>
+          <button className="danger" disabled={busy} onClick={() => confirm('Replace EVERYTHING on GitHub with what is on this device?') && runSync('push')}>Replace GitHub with local</button>
+        </div>
+      </details>
     </div>
   )
 }

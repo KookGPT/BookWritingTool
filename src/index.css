@@ -63,3 +63,4 @@ button:disabled { opacity: .4; cursor: default }
 .alt, .toolbar button { border: 1px solid var(--muted) !important }
 .history { display: flex; flex-direction: column; gap: .4rem; padding-top: .5rem }
 .peek { margin: .3rem 0 0; max-height: 8rem; overflow: auto; font-family: Georgia, serif; color: var(--muted) }
+.syncmsg { word-break: break-word; font-size: .75rem }

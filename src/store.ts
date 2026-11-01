@@ -39,6 +39,7 @@ interface State {
   ready: boolean
   update: (fn: (b: Book) => Book) => void
   replace: (b: Book, dirty: boolean) => void
+  markSynced: (b: Book) => void // clean only if nothing was typed since b
 }
 
 const KEY = 'book'
@@ -50,6 +51,7 @@ export const useBook = create<State>((set, get) => ({
   ready: false,
   update: (fn) => { set({ book: fn(get().book), dirty: true }); save(get()) },
   replace: (book, dirty) => { set({ book, dirty }); save(get()) },
+  markSynced: (b) => { if (get().book === b) { set({ dirty: false }); save(get()) } },
 }))
 
 idbGet<{ book: Book; dirty: boolean }>(KEY).then((s) => {

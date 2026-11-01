@@ -10,6 +10,7 @@ import Trash from './Trash'
 import Wiki from './Wiki'
 import Write from './Write'
 import { useBook } from './store'
+import { loadSettings, runSync, useSyncStatus } from './sync'
 
 const tools = ['Write', 'Timeline', 'Ideas', 'Map', 'Wiki', 'Insights', 'Search'] as const
 
@@ -30,6 +31,21 @@ export default function App() {
     addEventListener('keydown', h)
     return () => removeEventListener('keydown', h)
   }, [nav])
+  const sync = useSyncStatus()
+  // Auto-sync: on open, when returning to the app, and shortly after edits stop.
+  useEffect(() => {
+    if (!ready || loadSettings().auto === false) return
+    const go = () => { if (document.visibilityState === 'visible') runSync() }
+    go()
+    addEventListener('focus', go)
+    document.addEventListener('visibilitychange', go)
+    return () => { removeEventListener('focus', go); document.removeEventListener('visibilitychange', go) }
+  }, [ready])
+  useEffect(() => {
+    if (!dirty || loadSettings().auto === false) return
+    const t = setTimeout(() => runSync(), 20_000)
+    return () => clearTimeout(t)
+  }, [dirty, book])
   // Browser storage is the working copy; warn before closing with unpushed work.
   useEffect(() => {
     const h = (e: BeforeUnloadEvent) => { if (dirty) e.preventDefault() }
@@ -44,6 +60,7 @@ export default function App() {
         {tools.map((t) => <NavLink key={t} to={`/${t.toLowerCase()}`}>{t}</NavLink>)}
         <NavLink to="/trash" className="bottom">Trash</NavLink>
         <NavLink to="/settings">Settings and Sync</NavLink>
+        {sync.text && <small className="muted syncmsg">{sync.busy ? '⟳ ' : ''}{sync.text}</small>}
       </nav>
       <main>
         <Routes>

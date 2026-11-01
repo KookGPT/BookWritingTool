@@ -57,6 +57,10 @@ function Editor({ chapter }: { chapter: Chapter }) {
     content: chapter.body,
     onUpdate: ({ editor }) => patch({ body: editor.getHTML() }),
   })
+  // A sync can bring in this chapter's text from the other device; show it instead of overwriting it on the next keystroke.
+  useEffect(() => {
+    if (editor && chapter.body !== editor.getHTML()) editor.commands.setContent(chapter.body, { emitUpdate: false })
+  }, [chapter.body, editor])
   return (
     <>
       <div className="row">
