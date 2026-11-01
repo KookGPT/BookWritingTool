@@ -3,19 +3,9 @@ import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { trashIt } from './history'
+import { shrink } from './image'
 import { type MapDoc, type Pin, uid, useBook } from './store'
 
-const MAX = 2400
-// Downscale so a map stays ~hundreds of KB and syncs as a normal JSON file.
-async function loadImage(file: File) {
-  const bmp = await createImageBitmap(file)
-  const k = Math.min(1, MAX / Math.max(bmp.width, bmp.height))
-  const c = document.createElement('canvas')
-  c.width = Math.round(bmp.width * k)
-  c.height = Math.round(bmp.height * k)
-  c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height)
-  return { image: c.toDataURL('image/jpeg', 0.85), w: c.width, h: c.height }
-}
 
 function Canvas({ map, adding, sel, onAdd, onSel }: {
   map: MapDoc; adding: boolean; sel: string | null; onAdd: (y: number, x: number) => void; onSel: (id: string) => void
@@ -74,7 +64,7 @@ export default function MapView() {
 
   const upload = async (f?: File) => {
     if (!f) return
-    const m: MapDoc = { id: uid(), name: f.name.replace(/\.\w+$/, ''), pins: [], ...(await loadImage(f)) }
+    const m: MapDoc = { id: uid(), name: f.name.replace(/\.\w+$/, ''), pins: [], ...(await shrink(f, 2400)) }
     update((b) => ({ ...b, maps: [...b.maps, m] }))
     setId(m.id)
   }

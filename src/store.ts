@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { get as idbGet, set as idbSet } from 'idb-keyval'
 
 export interface Chapter { id: string; title: string; body: string; status: 'draft' | 'revised' | 'done'; notes: string }
-export interface WikiEntry { id: string; type: string; name: string; fields: Record<string, string>; notes: string }
+export interface WikiEntry { id: string; type: string; name: string; fields: Record<string, string>; notes: string; image?: string }
 export interface Idea { id: string; text: string; tags: string[]; pinned: boolean }
 export interface Scene {
   id: string; title: string; summary: string

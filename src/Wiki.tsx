@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { trashIt } from './history'
+import { shrink } from './image'
 import { mentions, plain, uid, useBook, type WikiEntry } from './store'
 
 const TYPES: Record<string, string[]> = {
@@ -27,6 +28,13 @@ function Entry({ entry }: { entry: WikiEntry }) {
         <select value={entry.type} onChange={(e) => patch({ type: e.target.value })}>
           {Object.keys(TYPES).map((t) => <option key={t}>{t}</option>)}
         </select>
+      </div>
+      <div className="row" style={{ alignItems: 'center' }}>
+        {entry.image && <img src={entry.image} className="portrait" alt={entry.name} />}
+        <label className="upload alt-upload">{entry.image ? 'Change image' : '+ Add image'}
+          <input type="file" accept="image/*" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (f) patch({ image: (await shrink(f, 600)).image }) }} />
+        </label>
+        {entry.image && <button className="alt" onClick={() => patch({ image: undefined })}>Remove image</button>}
       </div>
       {keys.map((k) => (
         <label key={k}>{k}
@@ -81,7 +89,9 @@ export default function Wiki() {
             <div key={t}>
               <small className="muted">{t.toUpperCase()}</small>
               {group.map((w) => (
-                <Link key={w.id} to={`/wiki/${w.id}`} className={`item ${w.id === id ? 'sel' : ''}`}>{w.name}</Link>
+                <Link key={w.id} to={`/wiki/${w.id}`} className={`item ${w.id === id ? 'sel' : ''}`}>
+                  {w.image && <img src={w.image} className="thumb" alt="" />}{w.name}
+                </Link>
               ))}
             </div>
           )

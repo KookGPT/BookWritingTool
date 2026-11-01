@@ -75,3 +75,6 @@ button:disabled { opacity: .4; cursor: default }
 .opt { padding: .5rem .75rem; border-radius: 6px; cursor: pointer }
 .opt.on { background: var(--accent); color: #fff }
 .ac { background: var(--panel); border: 1px solid var(--muted); border-radius: 8px; padding: .25rem; align-self: flex-start; min-width: 220px }
+.portrait { width: 120px; height: 120px; object-fit: cover; border-radius: 8px }
+.thumb { width: 28px; height: 28px; object-fit: cover; border-radius: 50%; margin-right: .5rem; vertical-align: middle }
+.alt-upload { background: var(--panel); color: var(--fg); border: 1px solid var(--muted) }
