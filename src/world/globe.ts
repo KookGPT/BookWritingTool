@@ -111,14 +111,46 @@ export class Globe {
   }
 
   setWorld(world: World) {
-    const spec = JSON.stringify(world)
+    // names and notes don't change the ground, so renaming a feature doesn't rebuild the planet
+    const spec = JSON.stringify({ ...world, name: '', ops: (world.ops ?? []).map(({ name: _n, note: _o, wikiId: _w, ...op }) => op) })
     if (spec === this.spec) return
     this.spec = spec
     this.planet = makePlanet(world)
     this.gen++
     for (const t of this.tiles.values()) this.drop(t)
     this.tiles.clear(); this.queue = []
+    this.buildRivers()
     this.dirty = true
+  }
+
+  // Rivers as lines draped on the surface, so they read from orbit where the carved channel is sub-pixel.
+  // Drawn without depth testing; the shader hides the far side of the planet instead.
+  private rivers?: THREE.LineSegments
+  private buildRivers() {
+    if (this.rivers) { this.scene.remove(this.rivers); this.rivers.geometry.dispose() }
+    this.rivers = undefined
+    const p = this.planet!, pos: number[] = [], h: number[] = []
+    for (const op of p.world.ops ?? []) {
+      if (op.kind !== 'river') continue
+      const pts = p.course(op).map((ll) => {
+        const d = toDir(ll[0], ll[1])
+        return { d, h: p.surface(d[0], d[1], d[2], p.elevation(d[0], d[1], d[2], 4)) / p.radiusM }
+      })
+      for (let i = 0; i < pts.length - 1; i++) for (const q of [pts[i], pts[i + 1]]) { pos.push(...q.d); h.push(q.h) }
+    }
+    if (!pos.length) return
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+    g.setAttribute('h', new THREE.Float32BufferAttribute(h, 1))
+    this.rivers = new THREE.LineSegments(g, new THREE.ShaderMaterial({
+      depthTest: false, depthWrite: false, transparent: true,
+      uniforms: { exag: this.exag, color: { value: new THREE.Color(0x4fa3e8) } },
+      vertexShader: 'attribute float h; uniform float exag; varying float vis; void main(){ vec3 w = position * (1. + h * exag); vis = dot(normalize(position), normalize(cameraPosition - w)); gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.); }',
+      fragmentShader: 'uniform vec3 color; varying float vis; void main(){ if (vis < 0.02) discard; gl_FragColor = vec4(color, 0.9); }',
+    }))
+    this.rivers.frustumCulled = false
+    this.rivers.renderOrder = 2
+    this.scene.add(this.rivers)
   }
 
   setRelief(m: number) { this.relief = m; this.dirty = true }
@@ -141,6 +173,7 @@ export class Globe {
     c.removeEventListener('pointerup', this.up); c.removeEventListener('pointercancel', this.up)
     c.removeEventListener('pointerleave', this.leave); c.removeEventListener('wheel', this.wheel)
     c.removeEventListener('contextmenu', this.noMenu); c.removeEventListener('keydown', this.key)
+    this.rivers?.geometry.dispose()
     this.material.dispose(); this.renderer.dispose()
   }
 

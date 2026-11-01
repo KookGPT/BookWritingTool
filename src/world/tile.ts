@@ -1,5 +1,6 @@
 // Cube-sphere tiles: each cube face is a quadtree; a tile is (face, level, x, y). Pure, runs in the worker and in tests.
-import type { Planet, Vec } from './terrain.ts'
+import type { Vec } from './geo.ts'
+import type { Planet } from './terrain.ts'
 
 export const SEG = 64 // quads per tile edge
 // Face frames chosen so cross(u, v) = n, which makes the grid triangles wind counter-clockwise seen from outside.
@@ -29,7 +30,7 @@ export interface TileData {
   center: Vec
   pos: Float32Array // on the unit sphere, relative to center (keeps float32 precise when zoomed in)
   up: Float32Array // unit direction per vertex
-  h: Float32Array // land height in radius units (0 at and below sea level), scaled by exaggeration in the shader
+  h: Float32Array // visible surface height in radius units (sea and lakes are flat), scaled by exaggeration in the shader
   grad: Float32Array // surface gradient of h (radius units per radius unit), for normals at any exaggeration
   col: Float32Array // linear RGB 0..1
 }
@@ -41,12 +42,13 @@ export function buildTile(planet: Planet, face: number, level: number, tx: numbe
   const s = tileSpan(level)
   const detail = Math.max(0, Math.min(14, level - 2))
   const R = planet.radiusM
-  const P = new Float64Array(W * W * 3), H = new Float64Array(W * W)
+  const P = new Float64Array(W * W * 3), H = new Float64Array(W * W), S = new Float64Array(W * W) // terrain, visible surface
   for (let j = 0; j < W; j++) for (let i = 0; i < W; i++) {
     const d = faceDir(face, -1 + s * (tx + (i - 1) / n), -1 + s * (ty + (j - 1) / n))
     const k = j * W + i
     P[k * 3] = d[0]; P[k * 3 + 1] = d[1]; P[k * 3 + 2] = d[2]
     H[k] = planet.elevation(d[0], d[1], d[2], detail)
+    S[k] = planet.surface(d[0], d[1], d[2], H[k])
   }
   const center = tileCenter(face, level, tx, ty)
   const count = (n + 1) ** 2 + 4 * (n + 1)
@@ -55,7 +57,7 @@ export function buildTile(planet: Planet, face: number, level: number, tx: numbe
     const x = P[k * 3], y = P[k * 3 + 1], z = P[k * 3 + 2]
     pos[v * 3] = x * (1 - drop) - center[0]; pos[v * 3 + 1] = y * (1 - drop) - center[1]; pos[v * 3 + 2] = z * (1 - drop) - center[2]
     up[v * 3] = x; up[v * 3 + 1] = y; up[v * 3 + 2] = z
-    h[v] = Math.max(0, H[k]) / R
+    h[v] = S[k] / R
     const c = planet.color(x, y, z, H[k], slope, Math.max(0, level - 3))
     col[v * 3] = lin(c[0]); col[v * 3 + 1] = lin(c[1]); col[v * 3 + 2] = lin(c[2])
   }
@@ -63,7 +65,7 @@ export function buildTile(planet: Planet, face: number, level: number, tx: numbe
     // solve g . tu = dh_u, g . tv = dh_v with g in the tangent plane spanned by tu, tv
     const tu = [P[(k + 1) * 3] - P[(k - 1) * 3], P[(k + 1) * 3 + 1] - P[(k - 1) * 3 + 1], P[(k + 1) * 3 + 2] - P[(k - 1) * 3 + 2]]
     const tv = [P[(k + W) * 3] - P[(k - W) * 3], P[(k + W) * 3 + 1] - P[(k - W) * 3 + 1], P[(k + W) * 3 + 2] - P[(k - W) * 3 + 2]]
-    const du = (Math.max(0, H[k + 1]) - Math.max(0, H[k - 1])) / R, dv = (Math.max(0, H[k + W]) - Math.max(0, H[k - W])) / R
+    const du = (S[k + 1] - S[k - 1]) / R, dv = (S[k + W] - S[k - W]) / R
     const a = tu[0] ** 2 + tu[1] ** 2 + tu[2] ** 2, b = tu[0] * tv[0] + tu[1] * tv[1] + tu[2] * tv[2], c = tv[0] ** 2 + tv[1] ** 2 + tv[2] ** 2
     const det = a * c - b * b || 1e-30
     const p = (du * c - dv * b) / det, q = (dv * a - du * b) / det

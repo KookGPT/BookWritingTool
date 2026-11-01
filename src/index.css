@@ -357,3 +357,14 @@ button.ghost.on { background: var(--accent-soft); color: var(--fg) }
   .globe-panel { right: 1rem; width: auto }
   .globe-readout { bottom: 4.2rem }
 }
+.globe-sec { display: flex; flex-direction: column; gap: .55rem; border-top: 1px solid var(--border); padding-top: .55rem }
+.globe-sec > summary { cursor: pointer; font-size: .82rem; font-weight: 600; color: var(--fg-2); list-style: none; display: flex; gap: .4rem; align-items: center }
+.globe-sec > summary::before { content: '▸'; color: var(--muted); transition: transform .15s }
+.globe-sec[open] > summary::before { transform: rotate(90deg) }
+.globe-sec[open] > summary { margin-bottom: .2rem }
+.globe-ops { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem }
+.globe-ops li { display: grid; grid-template-columns: minmax(0, 1fr) 4.6rem auto auto; gap: .3rem; align-items: center }
+.globe-ops input { width: 100%; min-width: 0; padding: .3rem .45rem; font-size: .82rem }
+.globe-ops small { font-size: .7rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.globe-ops button.icon { padding: .3rem }
+.globe-panel .small { font-size: .78rem; margin: 0 }

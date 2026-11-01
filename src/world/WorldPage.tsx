@@ -3,6 +3,9 @@ import Icon from '../Icon'
 import { trashIt } from '../history'
 import { uid, useBook } from '../store'
 import { Globe, type Hover } from './globe'
+import { brief, validate } from './describe'
+import { distKm } from './geo'
+import { OP_SPECS, opCenter, type Op } from './ops'
 import { DEFAULT_PARAMS, type World, type WorldParams } from './terrain'
 
 const SLIDERS: [keyof WorldParams, string, number, number, number, (v: number) => string][] = [
@@ -58,12 +61,52 @@ export default function WorldPage() {
   }
   const patch = (p: Partial<World>) => update((b) => ({ ...b, worlds: b.worlds.map((w) => (w.id === world!.id ? { ...w, ...p } : w)) }))
   const setParam = (k: keyof WorldParams, v: number) => patch({ params: { ...DEFAULT_PARAMS, ...world!.params, [k]: v } })
+  const [msg, setMsg] = useState('')
+  const file = useRef<HTMLInputElement>(null)
+  const setOps = (f: (ops: Op[]) => Op[]) => patch({ ops: f(world!.ops ?? []) })
+  // rough size of a feature, to pick a sensible zoom when flying to it
+  const sizeKm = (op: Op) => {
+    if ('radius' in op) return op.radius * 2
+    const pts = 'path' in op ? op.path : op.area
+    return Math.max(50, ...pts.map((q) => distKm(q, opCenter(op), p.radiusKm) * 2))
+  }
+  const flyToOp = (op: Op) => { const [lat, lon] = opCenter(op); globe.current?.flyTo(lat, lon, Math.min(1.2, Math.max(0.01, sizeKm(op) * 2.2 / p.radiusKm))) }
+  const slug = (world?.name ?? '').replace(/[^\w-]+/g, '-').toLowerCase() || 'world'
+  const download = (name: string, text: string, type: string) => {
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([text], { type }))
+    a.download = name
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+  }
+  const copyBrief = async () => {
+    const text = brief(world!)
+    try { await navigator.clipboard.writeText(text); setMsg('Brief copied. Paste it to Claude with what you want changed.') }
+    catch { download(`${slug}.brief.md`, text, 'text/markdown'); setMsg(`Clipboard unavailable, so the brief was downloaded as ${slug}.brief.md.`) }
+  }
+  const exportJson = () => download(`${slug}.world.json`, JSON.stringify(world, null, 2), 'application/json')
+  const importJson = async (f?: File) => {
+    if (!f) return
+    try {
+      const j = JSON.parse(await f.text())
+      const w: World = j.worlds ? j.worlds[0] : j
+      const { errors, warnings } = validate(w)
+      if (errors.length) { setMsg(`Not imported: ${errors.slice(0, 3).join('; ')}`); return }
+      const exists = book.worlds.some((x) => x.id === w.id)
+      update((b) => ({ ...b, worlds: exists ? b.worlds.map((x) => (x.id === w.id ? w : x)) : [...b.worlds, w] }))
+      setSel(w.id)
+      setMsg(`${exists ? 'Updated' : 'Added'} "${w.name}" (${w.ops?.length ?? 0} features)${warnings.length ? `. ${warnings.length} warning(s): ${warnings[0]}` : ''}`)
+    } catch (e) { setMsg(`Not imported: ${(e as Error).message}`) }
+    finally { if (file.current) file.current.value = '' }
+  }
+
   const remove = () => {
     if (!world || !confirm(`Delete "${world.name}"? It goes to Trash.`)) return
     trashIt('worlds', world.name, world)
     update((b) => ({ ...b, worlds: b.worlds.filter((w) => w.id !== world.id) }))
   }
 
+  const p = { ...DEFAULT_PARAMS, ...world?.params }
   if (!world) {
     return (
       <div className="page">
@@ -74,7 +117,7 @@ export default function WorldPage() {
     )
   }
 
-  const p = { ...DEFAULT_PARAMS, ...world.params }
+  const ops = world.ops ?? []
   return (
     <div className="globe-page">
       <canvas ref={canvas} tabIndex={0} aria-label={`Globe of ${world.name}. Drag to pan, scroll or plus and minus to zoom, right-drag to tilt and turn, arrow keys to move.`} />
@@ -93,6 +136,8 @@ export default function WorldPage() {
             <button className="alt icon" onClick={create} title="New world" aria-label="New world"><Icon name="plus" /></button>
           </div>
           <label className="globe-field">Name<input value={world.name} onChange={(e) => patch({ name: e.target.value })} /></label>
+          <details className="globe-sec" open>
+          <summary>Terrain</summary>
           <div className="globe-field">
             Seed
             <div className="row">
@@ -110,10 +155,36 @@ export default function WorldPage() {
             <span>Relief (view only)</span><output>{relief.toFixed(1)}x</output>
             <input type="range" min={0} max={3} step={0.1} value={relief} onChange={(e) => setRelief(Number(e.target.value))} />
           </label>
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <button className="alt" onClick={() => patch({ params: { ...DEFAULT_PARAMS } })}>Reset sliders</button>
-            <button className="ghost danger" onClick={remove}>Delete world</button>
-          </div>
+          <button className="alt" style={{ alignSelf: 'flex-start' }} onClick={() => patch({ params: { ...DEFAULT_PARAMS } })}>Reset sliders</button>
+          </details>
+          <details className="globe-sec" open={ops.length > 0}>
+            <summary>Features <span className="muted">{ops.length}</span></summary>
+            {!ops.length && <p className="muted small">Mountain ranges, rivers, lakes, volcanoes, islands and more. Ask Claude to add them (see below).</p>}
+            <ul className="globe-ops">
+              {ops.map((op) => (
+                <li key={op.id}>
+                  <input value={op.name ?? ''} placeholder={OP_SPECS[op.kind]?.label ?? op.kind} aria-label={`Name of ${OP_SPECS[op.kind]?.label ?? op.kind}`}
+                    onChange={(e) => setOps((o) => o.map((x) => (x.id === op.id ? { ...x, name: e.target.value } : x)))} />
+                  <small className="muted">{OP_SPECS[op.kind]?.label ?? op.kind}</small>
+                  <button className="ghost icon" title="Fly to" aria-label={`Fly to ${op.name ?? op.kind}`} onClick={() => flyToOp(op)}><Icon name="focus" size={15} /></button>
+                  <button className="ghost icon" title="Remove" aria-label={`Remove ${op.name ?? op.kind}`}
+                    onClick={() => confirm(`Remove ${op.name ?? op.kind}? The land goes back to how it was generated.`) && setOps((o) => o.filter((x) => x.id !== op.id))}><Icon name="trash" size={15} /></button>
+                </li>
+              ))}
+            </ul>
+          </details>
+          <details className="globe-sec">
+            <summary>Edit with Claude</summary>
+            <p className="muted small">Copy the brief and paste it to Claude with what you want ("add a desert south of the Spine"). It returns updated JSON to import, or edits <code>worlds/{world.id}.json</code> in your data repo directly if sync is on.</p>
+            <div className="row">
+              <button className="alt" onClick={copyBrief}>Copy AI brief</button>
+              <button className="alt" onClick={exportJson}>Export JSON</button>
+              <button className="alt" onClick={() => file.current?.click()}>Import JSON</button>
+              <input ref={file} type="file" accept=".json,application/json" hidden onChange={(e) => importJson(e.target.files?.[0])} />
+            </div>
+          </details>
+          {msg && <p className="small" role="status">{msg}</p>}
+          <button className="ghost danger" style={{ alignSelf: 'flex-start' }} onClick={remove}>Delete world</button>
         </>}
       </div>
       <div className="globe-zoom">

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { DEFAULT_PARAMS, makePlanet, toDir, toLatLon, type World } from '../src/world/terrain.ts'
 import { buildTile, faceDir, SEG, tileIndex } from '../src/world/tile.ts'
+import { describe, validate } from '../src/world/describe.ts'
+import { dirOf, inPolygon, makePath, pathDist } from '../src/world/geo.ts'
 
 const w = (seed: string, oceanPct = 64): World => ({ id: 't', name: 't', generatorVersion: 1, seed, params: { ...DEFAULT_PARAMS, oceanPct } })
 
@@ -39,4 +41,35 @@ const verts = (SEG + 1) ** 2 + 4 * (SEG + 1)
 assert.equal(t.pos.length, verts * 3)
 assert.ok(tileIndex().every((i) => i < verts))
 assert.ok(t.col.every((v) => v >= 0 && v <= 1))
+// sphere helpers
+assert.ok(pathDist(dirOf([0, 5]), makePath([[0, 0], [0, 10]])).d < 1e-9)
+assert.ok(Math.abs(pathDist(dirOf([0, 5]), makePath([[0, 0], [0, 10]])).t - 0.5) < 1e-9)
+assert.ok(inPolygon(dirOf([0, 0]), [[5, -5], [5, 5], [-5, 5], [-5, -5]].map((p) => dirOf(p as [number, number]))))
+assert.ok(!inPolygon(dirOf([20, 0]), [[5, -5], [5, 5], [-5, 5], [-5, -5]].map((p) => dirOf(p as [number, number]))))
+
+// ops: a volcano at sea makes an island; ops are deterministic
+const sea = w('alpha', 64)
+let spot: [number, number] = [0, 0]
+for (let lon = -180; lon < 180; lon += 3) if (a.elevation(...toDir(0, lon)) < -2000) { spot = [0, lon]; break }
+const withVolcano: World = { ...sea, ops: [{ id: 'v1', kind: 'volcano', at: spot, height: 3000, radius: 40 }] }
+const pv = makePlanet(withVolcano), top = pv.elevation(...toDir(spot[0] + 0.05, spot[1]))
+assert.ok(top > 1500, `volcano summit ${top}`)
+assert.equal(top, makePlanet(withVolcano).elevation(...toDir(spot[0] + 0.05, spot[1])))
+assert.ok(pv.elevation(...toDir(spot[0], spot[1] + 20)) === a.elevation(...toDir(spot[0], spot[1] + 20)), 'ops leave far terrain alone')
+
+// rivers fall from source to mouth
+const land = (() => { for (let lat = -50; lat < 50; lat += 2) for (let lon = -180; lon < 180; lon += 2) if (a.elevation(...toDir(lat, lon)) > 1500) return [lat, lon] as [number, number]; return [0, 0] as [number, number] })()
+const river: World = { ...sea, ops: [{ id: 'r1', kind: 'river', path: [land, [land[0] + 3, land[1] + 3]] }] }
+const pr = makePlanet(river), course = pr.course(river.ops![0] as Extract<NonNullable<World['ops']>[number], { kind: 'river' }>)
+const hs = course.filter((_, i) => i % 5 === 0).map((ll) => pr.elevation(...toDir(ll[0], ll[1]), 4))
+assert.ok(hs[0] > hs[hs.length - 1], 'river ends lower than it starts')
+assert.ok(hs.every((h, i) => i === 0 || h < hs[0] + 30), 'river bed never rises above its source')
+
+// validation
+assert.deepEqual(validate(withVolcano).errors, [])
+assert.ok(validate({ ...sea, ops: [{ id: 'x', kind: 'teleporter' } as never] }).errors[0].includes('unknown kind'))
+assert.ok(validate({ ...sea, ops: [{ id: 'x', kind: 'lake', at: [1, 1], radius: 5, path: null } as never] }).errors[0].includes('unknown field'))
+assert.ok(validate({ ...sea, ops: [{ id: 'x', kind: 'range', path: [[1, 1]], height: 1, width: 1 }] }).errors[0].includes('path'))
+assert.ok(describe(withVolcano).includes('volcano'))
+
 console.log('world: all checks passed')

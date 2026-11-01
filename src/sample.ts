@@ -35,7 +35,17 @@ export function sampleBook(): Book {
       id: 'm1', name: 'The Realm of Vaelen', image: mapImage(), w: 900, h: 560,
       pins: [{ id: 'p1', x: 330, y: 215, label: 'Stormhold', wikiId: 'w4' }, { id: 'p2', x: 560, y: 340, label: 'Pinebound Wood', wikiId: 'w5' }, { id: 'p3', x: 640, y: 190, label: 'Ashport' }],
     }],
-    worlds: [{ id: 'g1', name: 'Vaelen', generatorVersion: 1, seed: 'vaelen', params: { oceanPct: 62, plates: 14, ruggedness: 1, aridity: 0.5, tilt: 23, radiusKm: 6000 } }],
+    worlds: [{
+      id: 'g1', name: 'Vaelen', generatorVersion: 1, seed: 'ashen-crown', params: { oceanPct: 62, plates: 14, ruggedness: 1, aridity: 0.5, tilt: 23, radiusKm: 6000 },
+      ops: [
+      {id: 'spine',kind: 'range',name: 'The Spine',note: 'Northern peaks; Stormhold is cut into its southern cliffs.',path: [[44,4],[42,11],[40,18],[37,25],[34,32]],height: 6200,width: 220},
+      {id: 'ashrun',kind: 'river',name: 'Ashrun',path: [[40.6,11.2],[39.6,10.8],[38,11],[36.5,11.3],[35,11],[34.2,8.5],[33.5,6.5],[32.2,5.2],[31,4],[29.5,2.2],[28.2,1],[27.2,0.2],[26.8,-0.4]],width: 2},
+      {id: 'mirrormere',kind: 'lake',name: 'Mirrormere',at: [40.2,8],radius: 35},
+      {id: 'ember',kind: 'volcano',name: 'Mount Ember',at: [18,-4],height: 3400,radius: 45},
+      {id: 'shards',kind: 'islands',name: 'The Shards',at: [11,-11],radius: 260,count: 16,height: 700},
+      {id: 'starfall',kind: 'crater',name: 'Starfall',at: [30,45],radius: 40},
+      ],
+    }],
     chapters: [
       { id: 'c1', title: 'The Last Winter Fair', status: 'done', notes: 'Introduce Mira as restless, not reckless. Plant the ember-glass.',
         body: p('The snow came early to Stormhold, and with it the smell of roasting chestnuts and woodsmoke. Mira pulled her cloak tight and pushed through the crowd toward the fair.', 'She had promised Aldric she would stay home. She had also promised herself she would stop making promises she could not keep.', '“You are late,” said the old man at the glass stall, without looking up. “The ember-glass has been waiting.”') + '<hr>' + p('Behind her, the horns of the Ashen Guard sounded twice. Twice meant the king.') },

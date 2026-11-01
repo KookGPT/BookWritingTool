@@ -1,6 +1,10 @@
 // The planet as a pure function: unit direction -> elevation (m), climate, biome colour.
 // No DOM or three.js here so the browser, the tile worker and node scripts all share one implementation.
+import { toDir, toLatLon, type Vec } from './geo.ts'
 import { fbm, hash, ridged, rng, simplex } from './noise.ts'
+import { compileOps, riverCourse, type Compiled, type LatLon, type Op } from './ops.ts'
+
+export { toDir, toLatLon, type Vec }
 
 export interface WorldParams {
   oceanPct: number // share of the surface under water, 5..95
@@ -10,19 +14,10 @@ export interface WorldParams {
   tilt: number // axial tilt in degrees, widens or narrows climate bands
   radiusKm: number
 }
-export interface World { id: string; name: string; generatorVersion: 1; seed: string; params: WorldParams }
+export interface World { id: string; name: string; generatorVersion: 1; seed: string; params: WorldParams; ops?: Op[] }
 
 export const DEFAULT_PARAMS: WorldParams = { oceanPct: 64, plates: 14, ruggedness: 1, aridity: 0.5, tilt: 23, radiusKm: 6000 }
 
-export type Vec = [number, number, number]
-export const toDir = (lat: number, lon: number): Vec => {
-  const a = lat * Math.PI / 180, o = lon * Math.PI / 180
-  return [Math.cos(a) * Math.sin(o), Math.sin(a), Math.cos(a) * Math.cos(o)]
-}
-export const toLatLon = (x: number, y: number, z: number) => {
-  const r = Math.hypot(x, y, z)
-  return { lat: Math.asin(y / r) * 180 / Math.PI, lon: Math.atan2(x, z) * 180 / Math.PI }
-}
 
 // Whittaker-style lookup: rows = mean temperature (C), columns = moisture 0..1. Bilinear sampling keeps biome edges soft.
 const TEMPS = [-15, -2, 8, 18, 28]
@@ -34,7 +29,7 @@ const BIOMES: [string, Vec][][] = [
   [['Desert', [204, 178, 128]], ['Shrubland', [160, 150, 90]], ['Woodland', [84, 118, 54]], ['Subtropical forest', [48, 98, 44]]],
   [['Hot desert', [222, 190, 138]], ['Savanna', [180, 164, 88]], ['Dry forest', [98, 128, 48]], ['Rainforest', [28, 88, 40]]],
 ]
-const ROCK: Vec = [118, 108, 98], SNOW: Vec = [242, 245, 250], SEA_ICE: Vec = [222, 230, 238]
+const ROCK: Vec = [118, 108, 98], SNOW: Vec = [242, 245, 250], SEA_ICE: Vec = [222, 230, 238], LAKE: Vec = [48, 104, 132], RIVER: Vec = [58, 118, 146]
 const SHALLOW: Vec = [62, 160, 176], DEEP: Vec = [10, 28, 68]
 
 const smooth = (a: number, b: number, x: number) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t) }
@@ -54,6 +49,13 @@ export interface Planet {
   /** Linear-ish sRGB 0..255 surface colour; `slope` is rise/run from the tile builder. */
   color(x: number, y: number, z: number, h: number, slope?: number, detail?: number): Vec
   biome(x: number, y: number, z: number, h: number): string
+  /** Water at a point: sea below 0, lakes at their level, river channels. */
+  water(x: number, y: number, z: number, h: number): { kind: 'sea' | 'lake' | 'river'; level: number } | undefined
+  /** Height of the visible surface (water surfaces are flat), metres, never below sea level. */
+  surface(x: number, y: number, z: number, h: number): number
+  ops: Compiled[]
+  /** A river op's meandering course as drawn and carved. */
+  course(op: Extract<Op, { kind: 'river' }>): LatLon[]
 }
 
 export function makePlanet(world: World): Planet {
@@ -126,15 +128,44 @@ export function makePlanet(world: World): Planet {
     return 650 * sum
   }
 
-  const elevation = (x: number, y: number, z: number, detail = 0) => {
+  const generated = (x: number, y: number, z: number, detail: number) => {
     const e = raw(x, y, z, detail)
-    if (e >= sea) {
-      const g = (e - sea) / (hi - sea)
-      const rough = (0.2 + 1.6 * smooth(0.1, 0.5, g)) * P.ruggedness * smooth(0, 0.03, g) // highlands craggy; zero at the coast so shorelines never move
-      return Math.max(0.5, 6200 * Math.pow(g, 1.3) + rough * relief(x, y, z, 2 + detail)) // lowlands stay low, peaks sharpen
-    }
-    return -6000 * Math.pow(Math.min(1.4, (sea - e) / (sea - lo)), 0.8)
+    if (e < sea) return -6000 * Math.pow(Math.min(1.4, (sea - e) / (sea - lo)), 0.8)
+    const h = 6200 * Math.pow((e - sea) / (hi - sea), 1.3) // lowlands stay low, peaks sharpen
+    return h < 5000 ? h : 5000 + 2500 * Math.tanh((h - 5000) / 2500) // soft ceiling so outliers stay mountain-sized
   }
+  const nOps = simplex(seed + 7)
+  const ops = compileOps(world.ops ?? [], P.radiusKm, nOps, (p) => generated(p[0], p[1], p[2], 0))
+  const course = (op: Extract<Op, { kind: 'river' }>) => riverCourse(op, P.radiusKm, nOps)
+  const near = (c: Compiled, x: number, y: number, z: number) => x * c.cap.c[0] + y * c.cap.c[1] + z * c.cap.c[2] >= c.cap.cos
+
+  // generated terrain -> shape ops -> close-up relief (land only, never moves the coast) -> water ops
+  const elevation = (x: number, y: number, z: number, detail = 0) => {
+    let h = generated(x, y, z, detail)
+    const p: Vec = [x, y, z]
+    for (const c of ops) if (c.stage === 'shape' && near(c, x, y, z)) h = c.apply(h, p)
+    if (h > 0) {
+      const rough = (0.2 + 1.6 * smooth(300, 2500, h)) * P.ruggedness * smooth(0, 120, h) // highlands craggy, coasts calm
+      h = Math.max(0.5, h + rough * relief(x, y, z, 2 + detail))
+    }
+    for (const c of ops) if (c.stage === 'water' && near(c, x, y, z)) h = c.apply(h, p)
+    return h
+  }
+
+  const water = (x: number, y: number, z: number, h: number) => {
+    let lake: number | undefined, river = false
+    for (const c of ops) {
+      if (!c.water || !near(c, x, y, z)) continue
+      const w = c.water([x, y, z], h)
+      if (w === 'river') river = true
+      else if (w !== undefined) lake = Math.max(lake ?? -Infinity, w)
+    }
+    if (lake !== undefined && h < lake) return { kind: 'lake' as const, level: lake }
+    if (h < 0) return { kind: 'sea' as const, level: 0 }
+    if (river) return { kind: 'river' as const, level: h }
+    return undefined
+  }
+  const surface = (x: number, y: number, z: number, h: number) => Math.max(0, h, water(x, y, z, h)?.level ?? 0)
 
   const climate = (x: number, y: number, z: number, h: number) => {
     const lat = Math.asin(Math.max(-1, Math.min(1, y)))
@@ -158,10 +189,9 @@ export function makePlanet(world: World): Planet {
     // close up, vegetation breaks into patches and the ground gets texture
     const patch = fbm(nClim, x * 12, y * 12, z * 12, 1 + detail) // always on, so neighbouring LOD levels match
     const moist = Math.max(0, Math.min(1, m0 + patch * 0.18))
-    if (h < 0) {
-      if (temp < -10) return SEA_ICE
-      return mix(SHALLOW, DEEP, Math.pow(Math.min(1, -h / 5500), 0.45))
-    }
+    const w = water(x, y, z, h)
+    if (w?.kind === 'sea') return temp < -10 ? SEA_ICE : mix(SHALLOW, DEEP, Math.pow(Math.min(1, -h / 5500), 0.45))
+    if (w) return temp < -12 ? SEA_ICE : w.kind === 'river' ? RIVER : mix(LAKE, DEEP, Math.min(1, (w.level - h) / 400) * 0.6)
     let c = landColor(temp, moist)
     const k = 1 + 0.1 * fbm(nHill, x * 20, y * 20, z * 20, 1 + detail)
     c = [c[0] * k, c[1] * k, c[2] * k]
@@ -172,6 +202,9 @@ export function makePlanet(world: World): Planet {
 
   const biome = (x: number, y: number, z: number, h: number) => {
     const { temp, moist } = climate(x, y, z, h)
+    const w = water(x, y, z, h)
+    if (w?.kind === 'lake') return 'Lake'
+    if (w?.kind === 'river') return 'River'
     if (h < 0) return temp < -10 ? 'Sea ice' : h > -200 ? 'Shallow sea' : 'Ocean'
     if (temp < -8) return h > 1500 ? 'Glacier' : 'Ice sheet'
     if (h > 3200) return 'Alpine'
@@ -180,5 +213,5 @@ export function makePlanet(world: World): Planet {
     return BIOMES[ti][mi][0]
   }
 
-  return { world, radiusM: P.radiusKm * 1000, elevation, climate, color, biome }
+  return { world, radiusM: P.radiusKm * 1000, elevation, climate, color, biome, water, surface, ops, course }
 }
