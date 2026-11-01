@@ -7,7 +7,7 @@ import Icon from './Icon'
 import { history, type Snap, snapshot, trashIt } from './history'
 import { PlanView } from './ScenePlan'
 import { SceneBlock } from './sceneNode'
-import { type Chapter, mentions, plain, sceneBlocks, today, uid, useBook, words } from './store'
+import { type Chapter, mentions, needsPlacement, plain, sceneBlocks, syncPlacement, today, uid, useBook, words } from './store'
 
 const STATUSES: Chapter['status'][] = ['draft', 'revised', 'done']
 
@@ -50,6 +50,9 @@ function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean;
   const placed = (id: string) => chapters.some((c) => c.body.includes(`data-scene="${id}"`))
   const insertable = allScenes.filter((s) => (s.status ?? 'planned') !== 'planned' && !placed(s.id))
   const [histOpen, setHistOpen] = useState(false)
+  // Scenes assigned to a chapter (in Scenes) are written into it, so the chapter reads as one continuous text.
+  const missing = needsPlacement({ chapters, scenes: allScenes } as never)
+  useEffect(() => { if (missing) update((b) => syncPlacement(b)) }, [missing, update])
   const patch = (p: Partial<Chapter>) => {
     if (p.body !== undefined) {
       const old = useBook.getState().book.chapters.find((c) => c.id === chapter.id)
@@ -123,6 +126,7 @@ function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean;
     editor.state.doc.descendants((node, pos) => {
       if (node.type.name === 'scene' && node.attrs.sceneId === id) { editor.chain().deleteRange({ from: pos, to: pos + node.nodeSize }).run(); return false }
     })
+    update((b) => ({ ...b, scenes: b.scenes.map((x) => (x.id === id ? { ...x, chapterId: undefined } : x)) }))
   }
   const mentioned = wiki.filter((w) => mentions(plain(chapter.body), w.name))
   return (

@@ -4,14 +4,14 @@ import { PlanFields, PlanView } from './ScenePlan'
 import SceneText from './SceneText'
 import { trashIt } from './history'
 import { fmt } from './calendar'
-import { calendarOf, type Scene, uid, useBook } from './store'
+import { calendarOf, patchScene, type Scene, uid, useBook } from './store'
 
 const STATUSES = ['planned', 'drafting', 'done'] as const
 
 function SceneForm({ scene, onClose }: { scene: Scene; onClose: () => void }) {
   const { book, update } = useBook()
   const patch = (p: Partial<Scene>) =>
-    update((b) => ({ ...b, scenes: b.scenes.map((s) => (s.id === scene.id ? { ...s, ...p } : s)) }))
+    update((b) => patchScene(b, scene.id, p))
   const cal = calendarOf(book)
   const chars = book.wiki.filter((w) => w.type === 'character')
   const places = book.wiki.filter((w) => w.type === 'location')
@@ -144,7 +144,7 @@ export default function Scenes() {
   }
   const setStatus = (status: Scene['status']) => {
     if (!drag) return
-    update((b) => ({ ...b, scenes: b.scenes.map((s) => (s.id === drag ? { ...s, status } : s)) }))
+    update((b) => patchScene(b, drag, { status }))
     setDrag(null)
   }
 

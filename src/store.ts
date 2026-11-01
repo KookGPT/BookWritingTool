@@ -82,6 +82,45 @@ export const setSceneBody = (b: Book, id: string, html: string): Book => ({
       : c),
 })
 
+const hasText = (html?: string) => !!html?.replace(/<[^>]+>/g, '').trim()
+const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+const blockRe = (id: string) => new RegExp(`<div data-scene="${id}"[^>]*>[\\s\\S]*?</div>`)
+// The text a scene contributes: its prose, or (if none was written yet) its premise so the chapter never shows an empty box.
+const sceneHtml = (s: Scene) => (hasText(s.body) ? s.body! : s.summary.trim() ? `<p>${esc(s.summary.trim())}</p>` : '<p></p>')
+
+// Every drafting/done scene assigned to a chapter must appear in that chapter's text (appended in scene order).
+export function syncPlacement(b: Book): Book {
+  let out = b
+  for (const s of b.scenes) {
+    if (!s.chapterId || (s.status ?? 'planned') === 'planned') continue
+    const html = sceneHtml(s)
+    const holder = out.chapters.find((c) => c.body.includes(`data-scene="${s.id}"`))
+    if (holder) {
+      // Placed earlier but empty (e.g. before the scene had text): fill it in.
+      if (hasText(html) && !hasText(sceneBlocks(holder.body).find((x) => x.id === s.id)?.html))
+        out = { ...out, scenes: out.scenes.map((x) => (x.id === s.id ? { ...x, body: html } : x)), chapters: out.chapters.map((c) => (c === holder ? { ...c, body: c.body.replace(blockRe(s.id), `<div data-scene="${s.id}" class="scene-block">${html}</div>`) } : c)) }
+      continue
+    }
+    out = {
+      ...out,
+      scenes: out.scenes.map((x) => (x.id === s.id ? { ...x, body: html } : x)),
+      chapters: out.chapters.map((c) => (c.id === s.chapterId ? { ...c, body: `${c.body}<div data-scene="${s.id}" class="scene-block">${html}</div>` } : c)),
+    }
+  }
+  return out
+}
+export const needsPlacement = (b: Book) => syncPlacement(b) !== b
+
+// Change a scene; moving it between chapters (or out of one) moves its text with it.
+export function patchScene(b: Book, id: string, p: Partial<Scene>): Book {
+  const old = b.scenes.find((s) => s.id === id)
+  let out: Book = { ...b, scenes: b.scenes.map((s) => (s.id === id ? { ...s, ...p } : s)) }
+  if (old && 'chapterId' in p && p.chapterId !== old.chapterId) {
+    out = { ...out, chapters: out.chapters.map((c) => (c.body.includes(`data-scene="${id}"`) ? { ...c, body: c.body.replace(blockRe(id), '') } : c)) }
+  }
+  return syncPlacement(out)
+}
+
 interface State {
   book: Book
   dirty: boolean

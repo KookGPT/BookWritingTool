@@ -1,8 +1,8 @@
-import { type Scene, useBook } from './store'
+import { patchScene, type Scene, useBook } from './store'
 
 export const usePatchScene = (id: string) => {
   const update = useBook((s) => s.update)
-  return (p: Partial<Scene>) => update((b) => ({ ...b, scenes: b.scenes.map((s) => (s.id === id ? { ...s, ...p } : s)) }))
+  return (p: Partial<Scene>) => update((b) => patchScene(b, id, p))
 }
 
 const FIELDS = [
