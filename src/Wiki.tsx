@@ -11,7 +11,10 @@ function Entry({ entry }: { entry: WikiEntry }) {
   const types = allTypes(book)
   const patch = (p: Partial<WikiEntry>) =>
     update((b) => ({ ...b, wiki: b.wiki.map((w) => (w.id === entry.id ? { ...w, ...p } : w)) }))
-  const keys = [...new Set([...(types[entry.type] ?? []), ...Object.keys(entry.fields)])]
+  const typeFields = types[entry.type] ?? []
+  const hidden = entry.hiddenFields ?? []
+  const keys = [...new Set([...typeFields, ...Object.keys(entry.fields)])].filter((k) => !hidden.includes(k))
+  const sameType = book.wiki.filter((w) => w.type === entry.type)
   const inChapters = book.chapters.filter((c) => mentionsEntry(plain(c.body), entry))
   const inWiki = book.wiki.filter((w) => w.id !== entry.id && mentionsEntry(`${w.notes} ${Object.values(w.fields).join(' ')}`, entry))
   const onTimeline = book.events.filter((e) => e.wikiId === entry.id || e.locationId === entry.id)
@@ -22,7 +25,24 @@ function Entry({ entry }: { entry: WikiEntry }) {
   const [alias, setAlias] = useState('')
   const [editing, setEditing] = useState(false)
   const [field, setField] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [allOfType, setAllOfType] = useState(false)
+  const [removing, setRemoving] = useState<string | null>(null)
   const aliases = entry.aliases ?? []
+  const dropField = (k: string, everywhere: boolean) => {
+    update((b) => ({
+      ...b,
+      config: everywhere ? { ...b.config, types: { ...b.config.types, [entry.type]: typeFields.filter((x) => x !== k) } } : b.config,
+      wiki: b.wiki.map((w) => {
+        if (w.id !== entry.id && !(everywhere && w.type === entry.type)) return w
+        const { [k]: _gone, ...fields } = w.fields
+        const hiddenFields = everywhere ? (w.hiddenFields ?? []).filter((x) => x !== k) : typeFields.includes(k) ? [...new Set([...(w.hiddenFields ?? []), k])] : w.hiddenFields
+        return { ...w, fields, hiddenFields }
+      }),
+    }))
+    setRemoving(null)
+  }
+  const askRemove = (k: string) => (entry.fields[k]?.trim() || typeFields.includes(k) ? setRemoving(k) : dropField(k, false))
   const addAlias = () => {
     const a = alias.trim()
     if (a && !aliases.some((x) => x.toLowerCase() === a.toLowerCase())) patch({ aliases: [...aliases, a] })
@@ -30,8 +50,17 @@ function Entry({ entry }: { entry: WikiEntry }) {
   }
   const addField = () => {
     const k = field.trim()
-    if (k && !(k in entry.fields) && !keys.includes(k)) patch({ fields: { ...entry.fields, [k]: '' } })
+    if (!k) return
+    if (!keys.includes(k)) {
+      update((b) => ({
+        ...b,
+        wiki: b.wiki.map((w) => (w.id === entry.id ? { ...w, fields: { ...w.fields, [k]: w.fields[k] ?? '' }, hiddenFields: (w.hiddenFields ?? []).filter((x) => x !== k) } : w)),
+        config: allOfType && !typeFields.includes(k) ? { ...b.config, types: { ...b.config.types, [entry.type]: [...typeFields, k] } } : b.config,
+      }))
+    }
     setField('')
+    setAdding(false)
+    setAllOfType(false)
   }
   const name = (id: string) => book.wiki.find((w) => w.id === id)?.name ?? '(deleted)'
 
@@ -58,15 +87,31 @@ function Entry({ entry }: { entry: WikiEntry }) {
         </div>
       </div>
       {keys.map((k) => (
-        <label key={k}>{k}
-          <input value={entry.fields[k] ?? ''} onChange={(e) => patch({ fields: { ...entry.fields, [k]: e.target.value } })} />
-          {hasLinks(entry.fields[k] ?? '', book.wiki, entry.id) && <small className="linked-line"><LinkedText text={entry.fields[k]} wiki={book.wiki} selfId={entry.id} /></small>}
-        </label>
+        <div key={k} className="field">
+          <label>{k}
+            <input value={entry.fields[k] ?? ''} onChange={(e) => patch({ fields: { ...entry.fields, [k]: e.target.value } })} />
+            {hasLinks(entry.fields[k] ?? '', book.wiki, entry.id) && <small className="linked-line"><LinkedText text={entry.fields[k]} wiki={book.wiki} selfId={entry.id} /></small>}
+          </label>
+          <button className="ghost icon" aria-label={`Remove field ${k}`} title="Remove field" onClick={() => askRemove(k)}>×</button>
+          {removing === k && (
+            <div className="row field-confirm">
+              <small className="muted">Remove "{k}"{entry.fields[k]?.trim() ? ' and its text' : ''}?</small>
+              <button className="danger" onClick={() => dropField(k, false)}>This entry</button>
+              {typeFields.includes(k) && sameType.length > 1 && <button className="danger" onClick={() => dropField(k, true)}>All {sameType.length} {entry.type} entries</button>}
+              <button className="alt" onClick={() => setRemoving(null)}>Cancel</button>
+            </div>
+          )}
+        </div>
       ))}
-      <div className="row">
-        <input aria-label="New field name" className="grow" placeholder="New field name (e.g. Eye color)" value={field} onChange={(e) => setField(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addField()} />
-        <button className="alt" disabled={!field.trim()} onClick={addField}>+ Field</button>
-      </div>
+      {adding ? (
+        <div className="row" style={{ alignItems: 'center' }}>
+          <input aria-label="New field name" className="grow" autoFocus placeholder="New field name (e.g. Eye color)" value={field} onChange={(e) => setField(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') addField(); if (e.key === 'Escape') setAdding(false) }} />
+          <label className="check"><input type="checkbox" checked={allOfType} onChange={(e) => setAllOfType(e.target.checked)} /> Add to every {entry.type}</label>
+          <button disabled={!field.trim()} onClick={addField}>Add field</button>
+          <button className="alt" onClick={() => { setAdding(false); setField('') }}>Cancel</button>
+        </div>
+      ) : <button className="alt" onClick={() => setAdding(true)}>+ Field</button>}
       <label>Notes
         {editing || !entry.notes.trim() ? (
           <textarea rows={8} autoFocus={editing} value={entry.notes} onFocus={() => setEditing(true)} onBlur={() => setEditing(false)} onChange={(e) => patch({ notes: e.target.value })} />

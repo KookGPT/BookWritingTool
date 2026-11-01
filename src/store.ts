@@ -6,6 +6,7 @@ export interface Chapter { id: string; title: string; body: string; status: 'dra
 export interface WikiEntry {
   id: string; type: string; name: string; fields: Record<string, string>; notes: string; image?: string
   pos?: { x: number; y: number } // where the node sits in the relationship graph
+  hiddenFields?: string[] // starter fields of its type that this entry has removed
   aliases?: string[] // other names this entry goes by; they link and match exactly like the name
   links?: { to: string; label: string }[] // relationships to other wiki entries (to = wiki id)
 }

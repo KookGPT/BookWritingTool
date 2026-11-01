@@ -334,3 +334,6 @@ button.ghost.on { background: var(--accent-soft); color: var(--fg) }
 .wikilink:hover { text-decoration-color: var(--accent) }
 .linked-line { color: var(--fg-2) }
 .graph-tip { display: flex; align-items: center; gap: .6rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: .35rem .6rem }
+.field { display: flex; align-items: flex-end; gap: .4rem; flex-wrap: wrap }
+.field > label { flex: 1; min-width: 0 }
+.field-confirm { flex-basis: 100%; align-items: center }
