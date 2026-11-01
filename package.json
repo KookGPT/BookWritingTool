@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node test/merge.test.ts && node test/export.test.ts"
+    "test": "node test/merge.test.ts && node test/export.test.ts && node test/calendar.test.ts"
   },
   "dependencies": {
     "@tiptap/pm": "^3.32.2",

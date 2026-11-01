@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
+import CalendarPage from './CalendarPage'
 import Graph from './Graph'
 import Ideas from './Ideas'
 import Insights from './Insights'
@@ -15,7 +16,7 @@ import Write from './Write'
 import { useBook } from './store'
 import { loadSettings, runSync, useSyncStatus } from './sync'
 
-const tools = ['Write', 'Manuscript', 'Timeline', 'Ideas', 'Map', 'Wiki', 'Insights', 'Search'] as const
+const tools = ['Write', 'Manuscript', 'Timeline', 'Calendar', 'Ideas', 'Map', 'Wiki', 'Insights', 'Search'] as const
 
 export default function App() {
   const { book, dirty, ready } = useBook()
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="/write" element={<Write />} />
           <Route path="/manuscript" element={<Manuscript />} />
           <Route path="/wiki/:id?" element={<Wiki />} />
+          <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/graph" element={<Graph />} />
           <Route path="/ideas" element={<Ideas />} />
           <Route path="/timeline" element={<Timeline />} />

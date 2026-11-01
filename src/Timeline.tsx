@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react'
 import { trashIt } from './history'
-import { type Scene, uid, useBook } from './store'
+import { fmt } from './calendar'
+import { calendarOf, type Scene, uid, useBook } from './store'
 
 const STATUSES = ['planned', 'drafting', 'done'] as const
 
@@ -8,6 +9,7 @@ function SceneForm({ scene, onClose }: { scene: Scene; onClose: () => void }) {
   const { book, update } = useBook()
   const patch = (p: Partial<Scene>) =>
     update((b) => ({ ...b, scenes: b.scenes.map((s) => (s.id === scene.id ? { ...s, ...p } : s)) }))
+  const cal = calendarOf(book)
   const chars = book.wiki.filter((w) => w.type === 'character')
   const places = book.wiki.filter((w) => w.type === 'location')
   const here = scene.characters ?? []
@@ -23,7 +25,26 @@ function SceneForm({ scene, onClose }: { scene: Scene; onClose: () => void }) {
     <div className="panel">
       <input className="title" value={scene.title} onChange={(e) => patch({ title: e.target.value })} />
       <textarea rows={4} placeholder="What happens?" value={scene.summary} onChange={(e) => patch({ summary: e.target.value })} />
-      <label>In-story date<input value={scene.when ?? ''} onChange={(e) => patch({ when: e.target.value })} /></label>
+      <div className="row" style={{ alignItems: 'end' }}>
+        <label>Year
+          <input type="number" style={{ width: '6rem' }} value={scene.date?.y ?? ''} placeholder="-"
+            onChange={(e) => e.target.value === '' ? patch({ date: undefined }) : patch({ date: { y: +e.target.value, m: scene.date?.m ?? 1, d: scene.date?.d ?? 1 } })} />
+        </label>
+        {scene.date && (
+          <>
+            <label>Month
+              <select value={scene.date.m} onChange={(e) => patch({ date: { ...scene.date!, m: +e.target.value } })}>
+                {cal.months.map((m, i) => <option key={i} value={i + 1}>{m.name}</option>)}
+              </select>
+            </label>
+            <label>Day
+              <input type="number" min={1} max={cal.months[scene.date.m - 1]?.days} style={{ width: '5rem' }} value={scene.date.d}
+                onChange={(e) => patch({ date: { ...scene.date!, d: Math.min(Math.max(1, +e.target.value || 1), cal.months[scene.date!.m - 1]?.days ?? 1) } })} />
+            </label>
+          </>
+        )}
+        <label className="grow">Time note<input value={scene.when ?? ''} placeholder="dawn, midwinter feast..." onChange={(e) => patch({ when: e.target.value })} /></label>
+      </div>
       <div className="row">
         <label>Status
           <select value={scene.status ?? 'planned'} onChange={(e) => patch({ status: e.target.value as Scene['status'] })}>
@@ -117,7 +138,7 @@ export default function Timeline() {
                 <div key={s.id} draggable onDragStart={() => setDrag(s.id)} onClick={() => setSel(s.id)}
                   className={`item ${s.id === sel ? 'sel' : ''}`}>
                   <b>{s.title}</b>
-                  <small className="muted">{[s.when, name(s.pov) && `POV ${name(s.pov)}`, name(s.location)].filter(Boolean).join(' · ')}</small>
+                  <small className="muted">{[s.date ? fmt(calendarOf(book), s.date) : s.when, name(s.pov) && `POV ${name(s.pov)}`, name(s.location)].filter(Boolean).join(' · ')}</small>
                 </div>
               ))}
             </div>

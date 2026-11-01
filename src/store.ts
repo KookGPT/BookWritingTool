@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { get as idbGet, set as idbSet } from 'idb-keyval'
+import { type Calendar, DEFAULT_CAL, type SDate } from './calendar'
 
 export interface Chapter { id: string; title: string; body: string; status: 'draft' | 'revised' | 'done'; notes: string }
 export interface WikiEntry {
@@ -19,12 +20,14 @@ export const DEFAULT_TYPES: Record<string, string[]> = {
   religion: ['Deity', 'Beliefs', 'Followers'],
   culture: ['Region', 'Customs', 'Language'],
 }
-export const allTypes = (b: Book) => ({ ...DEFAULT_TYPES, ...b.config.types })
+export const calendarOf = (b: Book): Calendar => b.config.calendar ?? DEFAULT_CAL
+export const allTypes =(b: Book) => ({ ...DEFAULT_TYPES, ...b.config.types })
 export interface Idea { id: string; text: string; tags: string[]; pinned: boolean }
 export interface Scene {
   id: string; title: string; summary: string
   chapterId?: string; pov?: string; when?: string // pov/location/characters hold wiki ids; when = in-story date, free text
   location?: string; characters?: string[]; status?: 'planned' | 'drafting' | 'done'
+  date?: SDate // in-world date on the book's calendar; `when` stays a free-text note (e.g. "dawn")
 }
 
 export interface Pin { id: string; y: number; x: number; label: string; wikiId?: string }
@@ -33,7 +36,7 @@ export interface MapDoc { id: string; name: string; image: string; w: number; h:
 
 export interface Book {
   title: string
-  config: { types: Record<string, string[]> }
+  config: { types: Record<string, string[]>; calendar?: Calendar }
   stats: { goal: number; days: Record<string, number> } // days = net words written per local date
   maps: MapDoc[]
   chapters: Chapter[] // array order = book order
