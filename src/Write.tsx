@@ -3,6 +3,7 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import Icon from './Icon'
 import { history, type Snap, snapshot, trashIt } from './history'
 import { type Chapter, mentions, plain, today, uid, useBook, words } from './store'
 
@@ -36,7 +37,7 @@ function History({ chapter, restore }: { chapter: Chapter; restore: (html: strin
   )
 }
 
-function Editor({ chapter }: { chapter: Chapter }) {
+function Editor({ chapter, info }: { chapter: Chapter; info: boolean }) {
   const update = useBook((s) => s.update)
   const wiki = useBook((s) => s.book.wiki)
   const scenes = useBook((s) => s.book.scenes).filter((s) => s.chapterId === chapter.id)
@@ -101,55 +102,50 @@ function Editor({ chapter }: { chapter: Chapter }) {
   useEffect(() => {
     if (editor && chapter.body !== editor.getHTML()) editor.commands.setContent(chapter.body, { emitUpdate: false })
   }, [chapter.body, editor])
+  const mentioned = wiki.filter((w) => mentions(plain(chapter.body), w.name))
   return (
     <>
-      <div className="row">
-        <input className="grow title" value={chapter.title} onChange={(e) => patch({ title: e.target.value })} />
-        <select value={chapter.status} onChange={(e) => patch({ status: e.target.value as Chapter['status'] })}>
-          {STATUSES.map((s) => <option key={s}>{s}</option>)}
-        </select>
-      </div>
-      <div className="row toolbar">
-        <button onClick={() => editor?.chain().focus().toggleBold().run()}><b>B</b></button>
-        <button onClick={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button>
-        <button onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H</button>
-        <button onClick={() => editor?.chain().focus().toggleBlockquote().run()}>"</button>
-        <button onClick={() => editor?.chain().focus().toggleBulletList().run()}>•</button>
-        <button title="Scene break" onClick={() => editor?.chain().focus().setHorizontalRule().run()}>* * *</button>
-        <span className="muted">{words(chapter.body)} words</span>
-      </div>
-      {ac && opts.length > 0 && (
-        <div className="ac">
-          {opts.map((o, n) => (
-            <div key={o.name} className={`opt ${n === ac.idx ? 'on' : ''}`} onMouseDown={(e) => { e.preventDefault(); pickRef.current(o) }}>
-              {o.create ? `+ Create "${o.name}" (character)` : o.name}
+      <div className="w-scroll">
+        <div className="w-page">
+          <input className="w-title" aria-label="Chapter title" value={chapter.title} onChange={(e) => patch({ title: e.target.value })} />
+          <div className="w-meta">
+            <span>{words(chapter.body)} words</span>
+            <select aria-label="Status" value={chapter.status} onChange={(e) => patch({ status: e.target.value as Chapter['status'] })}>
+              {STATUSES.map((s) => <option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <div className="w-toolbar" role="toolbar" aria-label="Formatting">
+            <button aria-label="Bold" onClick={() => editor?.chain().focus().toggleBold().run()}><b>B</b></button>
+            <button aria-label="Italic" onClick={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button>
+            <button aria-label="Heading" onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H</button>
+            <button aria-label="Quote" onClick={() => editor?.chain().focus().toggleBlockquote().run()}>"</button>
+            <button aria-label="Bullet list" onClick={() => editor?.chain().focus().toggleBulletList().run()}>•</button>
+            <button title="Scene break" onClick={() => editor?.chain().focus().setHorizontalRule().run()}>* * *</button>
+          </div>
+          {ac && opts.length > 0 && (
+            <div className="ac">
+              {opts.map((o, n) => (
+                <div key={o.name} className={`opt ${n === ac.idx ? 'on' : ''}`} onMouseDown={(e) => { e.preventDefault(); pickRef.current(o) }}>
+                  {o.create ? `+ Create "${o.name}" (character)` : o.name}
+                </div>
+              ))}
             </div>
-          ))}
+          )}
+          <EditorContent editor={editor} className="editor" />
         </div>
+      </div>
+      {info && (
+        <aside className="drawer right hide-in-focus" aria-label="Chapter details">
+          <h3>Notes</h3>
+          <textarea value={chapter.notes} onChange={(e) => patch({ notes: e.target.value })} rows={6} placeholder="Notes for this chapter..." />
+          {scenes.length > 0 && <><h3>Planned scenes</h3><div className="row">{scenes.map((s) => <Link key={s.id} to="/timeline" className="chip">{s.title}</Link>)}</div></>}
+          {mentioned.length > 0 && <><h3>Mentions</h3><div className="row">{mentioned.map((w) => <Link key={w.id} to={`/wiki/${w.id}`} className="chip">{w.name}</Link>)}</div></>}
+          <details onToggle={(e) => setHistOpen(e.currentTarget.open)}>
+            <summary>History</summary>
+            {histOpen && <History chapter={chapter} restore={(html) => editor?.commands.setContent(html, { emitUpdate: true })} />}
+          </details>
+        </aside>
       )}
-      <EditorContent editor={editor} className="editor" />
-      {scenes.length > 0 && (
-        <div className="row">
-          <span className="muted">Planned scenes:</span>
-          {scenes.map((s) => <Link key={s.id} to="/timeline" className="chip">{s.title}</Link>)}
-        </div>
-      )}
-      {wiki.filter((w) => mentions(plain(chapter.body), w.name)).length > 0 && (
-        <div className="row">
-          <span className="muted">Mentions:</span>
-          {wiki.filter((w) => mentions(plain(chapter.body), w.name)).map((w) => (
-            <Link key={w.id} to={`/wiki/${w.id}`} className="chip">{w.name}</Link>
-          ))}
-        </div>
-      )}
-      <details>
-        <summary>Chapter notes</summary>
-        <textarea value={chapter.notes} onChange={(e) => patch({ notes: e.target.value })} rows={5} />
-      </details>
-      <details onToggle={(e) => setHistOpen(e.currentTarget.open)}>
-        <summary>History</summary>
-        {histOpen && <History chapter={chapter} restore={(html) => editor?.commands.setContent(html, { emitUpdate: true })} />}
-      </details>
     </>
   )
 }
@@ -160,6 +156,8 @@ export default function Write() {
   const [sel, setSel] = useState<string | null>(params.get('c'))
   useEffect(() => { const c = params.get('c'); if (c) setSel(c) }, [params])
   const [focus, setFocus] = useState(false)
+  const [list, setList] = useState(!params.get('c'))
+  const [info, setInfo] = useState(false)
   const [drag, setDrag] = useState<number | null>(null)
   const chapter = book.chapters.find((c) => c.id === sel)
 
@@ -167,6 +165,7 @@ export default function Write() {
     const c: Chapter = { id: uid(), title: `Chapter ${book.chapters.length + 1}`, body: '', status: 'draft', notes: '' }
     update((b) => ({ ...b, chapters: [...b.chapters, c] }))
     setSel(c.id)
+    setList(false)
   }
   const remove = (id: string) => {
     if (!confirm('Delete this chapter? (It goes to Trash.)')) return
@@ -187,32 +186,38 @@ export default function Write() {
   const total = book.chapters.reduce((n, c) => n + words(c.body), 0)
 
   return (
-    <div className={`write ${focus ? 'focus' : ''}`}>
-      <aside>
-        <div className="row">
-          <button onClick={add}>+ Chapter</button>
-          <button onClick={() => setFocus(!focus)}>{focus ? 'Exit focus' : 'Focus'}</button>
-        </div>
-        <p className="muted">{total} words total</p>
-        {book.chapters.map((c, i) => (
-          <div
-            key={c.id}
-            draggable
-            onDragStart={() => setDrag(i)}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => move(i)}
-            className={`item ${c.id === sel ? 'sel' : ''}`}
-            onClick={() => setSel(c.id)}
-          >
-            <span>{i + 1}. {c.title}</span>
-            <small className="muted">{c.status} · {words(c.body)}w</small>
-          </div>
-        ))}
-        {chapter && <button className="danger" onClick={() => remove(chapter.id)}>Delete chapter</button>}
-      </aside>
-      <section>
-        {chapter ? <Editor key={chapter.id} chapter={chapter} /> : <p className="muted">Pick or add a chapter. Drag chapters to reorder.</p>}
-      </section>
+    <div className={`writer ${focus ? 'focus' : ''}`}>
+      <div className="w-top">
+        <button className={`ghost icon hide-in-focus ${list ? 'on' : ''}`} aria-label="Chapters" title="Chapters" onClick={() => setList(!list)}><Icon name="list" /></button>
+        <span className="crumb hide-in-focus">{chapter ? `${chapter.title} · ` : ''}{total} words in book</span>
+        <span className="grow" style={{ display: focus ? 'block' : 'none' }} />
+        <button className="ghost icon hide-in-focus" aria-label="Notes and history" title="Notes, mentions, history" disabled={!chapter} onClick={() => setInfo(!info)}><Icon name="panel" /></button>
+        <button className="ghost icon" aria-label={focus ? 'Exit focus mode' : 'Focus mode'} title={focus ? 'Exit focus mode' : 'Focus mode'} onClick={() => setFocus(!focus)}><Icon name="focus" /></button>
+      </div>
+      {list && !focus && (
+        <aside className="drawer left" aria-label="Chapters">
+          <button onClick={add}><Icon name="plus" size={16} /> Chapter</button>
+          <p className="muted">Drag to reorder</p>
+          {book.chapters.map((c, i) => (
+            <div
+              key={c.id}
+              draggable
+              onDragStart={() => setDrag(i)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => move(i)}
+              className={`item ${c.id === sel ? 'sel' : ''}`}
+              onClick={() => { setSel(c.id); if (innerWidth < 800) setList(false) }}
+            >
+              <span>{i + 1}. {c.title}</span>
+              <small className="muted">{c.status} · {words(c.body)}w</small>
+            </div>
+          ))}
+          {chapter && <button className="danger" onClick={() => remove(chapter.id)}>Delete chapter</button>}
+        </aside>
+      )}
+      {chapter
+        ? <Editor key={chapter.id} chapter={chapter} info={info} />
+        : <div className="empty"><Icon name="pen" size={32} /><p>Pick a chapter, or start a new one.</p><button onClick={add}>+ Chapter</button></div>}
     </div>
   )
 }

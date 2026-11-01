@@ -8,6 +8,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      includeAssets: ['*.svg', '*.png'],
       manifest: {
         name: 'Book Writing Tool',
         short_name: 'Bookwright',

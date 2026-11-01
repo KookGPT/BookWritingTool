@@ -33,7 +33,7 @@ export default function Graph() {
   return (
     <div style={{ height: '100vh', width: '100%' }}>
       {book.wiki.length ? (
-        <ReactFlow nodes={nodes} edges={edges} colorMode="dark" fitView onNodeClick={(_, n) => nav(`/wiki/${n.id}`)}>
+        <ReactFlow nodes={nodes} edges={edges} colorMode={document.documentElement.dataset.theme === "light" ? "light" : "dark"} fitView onNodeClick={(_, n) => nav(`/wiki/${n.id}`)}>
           <Background />
           <Controls showInteractive={false} />
         </ReactFlow>
