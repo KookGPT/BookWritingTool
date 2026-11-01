@@ -16,6 +16,7 @@ export interface MapDoc { id: string; name: string; image: string; w: number; h:
 
 export interface Book {
   title: string
+  stats: { goal: number; days: Record<string, number> } // days = net words written per local date
   maps: MapDoc[]
   chapters: Chapter[] // array order = book order
   wiki: WikiEntry[]
@@ -23,8 +24,10 @@ export interface Book {
   scenes: Scene[]
 }
 
-export const emptyBook = (): Book => ({ title: 'Untitled Book', maps: [], chapters: [], wiki: [], ideas: [], scenes: [] })
+export const emptyBook = (): Book => ({ title: 'Untitled Book', stats: { goal: 500, days: {} }, maps: [], chapters: [], wiki: [], ideas: [], scenes: [] })
 export const plain = (html: string) => html.replace(/<[^>]+>/g, ' ')
+export const words = (html: string) => plain(html).split(/\s+/).filter(Boolean).length
+export const today = () => new Date().toLocaleDateString('en-CA') // YYYY-MM-DD, local time
 // Whole-word, case-insensitive name match; also catches [[Name]] links.
 export const mentions = (text: string, name: string) =>
   !!name.trim() && new RegExp(`\\b${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)

@@ -2,16 +2,21 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { type Chapter, mentions, plain, uid, useBook } from './store'
+import { type Chapter, mentions, plain, today, uid, useBook, words } from './store'
 
 const STATUSES: Chapter['status'][] = ['draft', 'revised', 'done']
-const words = (html: string) => html.replace(/<[^>]+>/g, ' ').split(/\s+/).filter(Boolean).length
 
 function Editor({ chapter }: { chapter: Chapter }) {
   const update = useBook((s) => s.update)
   const wiki = useBook((s) => s.book.wiki)
   const patch = (p: Partial<Chapter>) =>
-    update((b) => ({ ...b, chapters: b.chapters.map((c) => (c.id === chapter.id ? { ...c, ...p } : c)) }))
+    update((b) => {
+      const old = b.chapters.find((c) => c.id === chapter.id)
+      const d = p.body === undefined || !old ? 0 : words(p.body) - words(old.body)
+      const day = today()
+      const stats = d ? { ...b.stats, days: { ...b.stats.days, [day]: Math.max(0, (b.stats.days[day] ?? 0) + d) } } : b.stats
+      return { ...b, stats, chapters: b.chapters.map((c) => (c.id === chapter.id ? { ...c, ...p } : c)) }
+    })
   const editor = useEditor({
     extensions: [StarterKit],
     content: chapter.body,
