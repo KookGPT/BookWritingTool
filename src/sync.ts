@@ -12,6 +12,7 @@ export const toFiles = (b: Book): Files => {
       ideaOrder: b.ideas.map((i) => i.id),
     }, null, 2),
     'stats.json': JSON.stringify(b.stats, null, 2),
+    'config.json': JSON.stringify(b.config, null, 2),
   }
   for (const c of b.chapters) f[`chapters/${c.id}.json`] = JSON.stringify(c, null, 2)
   for (const w of b.wiki) f[`wiki/${w.id}.json`] = JSON.stringify(w, null, 2)
@@ -37,6 +38,7 @@ export const fromFiles = (f: Files): Book => {
     ideas: ordered(dir('ideas/'), meta.ideaOrder),
     wiki: dir('wiki/'),
     maps: dir('maps/'),
+    config: f['config.json'] ? JSON.parse(f['config.json']) : emptyBook().config,
     stats: f['stats.json'] ? JSON.parse(f['stats.json']) : emptyBook().stats,
   }
 }

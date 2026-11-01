@@ -2,7 +2,24 @@ import { create } from 'zustand'
 import { get as idbGet, set as idbSet } from 'idb-keyval'
 
 export interface Chapter { id: string; title: string; body: string; status: 'draft' | 'revised' | 'done'; notes: string }
-export interface WikiEntry { id: string; type: string; name: string; fields: Record<string, string>; notes: string; image?: string }
+export interface WikiEntry {
+  id: string; type: string; name: string; fields: Record<string, string>; notes: string; image?: string
+  links?: { to: string; label: string }[] // relationships to other wiki entries (to = wiki id)
+}
+
+// Built-in entry types with their starter fields; the user's own types live in book.config.types.
+export const DEFAULT_TYPES: Record<string, string[]> = {
+  character: ['Role', 'Age', 'Appearance', 'Goals'],
+  organization: ['Purpose', 'Leader', 'Headquarters'],
+  location: ['Region', 'Climate'],
+  event: ['Date', 'Location', 'Participants'],
+  item: ['Origin', 'Owner'],
+  creature: ['Habitat', 'Abilities', 'Weaknesses'],
+  magic: ['Source', 'Cost', 'Limits'],
+  religion: ['Deity', 'Beliefs', 'Followers'],
+  culture: ['Region', 'Customs', 'Language'],
+}
+export const allTypes = (b: Book) => ({ ...DEFAULT_TYPES, ...b.config.types })
 export interface Idea { id: string; text: string; tags: string[]; pinned: boolean }
 export interface Scene {
   id: string; title: string; summary: string
@@ -16,6 +33,7 @@ export interface MapDoc { id: string; name: string; image: string; w: number; h:
 
 export interface Book {
   title: string
+  config: { types: Record<string, string[]> }
   stats: { goal: number; days: Record<string, number> } // days = net words written per local date
   maps: MapDoc[]
   chapters: Chapter[] // array order = book order
@@ -24,7 +42,7 @@ export interface Book {
   scenes: Scene[]
 }
 
-export const emptyBook = (): Book => ({ title: 'Untitled Book', stats: { goal: 500, days: {} }, maps: [], chapters: [], wiki: [], ideas: [], scenes: [] })
+export const emptyBook = (): Book => ({ title: 'Untitled Book', config: { types: {} }, stats: { goal: 500, days: {} }, maps: [], chapters: [], wiki: [], ideas: [], scenes: [] })
 export const plain = (html: string) => html.replace(/<[^>]+>/g, ' ')
 export const words = (html: string) => plain(html).split(/\s+/).filter(Boolean).length
 export const today = () => new Date().toLocaleDateString('en-CA') // YYYY-MM-DD, local time

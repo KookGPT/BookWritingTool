@@ -42,6 +42,11 @@ const st = (d: object) => JSON.stringify({ goal: 500, days: d })
 r = await run({ 'stats.json': st({ d1: 100, d2: 5 }) }, { 'stats.json': st({ d1: 50, d3: 70 }) }, { 'stats.json': st({}) })
 assert.deepEqual(JSON.parse(r.out['stats.json']).days, { d1: 100, d2: 5, d3: 70 })
 
+// config merge unions custom types, mine wins on a clash
+const cf = (t: object) => JSON.stringify({ types: t })
+r = await run({ 'config.json': cf({ rune: ['a'] }) }, { 'config.json': cf({ rune: ['b'], clan: ['c'] }) }, { 'config.json': cf({}) })
+assert.deepEqual(JSON.parse(r.out['config.json']).types, { rune: ['a'], clan: ['c'] })
+
 // legacy ideas.json is split into per-item files
 r = await run({}, { 'ideas.json': '[{"id":"i1","text":"hi"}]' }, {})
 assert.ok(r.out['ideas/i1.json'] && !('ideas.json' in r.out))

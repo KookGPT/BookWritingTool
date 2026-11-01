@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { trashIt } from './history'
-import { uid, useBook, type WikiEntry } from './store'
+import { allTypes, uid, useBook, type WikiEntry } from './store'
 
-const TYPES = ['character', 'organization', 'location', 'event', 'item']
 const tagsOf = (t: string) => [...t.matchAll(/#(\w+)/g)].map((m) => m[1].toLowerCase())
 
 export default function Ideas() {
@@ -60,7 +59,7 @@ export default function Ideas() {
             <button className="alt" onClick={() => toScene(i.id, i.text)}>→ Scene</button>
             <select value="" onChange={(e) => e.target.value && toWiki(i.id, i.text, e.target.value)}>
               <option value="">→ Wiki...</option>
-              {TYPES.map((t) => <option key={t}>{t}</option>)}
+              {Object.keys(allTypes(book)).map((t) => <option key={t}>{t}</option>)}
             </select>
             <button className="danger" onClick={() => { trashIt('ideas', i.text.slice(0, 50), i); drop(i.id) }}>Delete</button>
           </div>

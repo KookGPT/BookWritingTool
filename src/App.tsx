@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
+import Graph from './Graph'
 import Ideas from './Ideas'
 import Insights from './Insights'
 import MapView from './MapView'
@@ -74,6 +75,7 @@ export default function App() {
           <Route path="/write" element={<Write />} />
           <Route path="/manuscript" element={<Manuscript />} />
           <Route path="/wiki/:id?" element={<Wiki />} />
+          <Route path="/graph" element={<Graph />} />
           <Route path="/ideas" element={<Ideas />} />
           <Route path="/timeline" element={<Timeline />} />
           <Route path="/map" element={<MapView />} />

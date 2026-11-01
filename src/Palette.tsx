@@ -22,7 +22,7 @@ export default function Palette({ onClose }: { onClose: () => void }) {
     { label: 'New chapter', run: newChapter },
     { label: 'New idea', run: () => { nav('/ideas'); setTimeout(() => document.getElementById('idea-input')?.focus()) } },
     { label: 'Sync now', run: () => runSync() },
-    ...['Write', 'Manuscript', 'Timeline', 'Ideas', 'Map', 'Wiki', 'Insights', 'Search', 'Trash', 'Settings'].map((n) => ({ label: `Go to ${n}`, run: () => nav(`/${n.toLowerCase()}`) })),
+    ...['Write', 'Manuscript', 'Timeline', 'Ideas', 'Map', 'Wiki', 'Graph', 'Insights', 'Search', 'Trash', 'Settings'].map((n) => ({ label: `Go to ${n}`, run: () => nav(`/${n.toLowerCase()}`) })),
     ...book.chapters.map((c) => ({ label: `Chapter: ${c.title}`, run: () => nav(`/write?c=${c.id}`) })),
     ...book.wiki.map((w) => ({ label: `${w.type}: ${w.name}`, run: () => nav(`/wiki/${w.id}`) })),
     ...book.scenes.map((s) => ({ label: `Scene: ${s.title}`, run: () => nav('/timeline') })),

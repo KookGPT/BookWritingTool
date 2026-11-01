@@ -34,6 +34,8 @@ export async function merge(i: MergeIn): Promise<{ out: Files; conflicts: number
     if (p === 'book.json') {
       const orders = Object.fromEntries(ORDERS.map((k) => [k, [...(a[k] ?? []), ...(z[k] ?? []).filter((x: string) => !(a[k] ?? []).includes(x))]]))
       out[p] = JSON.stringify({ ...z, ...a, ...orders }, null, 2)
+    } else if (p === 'config.json') {
+      out[p] = JSON.stringify({ ...z, ...a, types: { ...z.types, ...a.types } }, null, 2)
     } else if (p === 'stats.json') {
       const days: Record<string, number> = { ...z.days }
       for (const [d, n] of Object.entries<number>(a.days)) days[d] = Math.max(n, days[d] ?? 0)
