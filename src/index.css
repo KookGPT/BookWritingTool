@@ -1,0 +1,17 @@
+:root { color-scheme: light dark; --bg:#1b1b1f; --fg:#e6e6e6; --panel:#25252b; --accent:#8ab4ff; --muted:#999; font-family: system-ui, sans-serif }
+@media (prefers-color-scheme: light) { :root { --bg:#fafafa; --fg:#1b1b1f; --panel:#ececf1; --accent:#2d5bd1; --muted:#666 } }
+* { box-sizing: border-box }
+body { margin: 0; background: var(--bg); color: var(--fg) }
+.app { display: flex; min-height: 100vh }
+nav { width: 200px; background: var(--panel); padding: 1rem; display: flex; flex-direction: column; gap: .25rem }
+nav a { color: var(--fg); text-decoration: none; padding: .5rem .75rem; border-radius: 6px }
+nav a.active { background: var(--accent); color: #fff }
+nav .bottom { margin-top: auto }
+main { flex: 1; min-width: 0 }
+.page { max-width: 640px; padding: 1.5rem; display: flex; flex-direction: column; gap: .75rem }
+label { display: flex; flex-direction: column; gap: .25rem }
+input { padding: .5rem; border-radius: 6px; border: 1px solid var(--muted); background: var(--bg); color: var(--fg) }
+button { padding: .5rem .9rem; border-radius: 6px; border: 0; background: var(--accent); color: #fff; cursor: pointer }
+.row { display: flex; gap: .5rem; flex-wrap: wrap }
+.muted { color: var(--muted) }
+@media (max-width: 600px) { .app { flex-direction: column } nav { width: auto; flex-direction: row; flex-wrap: wrap } nav .bottom { margin-top: 0 } }
