@@ -10,15 +10,20 @@ export interface Scene {
   location?: string; characters?: string[]; status?: 'planned' | 'drafting' | 'done'
 }
 
+export interface Pin { id: string; y: number; x: number; label: string; wikiId?: string }
+// image is a downscaled JPEG data URL so the whole map syncs as one JSON file.
+export interface MapDoc { id: string; name: string; image: string; w: number; h: number; pins: Pin[] }
+
 export interface Book {
   title: string
+  maps: MapDoc[]
   chapters: Chapter[] // array order = book order
   wiki: WikiEntry[]
   ideas: Idea[]
   scenes: Scene[]
 }
 
-export const emptyBook = (): Book => ({ title: 'Untitled Book', chapters: [], wiki: [], ideas: [], scenes: [] })
+export const emptyBook = (): Book => ({ title: 'Untitled Book', maps: [], chapters: [], wiki: [], ideas: [], scenes: [] })
 export const plain = (html: string) => html.replace(/<[^>]+>/g, ' ')
 // Whole-word, case-insensitive name match; also catches [[Name]] links.
 export const mentions = (text: string, name: string) =>

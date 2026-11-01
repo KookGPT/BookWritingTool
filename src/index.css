@@ -48,3 +48,10 @@ a.item { color: var(--fg); text-decoration: none }
 .cell.pov { outline: 2px solid var(--fg) }
 .check { flex-direction: row; align-items: center; gap: .3rem }
 button:disabled { opacity: .4; cursor: default }
+.mapsec { max-width: none !important }
+.leaflet-host { flex: 1; min-height: 400px; background: var(--panel); border-radius: 8px }
+.leaflet-host.adding { cursor: crosshair }
+.upload { padding: .5rem .9rem; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; text-align: center }
+.pin { width: 16px; height: 16px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #e74c3c; border: 2px solid #fff }
+.pin.sel { background: #f1c40f }
+.pin-label { font-weight: 600 }

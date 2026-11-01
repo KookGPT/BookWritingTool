@@ -9,6 +9,7 @@ export const toFiles = (b: Book): Record<string, string> => {
   }
   for (const c of b.chapters) f[`chapters/${c.id}.json`] = JSON.stringify(c, null, 2)
   for (const w of b.wiki) f[`wiki/${w.id}.json`] = JSON.stringify(w, null, 2)
+  for (const m of b.maps) f[`maps/${m.id}.json`] = JSON.stringify(m)
   return f
 }
 
@@ -23,6 +24,7 @@ export const fromFiles = (f: Record<string, string>): Book => {
     title: meta.title ?? emptyBook().title,
     chapters,
     wiki: dir('wiki/'),
+    maps: dir('maps/'),
     ideas: f['ideas.json'] ? JSON.parse(f['ideas.json']) : [],
     scenes: f['scenes.json'] ? JSON.parse(f['scenes.json']) : [],
   }

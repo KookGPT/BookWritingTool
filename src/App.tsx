@@ -1,6 +1,7 @@
 import { NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import Ideas from './Ideas'
+import MapView from './MapView'
 import Settings from './Settings'
 import Timeline from './Timeline'
 import Wiki from './Wiki'
@@ -43,7 +44,8 @@ export default function App() {
           <Route path="/wiki/:id?" element={<Wiki />} />
           <Route path="/ideas" element={<Ideas />} />
           <Route path="/timeline" element={<Timeline />} />
-          {tools.filter((t) => !['Write', 'Wiki', 'Ideas', 'Timeline'].includes(t)).map((t) => <Route key={t} path={`/${t.toLowerCase()}`} element={<Soon name={t} />} />)}
+          <Route path="/map" element={<MapView />} />
+          {tools.filter((t) => !['Write', 'Wiki', 'Ideas', 'Timeline', 'Map'].includes(t)).map((t) => <Route key={t} path={`/${t.toLowerCase()}`} element={<Soon name={t} />} />)}
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>
