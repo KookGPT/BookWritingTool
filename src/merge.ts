@@ -12,7 +12,7 @@ export interface MergeIn {
 }
 
 const LEGACY = ['ideas.json', 'scenes.json'] // old single-file layout, split into one file per item
-const ORDERS = ['chapterOrder', 'sceneOrder', 'ideaOrder']
+const ORDERS = ['chapterOrder', 'sceneOrder', 'ideaOrder', 'threadOrder']
 const labelField = (dir: string) => (dir === 'chapters' || dir === 'scenes' ? 'title' : dir === 'ideas' ? 'text' : 'name')
 
 export async function merge(i: MergeIn): Promise<{ out: Files; conflicts: number }> {

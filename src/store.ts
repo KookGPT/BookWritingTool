@@ -27,6 +27,7 @@ export interface Scene {
   id: string; title: string; summary: string
   chapterId?: string; pov?: string; when?: string // pov/location/characters hold wiki ids; when = in-story date, free text
   location?: string; characters?: string[]; status?: 'planned' | 'drafting' | 'done'
+  threads?: string[] // plot thread ids this scene advances
   date?: SDate // in-world date on the book's calendar; `when` stays a free-text note (e.g. "dawn")
 }
 
@@ -34,8 +35,11 @@ export interface Pin { id: string; y: number; x: number; label: string; wikiId?:
 // image is a downscaled JPEG data URL so the whole map syncs as one JSON file.
 export interface MapDoc { id: string; name: string; image: string; w: number; h: number; pins: Pin[] }
 
+export interface Thread { id: string; name: string; resolved: boolean }
+
 export interface Book {
   title: string
+  threads: Thread[]
   config: { types: Record<string, string[]>; calendar?: Calendar }
   stats: { goal: number; days: Record<string, number> } // days = net words written per local date
   maps: MapDoc[]
@@ -45,7 +49,7 @@ export interface Book {
   scenes: Scene[]
 }
 
-export const emptyBook = (): Book => ({ title: 'Untitled Book', config: { types: {} }, stats: { goal: 500, days: {} }, maps: [], chapters: [], wiki: [], ideas: [], scenes: [] })
+export const emptyBook = (): Book => ({ title: 'Untitled Book', threads: [], config: { types: {} }, stats: { goal: 500, days: {} }, maps: [], chapters: [], wiki: [], ideas: [], scenes: [] })
 export const plain = (html: string) => html.replace(/<[^>]+>/g, ' ')
 export const words = (html: string) => plain(html).split(/\s+/).filter(Boolean).length
 export const today = () => new Date().toLocaleDateString('en-CA') // YYYY-MM-DD, local time

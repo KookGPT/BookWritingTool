@@ -6,6 +6,7 @@ import Ideas from './Ideas'
 import Insights from './Insights'
 import MapView from './MapView'
 import Palette from './Palette'
+import Plot from './Plot'
 import Manuscript from './Manuscript'
 import Search from './Search'
 import Settings from './Settings'
@@ -16,7 +17,7 @@ import Write from './Write'
 import { useBook } from './store'
 import { loadSettings, runSync, useSyncStatus } from './sync'
 
-const tools = ['Write', 'Manuscript', 'Timeline', 'Calendar', 'Ideas', 'Map', 'Wiki', 'Insights', 'Search'] as const
+const tools = ['Write', 'Manuscript', 'Timeline', 'Plot', 'Calendar', 'Ideas', 'Map', 'Wiki', 'Insights', 'Search'] as const
 
 export default function App() {
   const { book, dirty, ready } = useBook()
@@ -76,6 +77,7 @@ export default function App() {
           <Route path="/write" element={<Write />} />
           <Route path="/manuscript" element={<Manuscript />} />
           <Route path="/wiki/:id?" element={<Wiki />} />
+          <Route path="/plot" element={<Plot />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/graph" element={<Graph />} />
           <Route path="/ideas" element={<Ideas />} />

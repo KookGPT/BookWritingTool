@@ -10,6 +10,7 @@ export const toFiles = (b: Book): Files => {
       chapterOrder: b.chapters.map((c) => c.id),
       sceneOrder: b.scenes.map((s) => s.id),
       ideaOrder: b.ideas.map((i) => i.id),
+      threadOrder: b.threads.map((t) => t.id),
     }, null, 2),
     'stats.json': JSON.stringify(b.stats, null, 2),
     'config.json': JSON.stringify(b.config, null, 2),
@@ -18,6 +19,7 @@ export const toFiles = (b: Book): Files => {
   for (const w of b.wiki) f[`wiki/${w.id}.json`] = JSON.stringify(w, null, 2)
   for (const s of b.scenes) f[`scenes/${s.id}.json`] = JSON.stringify(s, null, 2)
   for (const i of b.ideas) f[`ideas/${i.id}.json`] = JSON.stringify(i, null, 2)
+  for (const t of b.threads) f[`threads/${t.id}.json`] = JSON.stringify(t, null, 2)
   for (const m of b.maps) f[`maps/${m.id}.json`] = JSON.stringify(m)
   return f
 }
@@ -36,6 +38,7 @@ export const fromFiles = (f: Files): Book => {
     chapters: ordered(dir('chapters/'), meta.chapterOrder),
     scenes: ordered(dir('scenes/'), meta.sceneOrder),
     ideas: ordered(dir('ideas/'), meta.ideaOrder),
+    threads: ordered(dir('threads/'), meta.threadOrder),
     wiki: dir('wiki/'),
     maps: dir('maps/'),
     config: f['config.json'] ? JSON.parse(f['config.json']) : emptyBook().config,
@@ -43,7 +46,7 @@ export const fromFiles = (f: Files): Book => {
   }
 }
 
-const isEmpty = (b: Book) => !(b.chapters.length || b.wiki.length || b.ideas.length || b.scenes.length || b.maps.length)
+const isEmpty = (b: Book) => !(b.chapters.length || b.threads.length || b.wiki.length || b.ideas.length || b.scenes.length || b.maps.length)
 
 export interface Settings { token: string; repo: string; auto?: boolean } // repo = "owner/name"
 const SKEY = 'sync-settings'
