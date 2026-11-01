@@ -4,7 +4,11 @@ import { get as idbGet, set as idbSet } from 'idb-keyval'
 export interface Chapter { id: string; title: string; body: string; status: 'draft' | 'revised' | 'done'; notes: string }
 export interface WikiEntry { id: string; type: string; name: string; fields: Record<string, string>; notes: string }
 export interface Idea { id: string; text: string; tags: string[]; pinned: boolean }
-export interface Scene { id: string; title: string; chapterId?: string; pov?: string; when?: string; summary: string }
+export interface Scene {
+  id: string; title: string; summary: string
+  chapterId?: string; pov?: string; when?: string // pov/location/characters hold wiki ids; when = in-story date, free text
+  location?: string; characters?: string[]; status?: 'planned' | 'drafting' | 'done'
+}
 
 export interface Book {
   title: string

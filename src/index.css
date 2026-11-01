@@ -37,3 +37,14 @@ select, textarea { padding: .5rem; border-radius: 6px; border: 1px solid var(--m
 a.item { color: var(--fg); text-decoration: none }
 .alt { background: var(--panel); color: var(--fg); align-self: flex-start }
 .page.wide { max-width: 760px }
+.page.wider { max-width: none }
+.panel { display: flex; flex-direction: column; gap: .6rem; padding: 1rem; background: var(--panel); border-radius: 8px; max-width: 760px }
+.board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem }
+.col { display: flex; flex-direction: column; gap: .4rem; min-height: 200px; padding: .5rem; border: 1px dashed var(--muted); border-radius: 8px }
+.lanes { display: grid; gap: 4px; align-items: center; overflow-x: auto }
+.lanes .head { font-size: .75rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis }
+.cell { height: 28px; border-radius: 4px; background: var(--panel); cursor: pointer }
+.cell.on { background: var(--accent) }
+.cell.pov { outline: 2px solid var(--fg) }
+.check { flex-direction: row; align-items: center; gap: .3rem }
+button:disabled { opacity: .4; cursor: default }
