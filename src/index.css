@@ -70,3 +70,8 @@ button:disabled { opacity: .4; cursor: default }
 .manuscript p { margin: 0 0 1em; text-indent: 1.5em }
 .manuscript hr, .editor .tiptap hr { border: 0; text-align: center; margin: 1.5rem 0 }
 .manuscript hr::after, .editor .tiptap hr::after { content: '* * *'; color: var(--muted); letter-spacing: .5em }
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; justify-content: center; align-items: flex-start; padding-top: 12vh; z-index: 1000 }
+.palette { width: min(560px, 92vw); background: var(--panel); border-radius: 10px; padding: .5rem; display: flex; flex-direction: column; gap: .2rem }
+.opt { padding: .5rem .75rem; border-radius: 6px; cursor: pointer }
+.opt.on { background: var(--accent); color: #fff }
+.ac { background: var(--panel); border: 1px solid var(--muted); border-radius: 8px; padding: .25rem; align-self: flex-start; min-width: 220px }

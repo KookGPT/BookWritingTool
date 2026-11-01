@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import Ideas from './Ideas'
 import Insights from './Insights'
 import MapView from './MapView'
+import Palette from './Palette'
 import Manuscript from './Manuscript'
 import Search from './Search'
 import Settings from './Settings'
@@ -19,8 +20,10 @@ export default function App() {
   const { book, dirty, ready } = useBook()
   const nav = useNavigate()
   // In-app hotkeys: browsers can't register OS-wide shortcuts.
+  const [palette, setPalette] = useState(false)
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette((p) => !p); return }
       if (!e.ctrlKey || !e.shiftKey) return
       const k = e.key.toLowerCase()
       if (k === 'i' || k === 'f') {
@@ -56,10 +59,12 @@ export default function App() {
   if (!ready) return null
   return (
     <div className="app">
+      {palette && <Palette onClose={() => setPalette(false)} />}
       <nav>
         <h3>{book.title}{dirty && ' ●'}</h3>
         {tools.map((t) => <NavLink key={t} to={`/${t.toLowerCase()}`}>{t}</NavLink>)}
-        <NavLink to="/trash" className="bottom">Trash</NavLink>
+        <small className="muted bottom">Ctrl+K: command palette</small>
+        <NavLink to="/trash">Trash</NavLink>
         <NavLink to="/settings">Settings and Sync</NavLink>
         {sync.text && <small className="muted syncmsg">{sync.busy ? '⟳ ' : ''}{sync.text}</small>}
       </nav>

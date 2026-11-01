@@ -1,6 +1,7 @@
+import type { Editor as TiptapEditor } from '@tiptap/core'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { history, type Snap, snapshot, trashIt } from './history'
 import { type Chapter, mentions, plain, today, uid, useBook, words } from './store'
@@ -53,11 +54,49 @@ function Editor({ chapter }: { chapter: Chapter }) {
       return { ...b, stats, chapters: b.chapters.map((c) => (c.id === chapter.id ? { ...c, ...p } : c)) }
     })
   }
+  // [[ autocomplete: suggest wiki names, or create a new entry on the spot.
+  const [ac, setAc] = useState<{ q: string; from: number; idx: number } | null>(null)
+  const acRef = useRef(ac)
+  acRef.current = ac
+  const opts: { name: string; create?: boolean }[] = ac
+    ? [
+        ...wiki.filter((w) => w.name.toLowerCase().includes(ac.q.toLowerCase())).slice(0, 6).map((w) => ({ name: w.name })),
+        ...(ac.q.trim() && !wiki.some((w) => w.name.toLowerCase() === ac.q.trim().toLowerCase()) ? [{ name: ac.q.trim(), create: true }] : []),
+      ]
+    : []
+  const optsRef = useRef(opts)
+  optsRef.current = opts
+  const pickRef = useRef<(o?: { name: string; create?: boolean }) => void>(() => {})
+  const detect = (e: TiptapEditor) => {
+    const { from } = e.state.selection
+    const m = /\[\[([^\]\n]*)$/.exec(e.state.doc.textBetween(Math.max(0, from - 60), from, '\n'))
+    setAc(m ? (prev) => ({ q: m[1], from: from - m[0].length, idx: prev && prev.q === m[1] ? prev.idx : 0 }) : null)
+  }
   const editor = useEditor({
     extensions: [StarterKit],
     content: chapter.body,
-    onUpdate: ({ editor }) => patch({ body: editor.getHTML() }),
+    onUpdate: ({ editor }) => { patch({ body: editor.getHTML() }); detect(editor) },
+    onSelectionUpdate: ({ editor }) => detect(editor),
+    editorProps: {
+      handleKeyDown: (_, e) => {
+        const a = acRef.current
+        if (!a) return false
+        const n = optsRef.current.length
+        if (e.key === 'ArrowDown') setAc({ ...a, idx: Math.min(a.idx + 1, n - 1) })
+        else if (e.key === 'ArrowUp') setAc({ ...a, idx: Math.max(a.idx - 1, 0) })
+        else if (e.key === 'Enter' && n) pickRef.current(optsRef.current[a.idx])
+        else if (e.key === 'Escape') setAc(null)
+        else return false
+        return true
+      },
+    },
   })
+  pickRef.current = (o) => {
+    if (!o || !ac || !editor) return
+    if (o.create) update((b) => ({ ...b, wiki: [...b.wiki, { id: uid(), type: 'character', name: o.name, fields: {}, notes: '' }] }))
+    editor.chain().focus().deleteRange({ from: ac.from, to: editor.state.selection.from }).insertContent(`[[${o.name}]]`).run()
+    setAc(null)
+  }
   // A sync can bring in this chapter's text from the other device; show it instead of overwriting it on the next keystroke.
   useEffect(() => {
     if (editor && chapter.body !== editor.getHTML()) editor.commands.setContent(chapter.body, { emitUpdate: false })
@@ -79,6 +118,15 @@ function Editor({ chapter }: { chapter: Chapter }) {
         <button title="Scene break" onClick={() => editor?.chain().focus().setHorizontalRule().run()}>* * *</button>
         <span className="muted">{words(chapter.body)} words</span>
       </div>
+      {ac && opts.length > 0 && (
+        <div className="ac">
+          {opts.map((o, n) => (
+            <div key={o.name} className={`opt ${n === ac.idx ? 'on' : ''}`} onMouseDown={(e) => { e.preventDefault(); pickRef.current(o) }}>
+              {o.create ? `+ Create "${o.name}" (character)` : o.name}
+            </div>
+          ))}
+        </div>
+      )}
       <EditorContent editor={editor} className="editor" />
       {scenes.length > 0 && (
         <div className="row">
@@ -110,6 +158,7 @@ export default function Write() {
   const { book, update } = useBook()
   const [params] = useSearchParams()
   const [sel, setSel] = useState<string | null>(params.get('c'))
+  useEffect(() => { const c = params.get('c'); if (c) setSel(c) }, [params])
   const [focus, setFocus] = useState(false)
   const [drag, setDrag] = useState<number | null>(null)
   const chapter = book.chapters.find((c) => c.id === sel)
