@@ -160,6 +160,12 @@ export default function Write() {
   const [info, setInfo] = useState(false)
   const [drag, setDrag] = useState<number | null>(null)
   const chapter = book.chapters.find((c) => c.id === sel)
+  useEffect(() => {
+    if (!focus) return
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') setFocus(false) }
+    addEventListener('keydown', h)
+    return () => removeEventListener('keydown', h)
+  }, [focus])
 
   const add = () => {
     const c: Chapter = { id: uid(), title: `Chapter ${book.chapters.length + 1}`, body: '', status: 'draft', notes: '' }
@@ -191,7 +197,7 @@ export default function Write() {
         <button className={`ghost icon hide-in-focus ${list ? 'on' : ''}`} aria-label="Chapters" title="Chapters" onClick={() => setList(!list)}><Icon name="list" /></button>
         <span className="crumb hide-in-focus">{chapter ? `${chapter.title} · ` : ''}{total} words in book</span>
         <span className="grow" style={{ display: focus ? 'block' : 'none' }} />
-        <button className="ghost icon hide-in-focus" aria-label="Notes and history" title="Notes, mentions, history" disabled={!chapter} onClick={() => setInfo(!info)}><Icon name="panel" /></button>
+        <button className={`ghost icon hide-in-focus ${info ? 'on' : ''}`} aria-label="Notes and history" title="Notes, mentions, history" disabled={!chapter} onClick={() => setInfo(!info)}><Icon name="panel" /></button>
         <button className="ghost icon" aria-label={focus ? 'Exit focus mode' : 'Focus mode'} title={focus ? 'Exit focus mode' : 'Focus mode'} onClick={() => setFocus(!focus)}><Icon name="focus" /></button>
       </div>
       {list && !focus && (
