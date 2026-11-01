@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import Icon from './Icon'
 import { history, type Snap, snapshot, trashIt } from './history'
-import { PlanFields, PlanView, usePatchScene } from './ScenePlan'
-import { type Chapter, mentions, type Scene, plain, today, uid, useBook, words } from './store'
+import { PlanView } from './ScenePlan'
+import { SceneBlock } from './sceneNode'
+import { type Chapter, mentions, plain, sceneBlocks, today, uid, useBook, words } from './store'
 
 const STATUSES: Chapter['status'][] = ['draft', 'revised', 'done']
 
@@ -38,35 +39,16 @@ function History({ chapter, restore }: { chapter: Chapter; restore: (html: strin
   )
 }
 
-function SceneItem({ scene, remove }: { scene: Scene; remove: () => void }) {
-  const patch = usePatchScene(scene.id)
-  const status = scene.status ?? 'planned'
-  return (
-    <details className="item" open={status === 'planned' && !scene.summary}>
-      <summary><b>{scene.title}</b> <span className={`stage ${status}`}>{status}</span></summary>
-      <div className="scene-body">
-        <input aria-label="Scene title" value={scene.title} onChange={(e) => patch({ title: e.target.value })} />
-        <select aria-label="Scene status" value={status} onChange={(e) => patch({ status: e.target.value as Scene['status'] })}>
-          <option>planned</option><option>drafting</option><option>done</option>
-        </select>
-        {status === 'planned' ? <PlanFields scene={scene} /> : <PlanView scene={scene} />}
-        <div className="row">
-          <Link className="chip" to={`/scenes?s=${scene.id}`}>Open in Scenes ›</Link>
-          <button className="alt" onClick={remove}>Take out of chapter</button>
-        </div>
-      </div>
-    </details>
-  )
-}
-
-function Editor({ chapter, info }: { chapter: Chapter; info: boolean }) {
+function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean; closeInfo: () => void }) {
   const update = useBook((s) => s.update)
   const wiki = useBook((s) => s.book.wiki)
   const allScenes = useBook((s) => s.book.scenes)
-  const scenes = allScenes.filter((s) => s.chapterId === chapter.id)
-  const loose = allScenes.filter((s) => !s.chapterId)
-  const assign = (id: string, chapterId?: string) => update((b) => ({ ...b, scenes: b.scenes.map((s) => (s.id === id ? { ...s, chapterId } : s)) }))
-  const addScene = () => update((b) => ({ ...b, scenes: [...b.scenes, { id: uid(), title: `Scene ${scenes.length + 1}`, summary: '', status: 'planned', chapterId: chapter.id }] }))
+  const chapters = useBook((s) => s.book.chapters)
+  const here = new Set(sceneBlocks(chapter.body).map((x) => x.id))
+  const inChapter = allScenes.filter((s) => here.has(s.id))
+  const planned = allScenes.filter((s) => s.chapterId === chapter.id && (s.status ?? 'planned') === 'planned')
+  const placed = (id: string) => chapters.some((c) => c.body.includes(`data-scene="${id}"`))
+  const insertable = allScenes.filter((s) => (s.status ?? 'planned') !== 'planned' && !placed(s.id))
   const [histOpen, setHistOpen] = useState(false)
   const patch = (p: Partial<Chapter>) => {
     if (p.body !== undefined) {
@@ -78,7 +60,9 @@ function Editor({ chapter, info }: { chapter: Chapter; info: boolean }) {
       const d = p.body === undefined || !old ? 0 : words(p.body) - words(old.body)
       const day = today()
       const stats = d ? { ...b.stats, days: { ...b.stats.days, [day]: Math.max(0, (b.stats.days[day] ?? 0) + d) } } : b.stats
-      return { ...b, stats, chapters: b.chapters.map((c) => (c.id === chapter.id ? { ...c, ...p } : c)) }
+      const edited = p.body === undefined ? [] : sceneBlocks(p.body)
+      const scenes = edited.length ? b.scenes.map((s) => { const e = edited.find((x) => x.id === s.id); return e && e.html !== s.body ? { ...s, body: e.html } : s }) : b.scenes
+      return { ...b, stats, scenes, chapters: b.chapters.map((c) => (c.id === chapter.id ? { ...c, ...p } : c)) }
     })
   }
   // [[ autocomplete: suggest wiki names, or create a new entry on the spot.
@@ -100,7 +84,7 @@ function Editor({ chapter, info }: { chapter: Chapter; info: boolean }) {
     setAc(m ? (prev) => ({ q: m[1], from: from - m[0].length, idx: prev && prev.q === m[1] ? prev.idx : 0 }) : null)
   }
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [StarterKit, SceneBlock],
     content: chapter.body,
     onUpdate: ({ editor }) => { patch({ body: editor.getHTML() }); detect(editor) },
     onSelectionUpdate: ({ editor }) => detect(editor),
@@ -128,6 +112,18 @@ function Editor({ chapter, info }: { chapter: Chapter; info: boolean }) {
   useEffect(() => {
     if (editor && chapter.body !== editor.getHTML()) editor.commands.setContent(chapter.body, { emitUpdate: false })
   }, [chapter.body, editor])
+  const insertScene = (id: string) => {
+    const sc = allScenes.find((x) => x.id === id)
+    if (!sc || !editor) return
+    editor.chain().focus().insertContent(`<div data-scene="${id}">${sc.body || '<p></p>'}</div>`).run()
+    update((b) => ({ ...b, scenes: b.scenes.map((x) => (x.id === id ? { ...x, chapterId: chapter.id } : x)) }))
+  }
+  const removeScene = (id: string) => {
+    if (!editor) return
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'scene' && node.attrs.sceneId === id) { editor.chain().deleteRange({ from: pos, to: pos + node.nodeSize }).run(); return false }
+    })
+  }
   const mentioned = wiki.filter((w) => mentions(plain(chapter.body), w.name))
   return (
     <>
@@ -162,20 +158,34 @@ function Editor({ chapter, info }: { chapter: Chapter; info: boolean }) {
       </div>
       {info && (
         <aside className="drawer right hide-in-focus" aria-label="Chapter details">
-          <h3>Notes</h3>
+          <div className="row" style={{ alignItems: 'center' }}>
+            <h3 className="grow">Notes</h3>
+            <button className="ghost icon" aria-label="Close notes" onClick={closeInfo}>×</button>
+          </div>
           <textarea value={chapter.notes} onChange={(e) => patch({ notes: e.target.value })} rows={6} placeholder="Notes for this chapter..." />
           <h3>Scenes in this chapter</h3>
-          {scenes.map((s) => <SceneItem key={s.id} scene={s} remove={() => assign(s.id, undefined)} />)}
-          {!scenes.length && <p className="muted">No scenes yet. Add one and it files into this chapter.</p>}
-          <div className="row">
-            <button className="alt" onClick={addScene}>+ Add scene</button>
-            {loose.length > 0 && (
-              <select aria-label="Add an existing scene" value="" onChange={(e) => e.target.value && assign(e.target.value, chapter.id)}>
-                <option value="">Add existing...</option>
-                {loose.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
-              </select>
-            )}
-          </div>
+          {inChapter.map((s) => (
+            <div key={s.id} className="item">
+              <span><b>{s.title}</b> <span className={`stage ${s.status}`}>{s.status}</span></span>
+              <div className="row">
+                <Link className="chip" to={`/scenes?s=${s.id}`}>Open in Scenes ›</Link>
+                <button className="alt" onClick={() => removeScene(s.id)}>Remove from chapter</button>
+              </div>
+            </div>
+          ))}
+          {!inChapter.length && <p className="muted">Nothing placed here yet.</p>}
+          {insertable.length > 0 ? (
+            <select aria-label="Insert a scene" value="" onChange={(e) => e.target.value && insertScene(e.target.value)}>
+              <option value="">Insert a draft or finished scene...</option>
+              {insertable.map((s) => <option key={s.id} value={s.id}>{s.title} ({s.status})</option>)}
+            </select>
+          ) : <small className="muted">Write scenes in the Scenes tab, set them to drafting or done, then insert them here.</small>}
+          {planned.length > 0 && (
+            <>
+              <h3>Planned for this chapter</h3>
+              {planned.map((s) => <details key={s.id} className="item"><summary><b>{s.title}</b></summary><PlanView scene={s} /></details>)}
+            </>
+          )}
           {mentioned.length > 0 && <><h3>Mentions</h3><div className="row">{mentioned.map((w) => <Link key={w.id} to={`/wiki/${w.id}`} className="chip">{w.name}</Link>)}</div></>}
           <details onToggle={(e) => setHistOpen(e.currentTarget.open)}>
             <summary>History</summary>
@@ -198,11 +208,10 @@ export default function Write() {
   const [drag, setDrag] = useState<number | null>(null)
   const chapter = book.chapters.find((c) => c.id === sel)
   useEffect(() => {
-    if (!focus) return
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') setFocus(false) }
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { if (focus) setFocus(false); else if (info) setInfo(false); else if (list) setList(false) } }
     addEventListener('keydown', h)
     return () => removeEventListener('keydown', h)
-  }, [focus])
+  }, [focus, info, list])
 
   const add = () => {
     const c: Chapter = { id: uid(), title: `Chapter ${book.chapters.length + 1}`, body: '', status: 'draft', notes: '' }
@@ -259,7 +268,7 @@ export default function Write() {
         </aside>
       )}
       {chapter
-        ? <Editor key={chapter.id} chapter={chapter} info={info} />
+        ? <Editor key={chapter.id} chapter={chapter} info={info} closeInfo={() => setInfo(false)} />
         : <div className="empty"><Icon name="pen" size={32} /><p>Pick a chapter, or start a new one.</p><button onClick={add}>+ Chapter</button></div>}
     </div>
   )

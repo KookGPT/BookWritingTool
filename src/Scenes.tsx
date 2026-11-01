@@ -1,6 +1,7 @@
 import { Fragment, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { PlanFields, PlanView } from './ScenePlan'
+import SceneText from './SceneText'
 import { trashIt } from './history'
 import { fmt } from './calendar'
 import { calendarOf, type Scene, uid, useBook } from './store'
@@ -17,6 +18,7 @@ function SceneForm({ scene, onClose }: { scene: Scene; onClose: () => void }) {
   const here = scene.characters ?? []
   const status = scene.status ?? 'planned'
   const planned = status === 'planned'
+  const placedIn = book.chapters.find((c) => c.body.includes(`data-scene="${scene.id}"`))?.title
   const i = book.scenes.findIndex((s) => s.id === scene.id)
   const move = (d: number) =>
     update((b) => {
@@ -40,6 +42,7 @@ function SceneForm({ scene, onClose }: { scene: Scene; onClose: () => void }) {
             <summary>The plan</summary>
             <PlanView scene={scene} />
           </details>
+          <div><small className="muted">SCENE TEXT{placedIn ? ` (also in ${placedIn})` : ''}</small><SceneText scene={scene} /></div>
           <label>Draft notes<textarea rows={4} placeholder="What changed from the plan? What needs fixing on revision?" value={scene.notes ?? ''} onChange={(e) => patch({ notes: e.target.value })} /></label>
           <div className="row" style={{ alignItems: 'end' }}>
             <label className="grow">Chapter

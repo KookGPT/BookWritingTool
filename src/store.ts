@@ -29,6 +29,7 @@ export interface Scene {
   location?: string; characters?: string[]; status?: 'planned' | 'drafting' | 'done'
   threads?: string[] // plot thread ids this scene advances
   goal?: string; conflict?: string; outcome?: string; beats?: string // plan, filled in while status is 'planned'
+  body?: string // the scene's prose (HTML); linked into a chapter as <div data-scene=id>
   notes?: string // draft notes: what changed from the plan, what to fix on revision
   date?: SDate // in-world date on the book's calendar; `when` stays a free-text note (e.g. "dawn")
 }
@@ -67,6 +68,19 @@ export const today = () => new Date().toLocaleDateString('en-CA') // YYYY-MM-DD,
 export const mentions = (text: string, name: string) =>
   !!name.trim() && new RegExp(`\\b${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)
 export const uid =() => crypto.randomUUID().slice(0, 8)
+
+// Scenes placed in a chapter live in its HTML as <div data-scene="id" class="scene-block">...</div>.
+const BLOCK = /<div data-scene="([^"]+)"[^>]*>([\s\S]*?)<\/div>/g
+export const sceneBlocks = (html: string) => [...html.matchAll(BLOCK)].map((m) => ({ id: m[1], html: m[2] }))
+// Write a scene's text and mirror it into every chapter that contains it.
+export const setSceneBody = (b: Book, id: string, html: string): Book => ({
+  ...b,
+  scenes: b.scenes.map((s) => (s.id === id ? { ...s, body: html } : s)),
+  chapters: b.chapters.map((c) =>
+    c.body.includes(`data-scene="${id}"`)
+      ? { ...c, body: c.body.replace(new RegExp(`(<div data-scene="${id}"[^>]*>)[\\s\\S]*?(</div>)`), (_, a, z) => a + html + z) }
+      : c),
+})
 
 interface State {
   book: Book

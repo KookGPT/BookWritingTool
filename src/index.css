@@ -315,3 +315,8 @@ button.ghost.on { background: var(--accent-soft); color: var(--fg) }
 .scene-body { display: flex; flex-direction: column; gap: .5rem; padding-top: .5rem }
 .drawer details.item > summary { color: var(--fg); display: flex; gap: .5rem; align-items: center; justify-content: space-between }
 .drawer > * { flex-shrink: 0 }
+.scene-block { border-left: 3px solid var(--ember); padding-left: 1rem; margin: 1.2em 0; background: color-mix(in srgb, var(--ember) 6%, transparent); border-radius: 0 var(--r) var(--r) 0 }
+.manuscript .scene-block { border: 0; padding: 0; margin: 0; background: none }
+.scene-text .tiptap { min-height: 12rem; padding: 1rem 1.2rem; font-size: 1.05rem; line-height: 1.8; box-shadow: none; border-radius: var(--r) }
+.writer .drawer { top: 3.4rem; padding-top: 1rem }
+.drawer button.icon { font-size: 1.3rem; line-height: 1 }
