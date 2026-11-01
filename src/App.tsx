@@ -3,6 +3,7 @@ import { Navigate, NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import Ideas from './Ideas'
 import Insights from './Insights'
 import MapView from './MapView'
+import Manuscript from './Manuscript'
 import Search from './Search'
 import Settings from './Settings'
 import Timeline from './Timeline'
@@ -12,7 +13,7 @@ import Write from './Write'
 import { useBook } from './store'
 import { loadSettings, runSync, useSyncStatus } from './sync'
 
-const tools = ['Write', 'Timeline', 'Ideas', 'Map', 'Wiki', 'Insights', 'Search'] as const
+const tools = ['Write', 'Manuscript', 'Timeline', 'Ideas', 'Map', 'Wiki', 'Insights', 'Search'] as const
 
 export default function App() {
   const { book, dirty, ready } = useBook()
@@ -66,6 +67,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/write" replace />} />
           <Route path="/write" element={<Write />} />
+          <Route path="/manuscript" element={<Manuscript />} />
           <Route path="/wiki/:id?" element={<Wiki />} />
           <Route path="/ideas" element={<Ideas />} />
           <Route path="/timeline" element={<Timeline />} />

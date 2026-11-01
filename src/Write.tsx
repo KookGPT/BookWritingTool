@@ -1,7 +1,7 @@
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { history, type Snap, snapshot, trashIt } from './history'
 import { type Chapter, mentions, plain, today, uid, useBook, words } from './store'
 
@@ -38,6 +38,7 @@ function History({ chapter, restore }: { chapter: Chapter; restore: (html: strin
 function Editor({ chapter }: { chapter: Chapter }) {
   const update = useBook((s) => s.update)
   const wiki = useBook((s) => s.book.wiki)
+  const scenes = useBook((s) => s.book.scenes).filter((s) => s.chapterId === chapter.id)
   const [histOpen, setHistOpen] = useState(false)
   const patch = (p: Partial<Chapter>) => {
     if (p.body !== undefined) {
@@ -75,9 +76,16 @@ function Editor({ chapter }: { chapter: Chapter }) {
         <button onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}>H</button>
         <button onClick={() => editor?.chain().focus().toggleBlockquote().run()}>"</button>
         <button onClick={() => editor?.chain().focus().toggleBulletList().run()}>•</button>
+        <button title="Scene break" onClick={() => editor?.chain().focus().setHorizontalRule().run()}>* * *</button>
         <span className="muted">{words(chapter.body)} words</span>
       </div>
       <EditorContent editor={editor} className="editor" />
+      {scenes.length > 0 && (
+        <div className="row">
+          <span className="muted">Planned scenes:</span>
+          {scenes.map((s) => <Link key={s.id} to="/timeline" className="chip">{s.title}</Link>)}
+        </div>
+      )}
       {wiki.filter((w) => mentions(plain(chapter.body), w.name)).length > 0 && (
         <div className="row">
           <span className="muted">Mentions:</span>
@@ -100,7 +108,8 @@ function Editor({ chapter }: { chapter: Chapter }) {
 
 export default function Write() {
   const { book, update } = useBook()
-  const [sel, setSel] = useState<string | null>(null)
+  const [params] = useSearchParams()
+  const [sel, setSel] = useState<string | null>(params.get('c'))
   const [focus, setFocus] = useState(false)
   const [drag, setDrag] = useState<number | null>(null)
   const chapter = book.chapters.find((c) => c.id === sel)

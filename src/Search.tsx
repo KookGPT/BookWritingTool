@@ -16,7 +16,7 @@ export default function Search() {
   if (q) {
     for (const c of book.chapters) {
       const t = `${c.title} ${plain(c.body)} ${c.notes}`
-      if (t.toLowerCase().includes(q)) hits.push({ key: c.id, kind: 'chapter', title: c.title, text: snippet(t, q), to: '/write' })
+      if (t.toLowerCase().includes(q)) hits.push({ key: c.id, kind: 'chapter', title: c.title, text: snippet(t, q), to: `/write?c=${c.id}` })
     }
     for (const w of book.wiki) {
       const t = `${w.name} ${Object.values(w.fields).join(' ')} ${w.notes}`

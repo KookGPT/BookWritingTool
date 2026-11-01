@@ -64,3 +64,9 @@ button:disabled { opacity: .4; cursor: default }
 .history { display: flex; flex-direction: column; gap: .4rem; padding-top: .5rem }
 .peek { margin: .3rem 0 0; max-height: 8rem; overflow: auto; font-family: Georgia, serif; color: var(--muted) }
 .syncmsg { word-break: break-word; font-size: .75rem }
+.manuscript { max-width: 700px; margin: 0 auto; padding: 2rem 1.5rem 6rem; font-family: Georgia, serif; font-size: 1.15rem; line-height: 1.8 }
+.manuscript h2 { margin-top: 3rem; font-size: 1.5rem }
+.manuscript h2 small { font-size: .8rem; font-family: system-ui, sans-serif }
+.manuscript p { margin: 0 0 1em; text-indent: 1.5em }
+.manuscript hr, .editor .tiptap hr { border: 0; text-align: center; margin: 1.5rem 0 }
+.manuscript hr::after, .editor .tiptap hr::after { content: '* * *'; color: var(--muted); letter-spacing: .5em }

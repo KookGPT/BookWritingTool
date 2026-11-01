@@ -39,7 +39,7 @@ function Entry({ entry }: { entry: WikiEntry }) {
       </label>
       <h3>Mentioned in</h3>
       <div className="row">
-        {inChapters.map((c) => <Link key={c.id} to="/write" className="chip">{c.title}</Link>)}
+        {inChapters.map((c) => <Link key={c.id} to={`/write?c=${c.id}`} className="chip">{c.title}</Link>)}
         {inWiki.map((w) => <Link key={w.id} to={`/wiki/${w.id}`} className="chip">{w.name}</Link>)}
         {!inChapters.length && !inWiki.length && <span className="muted">Nowhere yet. Writing the name (or [[{entry.name}]]) in a chapter links it here.</span>}
       </div>
