@@ -86,3 +86,5 @@ button:disabled { opacity: .4; cursor: default }
   .manuscript h2 { page-break-before: always; text-align: center; margin-top: 0 }
 }
 .dot { width: 12px; height: 12px; border-radius: 50%; flex: none }
+.swatch { width: 32px; height: 32px; padding: 0; border-radius: 6px; border: 1px solid var(--muted) }
+.drawcv { width: 100%; max-height: 70vh; object-fit: contain; border-radius: 8px; touch-action: none; cursor: crosshair; background: var(--panel) }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { trashIt } from './history'
 import { shrink } from './image'
+import MapDraw, { SEA } from './MapDraw'
 import { type MapDoc, type Pin, uid, useBook } from './store'
 
 
@@ -53,6 +54,7 @@ export default function MapView() {
   const [id, setId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [pinId, setPinId] = useState<string | null>(null)
+  const [drawing, setDrawing] = useState(false)
   const map = book.maps.find((m) => m.id === id)
   const pin = map?.pins.find((p) => p.id === pinId)
   const places = book.wiki.filter((w) => w.type === 'location')
@@ -68,6 +70,19 @@ export default function MapView() {
     update((b) => ({ ...b, maps: [...b.maps, m] }))
     setId(m.id)
   }
+  const blank = () => {
+    const c = document.createElement('canvas')
+    c.width = 1600
+    c.height = 1000
+    const g = c.getContext('2d')!
+    g.fillStyle = SEA
+    g.fillRect(0, 0, c.width, c.height)
+    const m: MapDoc = { id: uid(), name: 'New map', image: c.toDataURL('image/jpeg', 0.85), w: c.width, h: c.height, pins: [] }
+    update((b) => ({ ...b, maps: [...b.maps, m] }))
+    setId(m.id)
+    setPinId(null)
+    setDrawing(true)
+  }
   const addPin = (y: number, x: number) => {
     const p: Pin = { id: uid(), y, x, label: 'New pin' }
     patchMap({ pins: [...map!.pins, p] })
@@ -81,8 +96,9 @@ export default function MapView() {
         <label className="upload">+ Upload map image
           <input type="file" accept="image/*" hidden onChange={(e) => upload(e.target.files?.[0])} />
         </label>
+        <button className="alt" onClick={blank}>+ Draw a new map</button>
         {book.maps.map((m) => (
-          <div key={m.id} className={`item ${m.id === id ? 'sel' : ''}`} onClick={() => { setId(m.id); setPinId(null) }}>{m.name}</div>
+          <div key={m.id} className={`item ${m.id === id ? 'sel' : ''}`} onClick={() => { setId(m.id); setPinId(null); setDrawing(false) }}>{m.name}</div>
         ))}
         {map && (
           <button className="danger" onClick={() => {
@@ -98,10 +114,13 @@ export default function MapView() {
           <>
             <div className="row" style={{ alignItems: 'center' }}>
               <input className="grow title" value={map.name} onChange={(e) => patchMap({ name: e.target.value })} />
-              <button className={adding ? '' : 'alt'} onClick={() => setAdding(!adding)}>{adding ? 'Click the map...' : '+ Pin'}</button>
+              {!drawing && <button className="alt" onClick={() => setDrawing(true)}>Draw</button>}
+              {!drawing && <button className={adding ? '' : 'alt'} onClick={() => setAdding(!adding)}>{adding ? 'Click the map...' : '+ Pin'}</button>}
             </div>
-            <Canvas map={map} adding={adding} sel={pinId} onAdd={addPin} onSel={setPinId} />
-            {pin ? (
+            {drawing
+              ? <MapDraw map={map} onCancel={() => setDrawing(false)} onSave={(image) => { patchMap({ image }); setDrawing(false) }} />
+              : <Canvas map={map} adding={adding} sel={pinId} onAdd={addPin} onSel={setPinId} />}
+            {!drawing && pin ? (
               <div className="row" style={{ alignItems: 'end' }}>
                 <label className="grow">Label<input value={pin.label} onChange={(e) => patchPin({ label: e.target.value })} /></label>
                 <label>Wiki location
@@ -116,7 +135,7 @@ export default function MapView() {
                 {pin.wikiId && <Link to={`/wiki/${pin.wikiId}`} className="chip">Open entry</Link>}
                 <button className="danger" onClick={() => { patchMap({ pins: map.pins.filter((q) => q.id !== pin.id) }); setPinId(null) }}>Delete pin</button>
               </div>
-            ) : <p className="muted">Click + Pin, then the map, to drop a pin. Drag pins to move them; click one to edit.</p>}
+            ) : !drawing && <p className="muted">Click + Pin, then the map, to drop a pin. Drag pins to move them; click one to edit. "Draw" paints terrain on the map.</p>}
           </>
         ) : <p className="muted">Upload a map image to start. Images are shrunk to 2400px so they sync quickly.</p>}
       </section>
