@@ -1,5 +1,6 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
 import Settings from './Settings'
+import Write from './Write'
 import { useBook } from './store'
 
 const tools = ['Write', 'Timeline', 'Ideas', 'Map', 'Wiki'] as const
@@ -21,7 +22,8 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/" element={<Soon name="Welcome" />} />
-          {tools.map((t) => <Route key={t} path={`/${t.toLowerCase()}`} element={<Soon name={t} />} />)}
+          <Route path="/write" element={<Write />} />
+          {tools.filter((t) => t !== 'Write').map((t) => <Route key={t} path={`/${t.toLowerCase()}`} element={<Soon name={t} />} />)}
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>
