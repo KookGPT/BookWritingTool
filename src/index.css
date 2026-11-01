@@ -302,7 +302,5 @@ button.ghost.on { background: var(--accent-soft); color: var(--fg) }
 .tl-drawer .title { font-size: 1.1rem }
 .tl-search { width: 14rem }
 .tl .row { align-items: center }
-.who { border: 1px solid var(--border); border-radius: var(--r); padding: .4rem .7rem; display: flex; flex-wrap: wrap; gap: .3rem .9rem; margin: 0; min-width: 0 }
-.who legend { font-size: .85rem; color: var(--fg-2); padding: 0 .3rem }
 .tl-body, .tl-period, .tl-year { font-family: var(--sans) }
 .tl-drawer { background: var(--surface-solid) }

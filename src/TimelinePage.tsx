@@ -63,17 +63,6 @@ function EventForm({ ev, cal, onClose }: { ev: TEvent; cal: Calendar; onClose: (
         </select>
       </label>
       {!ev.locationId && <input aria-label="Place name" placeholder="Place name" value={ev.location} onChange={(e) => patch({ location: e.target.value })} />}
-      <fieldset className="who">
-        <legend>Characters involved</legend>
-        {book.wiki.filter((w) => w.type === 'character').map((w) => (
-          <label key={w.id} className="check">
-            <input type="checkbox" checked={!!ev.characters?.includes(w.id)}
-              onChange={(e) => patch({ characters: e.target.checked ? [...(ev.characters ?? []), w.id] : (ev.characters ?? []).filter((x) => x !== w.id) })} />
-            {w.name}
-          </label>
-        ))}
-        {!book.wiki.some((w) => w.type === 'character') && <small className="muted">Add characters in the Wiki to tag them here.</small>}
-      </fieldset>
       <label>What happens<textarea rows={3} value={ev.summary} onChange={(e) => patch({ summary: e.target.value })} /></label>
       <label className="check"><input type="checkbox" checked={!!ev.estimated} onChange={(e) => patch({ estimated: e.target.checked })} /> Estimated date (shown as "c.")</label>
       <div className="row" style={{ alignItems: 'end' }}>
@@ -140,7 +129,7 @@ export default function TimelinePage() {
   const place = (e: TEvent) => wname(e.locationId) || e.location
   const needle = q.trim().toLowerCase()
   const hit = (...t: (string | undefined)[]) => !needle || t.join(' ').toLowerCase().includes(needle)
-  const events = useMemo(() => book.events.filter((e) => show[e.kind] && hit(e.title, e.summary, place(e), wname(e.wikiId), ...(e.characters ?? []).map(wname))), [book.events, book.wiki, show, needle]) // eslint-disable-line react-hooks/exhaustive-deps
+  const events = useMemo(() => book.events.filter((e) => show[e.kind] && hit(e.title, e.summary, place(e), wname(e.wikiId))), [book.events, book.wiki, show, needle]) // eslint-disable-line react-hooks/exhaustive-deps
   const periods = useMemo(() => (show.periods ? book.periods.filter((p) => hit(p.title, p.summary)) : []), [book.periods, show.periods, needle]) // eslint-disable-line react-hooks/exhaustive-deps
   const { coord, max } = useMemo(() => layout(cal, events, periods), [cal, events, periods])
   const { lane, count } = useMemo(() => lanes(coord, periods), [coord, periods])

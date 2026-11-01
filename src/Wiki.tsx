@@ -13,7 +13,7 @@ function Entry({ entry }: { entry: WikiEntry }) {
   const keys = [...new Set([...(types[entry.type] ?? []), ...Object.keys(entry.fields)])]
   const inChapters = book.chapters.filter((c) => mentions(plain(c.body), entry.name))
   const inWiki = book.wiki.filter((w) => w.id !== entry.id && mentions(`${w.notes} ${Object.values(w.fields).join(' ')}`, entry.name))
-  const onTimeline = book.events.filter((e) => e.wikiId === entry.id || e.locationId === entry.id || e.characters?.includes(entry.id))
+  const onTimeline = book.events.filter((e) => e.wikiId === entry.id || e.locationId === entry.id)
   const links = entry.links ?? []
   const incoming = book.wiki.flatMap((w) => (w.links ?? []).filter((l) => l.to === entry.id).map((l) => ({ from: w, label: l.label })))
   const [target, setTarget] = useState('')
