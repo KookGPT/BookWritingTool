@@ -56,11 +56,28 @@ function EventForm({ ev, cal, onClose }: { ev: TEvent; cal: Calendar; onClose: (
         <button className="ghost icon" aria-label="Close" onClick={onClose}>×</button>
       </div>
       <DateInput label="" value={ev.date} cal={cal} onChange={(date) => patch({ date })} />
-      <label>Location<input value={ev.location} onChange={(e) => patch({ location: e.target.value })} /></label>
+      <label>Location
+        <select value={ev.locationId ?? ''} onChange={(e) => patch({ locationId: e.target.value || undefined })}>
+          <option value="">Not in the wiki</option>
+          {book.wiki.filter((w) => w.type === 'location').map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+        </select>
+      </label>
+      {!ev.locationId && <input aria-label="Place name" placeholder="Place name" value={ev.location} onChange={(e) => patch({ location: e.target.value })} />}
+      <fieldset className="who">
+        <legend>Characters involved</legend>
+        {book.wiki.filter((w) => w.type === 'character').map((w) => (
+          <label key={w.id} className="check">
+            <input type="checkbox" checked={!!ev.characters?.includes(w.id)}
+              onChange={(e) => patch({ characters: e.target.checked ? [...(ev.characters ?? []), w.id] : (ev.characters ?? []).filter((x) => x !== w.id) })} />
+            {w.name}
+          </label>
+        ))}
+        {!book.wiki.some((w) => w.type === 'character') && <small className="muted">Add characters in the Wiki to tag them here.</small>}
+      </fieldset>
       <label>What happens<textarea rows={3} value={ev.summary} onChange={(e) => patch({ summary: e.target.value })} /></label>
       <label className="check"><input type="checkbox" checked={!!ev.estimated} onChange={(e) => patch({ estimated: e.target.checked })} /> Estimated date (shown as "c.")</label>
       <div className="row" style={{ alignItems: 'end' }}>
-        <label className="grow">Wiki page
+        <label className="grow">Related wiki page
           <select value={ev.wikiId ?? ''} onChange={(e) => patch({ wikiId: e.target.value || undefined })}>
             <option value="">None</option>
             {book.wiki.map((w) => <option key={w.id} value={w.id}>{w.type}: {w.name}</option>)}
@@ -115,11 +132,16 @@ export default function TimelinePage() {
   const cal = calendarOf(book)
   const [params] = useSearchParams()
   const [sel, setSel] = useState<{ kind: 'event' | 'period'; id: string } | null>(() => (params.get('e') ? { kind: 'event', id: params.get('e')! } : null))
+  const [q, setQ] = useState('')
   const [show, setShow] = useState({ party: true, world: true, periods: true })
   const scroller = useRef<HTMLDivElement>(null)
 
-  const events = book.events.filter((e) => show[e.kind])
-  const periods = show.periods ? book.periods : []
+  const wname = (id?: string) => book.wiki.find((w) => w.id === id)?.name ?? ''
+  const place = (e: TEvent) => wname(e.locationId) || e.location
+  const needle = q.trim().toLowerCase()
+  const hit = (...t: (string | undefined)[]) => !needle || t.join(' ').toLowerCase().includes(needle)
+  const events = useMemo(() => book.events.filter((e) => show[e.kind] && hit(e.title, e.summary, place(e), wname(e.wikiId), ...(e.characters ?? []).map(wname))), [book.events, book.wiki, show, needle]) // eslint-disable-line react-hooks/exhaustive-deps
+  const periods = useMemo(() => (show.periods ? book.periods.filter((p) => hit(p.title, p.summary)) : []), [book.periods, show.periods, needle]) // eslint-disable-line react-hooks/exhaustive-deps
   const { coord, max } = useMemo(() => layout(cal, events, periods), [cal, events, periods])
   const { lane, count } = useMemo(() => lanes(coord, periods), [coord, periods])
   const x = (c: number) => (c + 1) * U
@@ -130,7 +152,8 @@ export default function TimelinePage() {
     const add = (t: TDate, c: number | undefined) => { const o = m.get(t.y); if (c !== undefined && (o === undefined || c < o)) m.set(t.y, c) }
     for (const e of events) add(e.date, coord[e.id])
     for (const p of periods) { add(p.start, coord[`${p.id}:start`]); add(p.end, coord[`${p.id}:end`]) }
-    return [...m]
+    let edge = -Infinity // drop labels that would touch the previous one
+    return [...m].sort((a, b) => a[1] - b[1]).filter(([, c]) => (c - edge) * U >= 80 && ((edge = c), true))
   }, [events, periods, coord])
 
   const center = (c: number, smooth = true) => {
@@ -199,7 +222,7 @@ export default function TimelinePage() {
       <button className="tl-body" onClick={() => select('event', e.id)}>
         <small className="muted">{e.estimated ? 'c. ' : ''}{fmtDate(cal, e.date)}{e.estimated ? ' · estimate' : ''}</small>
         <b>{e.title}</b>
-        {e.location && <small className="muted">{e.location}</small>}
+        {place(e) && <small className="muted">{place(e)}</small>}
         {e.summary && <span className="tl-sum">{e.summary}</span>}
       </button>
       <span className="tl-stem" />
@@ -210,6 +233,8 @@ export default function TimelinePage() {
     <div className="page wider tl">
       <div className="row" style={{ alignItems: 'center' }}>
         <h1 className="grow">Timeline</h1>
+        <input className="tl-search" type="search" aria-label="Search timeline" placeholder="Search events..." value={q} onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { const f = [...events].sort((a, b) => coord[a.id] - coord[b.id])[0]; if (f) select('event', f.id) } }} />
         {toggle('party', 'Party')}{toggle('world', 'World')}{toggle('periods', 'Periods')}
         <button className="alt icon" aria-label="Previous event" onClick={() => step(-1)}><Icon name="left" /></button>
         <button className="alt icon" aria-label="Next event" onClick={() => step(1)}><Icon name="right" /></button>
@@ -218,6 +243,7 @@ export default function TimelinePage() {
         <button className="alt" onClick={addPeriod}><Icon name="plus" size={16} /> Period</button>
       </div>
       <p className="muted">Top: where the party is and what they do. Bottom: what the world is doing out of their sight. Bars on the rail are periods. Scroll, drag or use the arrows.</p>
+      {needle && !events.length && !periods.length && <p className="muted">No events or periods match "{q}".</p>}
       {!book.events.length && !book.periods.length && (
         <div className="empty"><Icon name="timeline" size={32} /><p>Nothing on the timeline yet. Add where the party goes, or what the world is up to.</p></div>
       )}

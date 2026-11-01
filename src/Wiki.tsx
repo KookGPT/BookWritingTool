@@ -13,6 +13,7 @@ function Entry({ entry }: { entry: WikiEntry }) {
   const keys = [...new Set([...(types[entry.type] ?? []), ...Object.keys(entry.fields)])]
   const inChapters = book.chapters.filter((c) => mentions(plain(c.body), entry.name))
   const inWiki = book.wiki.filter((w) => w.id !== entry.id && mentions(`${w.notes} ${Object.values(w.fields).join(' ')}`, entry.name))
+  const onTimeline = book.events.filter((e) => e.wikiId === entry.id || e.locationId === entry.id || e.characters?.includes(entry.id))
   const links = entry.links ?? []
   const incoming = book.wiki.flatMap((w) => (w.links ?? []).filter((l) => l.to === entry.id).map((l) => ({ from: w, label: l.label })))
   const [target, setTarget] = useState('')
@@ -67,7 +68,8 @@ function Entry({ entry }: { entry: WikiEntry }) {
       <div className="row">
         {inChapters.map((c) => <Link key={c.id} to={`/write?c=${c.id}`} className="chip">{c.title}</Link>)}
         {inWiki.map((w) => <Link key={w.id} to={`/wiki/${w.id}`} className="chip">{w.name}</Link>)}
-        {!inChapters.length && !inWiki.length && <span className="muted">Nowhere yet. Writing the name (or [[{entry.name}]]) in a chapter links it here.</span>}
+        {onTimeline.map((e) => <Link key={e.id} to={`/timeline?e=${e.id}`} className="chip">{e.title}</Link>)}
+        {!inChapters.length && !inWiki.length && !onTimeline.length && <span className="muted">Nowhere yet. Writing the name (or [[{entry.name}]]) in a chapter links it here.</span>}
       </div>
       <button className="danger" onClick={() => {
         if (!confirm(`Delete ${entry.name}? (It goes to Trash.)`)) return

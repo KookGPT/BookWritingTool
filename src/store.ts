@@ -37,7 +37,8 @@ export interface MapDoc { id: string; name: string; image: string; w: number; h:
 
 // Timeline: party events draw above the rail, world events below, periods as bars on it. m/d optional (year-only dates).
 export interface TDate { y: number; m?: number; d?: number }
-export interface TEvent { id: string; kind: 'party' | 'world'; title: string; date: TDate; location: string; summary: string; estimated?: boolean; wikiId?: string }
+export interface TEvent { id: string; kind: 'party' | 'world'; title: string; date: TDate; location: string; summary: string; estimated?: boolean; wikiId?: string
+  locationId?: string; characters?: string[] } // wiki ids; `location` stays as free text for places not in the wiki
 export interface Period { id: string; title: string; color: string; start: TDate; end: TDate; startEvent?: string; endEvent?: string; summary?: string }
 
 export interface Thread { id: string; name: string; resolved: boolean }

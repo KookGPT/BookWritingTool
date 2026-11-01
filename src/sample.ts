@@ -60,9 +60,9 @@ export function sampleBook(): Book {
       { id: 'i4', text: 'Opening line for book two: "The crown was never the thing being stolen."', tags: ['line'], pinned: false },
     ],
     events: [
-      { id: 'e1', kind: 'party', title: 'Winter Fair at Stormhold', date: { y: 312, m: 1, d: 3 }, location: 'Stormhold', summary: 'Mira sees the ember-glass flare. The king falls ill that night.', wikiId: 'w7' },
+      { id: 'e1', kind: 'party', title: 'Winter Fair at Stormhold', date: { y: 312, m: 1, d: 3 }, location: '', locationId: 'w4', characters: ['w1', 'w2'], summary: 'Mira sees the ember-glass flare. The king falls ill that night.', wikiId: 'w7' },
       { id: 'e2', kind: 'party', title: 'Flight to the Pinebound Wood', date: { y: 312, m: 2, d: 9 }, location: 'Eastern foothills', summary: 'Mira and Aldric leave the city ahead of the Guard.' },
-      { id: 'e3', kind: 'party', title: 'The Truce Is Tested', date: { y: 312, m: 3, d: 1 }, location: 'Pinebound Wood', summary: 'The party meets the wood-wardens.' },
+      { id: 'e3', kind: 'party', title: 'The Truce Is Tested', date: { y: 312, m: 3, d: 1 }, location: '', locationId: 'w5', characters: ['w1'], summary: 'The party meets the wood-wardens.' },
       { id: 'e4', kind: 'world', title: 'Ashport closes its harbour', date: { y: 312, m: 1, d: 20 }, location: 'Ashport', summary: 'Merchants panic as word of the king spreads.' },
       { id: 'e5', kind: 'world', title: 'Regent seizes the treasury', date: { y: 312, m: 2, d: 14 }, location: 'Stormhold', summary: 'Lord Havel moves while everyone is looking elsewhere.' },
       { id: 'e6', kind: 'world', title: 'Wardens gather in the deep wood', date: { y: 312, m: 2, d: 25 }, location: 'Pinebound Wood', summary: 'An old pact stirs.', estimated: true },
