@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { saveDocx, saveEpub } from './export'
+import { sampleBook } from './sample'
 import { type Book, useBook } from './store'
 import { loadSettings, runSync, saveSettings, useSyncStatus } from './sync'
 
@@ -59,6 +60,11 @@ export default function Settings() {
           <button className="danger" disabled={busy} onClick={() => confirm('Replace EVERYTHING on GitHub with what is on this device?') && runSync('push')}>Replace GitHub with local</button>
         </div>
       </details>
+      {import.meta.env.DEV && (
+        <button className="alt" onClick={() => confirm('Replace this dev copy with the sample book?') && useBook.getState().replace(sampleBook(), false)}>
+          Load sample book (dev only)
+        </button>
+      )}
     </div>
   )
 }
