@@ -97,7 +97,7 @@ function SceneForm({ scene, onClose }: { scene: Scene; onClose: () => void }) {
   )
 }
 
-export default function Timeline() {
+export default function Scenes() {
   const { book, update } = useBook()
   const [view, setView] = useState<'board' | 'lanes'>('board')
   const [sel, setSel] = useState<string | null>(null)
@@ -122,7 +122,7 @@ export default function Timeline() {
   return (
     <div className="page wider">
       <div className="row" style={{ alignItems: 'center' }}>
-        <h1 className="grow">Timeline</h1>
+        <h1 className="grow">Scenes</h1>
         <button onClick={add}>+ Scene</button>
         <button className="alt" onClick={() => setView(view === 'board' ? 'lanes' : 'board')}>
           {view === 'board' ? 'Show lanes' : 'Show board'}

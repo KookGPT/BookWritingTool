@@ -34,7 +34,7 @@ export default function Plot() {
   return (
     <div className="page wider">
       <h1>Plot threads</h1>
-      <p className="muted">Each row is a storyline; tick the scenes (columns, in Timeline order) that advance it. Mark a thread resolved once it pays off.</p>
+      <p className="muted">Each row is a storyline; tick the scenes (columns, in Scenes order) that advance it. Mark a thread resolved once it pays off.</p>
       <div className="row">
         <input className="grow" placeholder="New thread, e.g. The stolen crown" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()} />
         <button onClick={add}>Add thread</button>
@@ -61,7 +61,7 @@ export default function Plot() {
           ])}
         </div>
       ) : (
-        <p className="muted">{threads.length ? 'Add scenes in the Timeline to fill the grid.' : 'Add your first thread above.'}</p>
+        <p className="muted">{threads.length ? 'Add scenes in Scenes to fill the grid.' : 'Add your first thread above.'}</p>
       )}
 
       {threads.length > 0 && (

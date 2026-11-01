@@ -59,6 +59,21 @@ export function sampleBook(): Book {
       { id: 'i3', text: 'A bird that repeats the last thing it heard in the throne room.', tags: ['worldbuilding'], pinned: false },
       { id: 'i4', text: 'Opening line for book two: "The crown was never the thing being stolen."', tags: ['line'], pinned: false },
     ],
+    events: [
+      { id: 'e1', kind: 'party', title: 'Winter Fair at Stormhold', date: { y: 312, m: 1, d: 3 }, location: 'Stormhold', summary: 'Mira sees the ember-glass flare. The king falls ill that night.', wikiId: 'w7' },
+      { id: 'e2', kind: 'party', title: 'Flight to the Pinebound Wood', date: { y: 312, m: 2, d: 9 }, location: 'Eastern foothills', summary: 'Mira and Aldric leave the city ahead of the Guard.' },
+      { id: 'e3', kind: 'party', title: 'The Truce Is Tested', date: { y: 312, m: 3, d: 1 }, location: 'Pinebound Wood', summary: 'The party meets the wood-wardens.' },
+      { id: 'e4', kind: 'world', title: 'Ashport closes its harbour', date: { y: 312, m: 1, d: 20 }, location: 'Ashport', summary: 'Merchants panic as word of the king spreads.' },
+      { id: 'e5', kind: 'world', title: 'Regent seizes the treasury', date: { y: 312, m: 2, d: 14 }, location: 'Stormhold', summary: 'Lord Havel moves while everyone is looking elsewhere.' },
+      { id: 'e6', kind: 'world', title: 'Wardens gather in the deep wood', date: { y: 312, m: 2, d: 25 }, location: 'Pinebound Wood', summary: 'An old pact stirs.', estimated: true },
+      { id: 'e7', kind: 'world', title: 'The Sundering of the Old Crown', date: { y: 150 }, location: 'Vaelen', summary: 'Long before the story: the crown is broken.', estimated: true },
+    ],
+    periods: [
+      { id: 'r1', title: "King Edrin's reign", color: '#e2a94d', start: { y: 280 }, end: { y: 312, m: 1, d: 4 } },
+      { id: 'r2', title: 'The Long Winter', color: '#7aa7d9', start: { y: 312, m: 1, d: 1 }, end: { y: 312, m: 3, d: 15 } },
+      { id: 'r3', title: 'Regency of Lord Havel', color: '#e5796a', start: { y: 312, m: 1, d: 4 }, end: { y: 313, m: 1, d: 1 }, startEvent: 'e1' },
+      { id: 'r4', title: 'Journey east', color: '#7cc4a0', start: { y: 312, m: 2, d: 9 }, end: { y: 312, m: 3, d: 1 }, startEvent: 'e2', endEvent: 'e3' },
+    ],
     scenes: [
       { id: 's1', title: 'The Omen', summary: 'Mira sees ember-glass flare at the fair.', chapterId: 'c1', pov: 'w1', location: 'w4', characters: ['w1', 'w2'], status: 'done', threads: ['t2'], date: { y: 312, m: 1, d: 3 }, when: 'dusk' },
       { id: 's2', title: 'The Horns', summary: 'Guards summon the court; the king is dying.', chapterId: 'c1', pov: 'w2', location: 'w4', characters: ['w2', 'w3'], status: 'done', threads: ['t1'], date: { y: 312, m: 1, d: 3 }, when: 'night' },

@@ -138,7 +138,7 @@ function Editor({ chapter, info }: { chapter: Chapter; info: boolean }) {
         <aside className="drawer right hide-in-focus" aria-label="Chapter details">
           <h3>Notes</h3>
           <textarea value={chapter.notes} onChange={(e) => patch({ notes: e.target.value })} rows={6} placeholder="Notes for this chapter..." />
-          {scenes.length > 0 && <><h3>Planned scenes</h3><div className="row">{scenes.map((s) => <Link key={s.id} to="/timeline" className="chip">{s.title}</Link>)}</div></>}
+          {scenes.length > 0 && <><h3>Planned scenes</h3><div className="row">{scenes.map((s) => <Link key={s.id} to="/scenes" className="chip">{s.title}</Link>)}</div></>}
           {mentioned.length > 0 && <><h3>Mentions</h3><div className="row">{mentioned.map((w) => <Link key={w.id} to={`/wiki/${w.id}`} className="chip">{w.name}</Link>)}</div></>}
           <details onToggle={(e) => setHistOpen(e.currentTarget.open)}>
             <summary>History</summary>

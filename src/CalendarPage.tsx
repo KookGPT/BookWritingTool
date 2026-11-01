@@ -15,7 +15,7 @@ export default function CalendarPage() {
   return (
     <div className="page wide">
       <h1>Story calendar</h1>
-      <p className="muted">Define how time works in your world, then give scenes dates in the Timeline. A year here is {yearLen(cal)} days.</p>
+      <p className="muted">Define how time works in your world, then give scenes dates in Scenes. A year here is {yearLen(cal)} days.</p>
       <label>Era label (shown after the year, e.g. "AE" or "of the Third Age")
         <input value={cal.era} onChange={(e) => set({ ...cal, era: e.target.value })} />
       </label>
@@ -36,7 +36,7 @@ export default function CalendarPage() {
           {i > 0 && <small className="muted">{span(cal, dated[i - 1].date!, s.date!)} than the scene above</small>}
         </div>
       ))}
-      {!dated.length && <p className="muted">No dated scenes yet. Open a scene in the <Link to="/timeline">Timeline</Link> and set its date.</p>}
+      {!dated.length && <p className="muted">No dated scenes yet. Open a scene in the <Link to="/scenes">Scenes</Link> and set its date.</p>}
       {undated > 0 && <p className="muted">{undated} scene{undated > 1 ? 's' : ''} without a date.</p>}
       {dated.length > 1 && (
         <button className="alt" style={{ alignSelf: 'flex-start' }} onClick={() => {
@@ -45,7 +45,7 @@ export default function CalendarPage() {
             const sorted = [...dated]
             return { ...b, scenes: b.scenes.map((s) => (s.date ? sorted.shift()! : s)) }
           })
-        }}>Use this order on the Timeline</button>
+        }}>Use this order in Scenes</button>
       )}
     </div>
   )

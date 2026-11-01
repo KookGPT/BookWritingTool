@@ -16,7 +16,7 @@ export default function Trash() {
   return (
     <div className="page wide">
       <h1>Trash</h1>
-      <p className="muted">Deleted chapters, wiki entries, scenes, ideas and maps are kept here on this device (last 100).</p>
+      <p className="muted">Deleted chapters, wiki entries, scenes, ideas, maps and timeline events are kept here on this device (last 100).</p>
       {items.length > 0 && <button className="danger" style={{ alignSelf: 'flex-start' }} onClick={() => confirm('Empty trash forever?') && save([])}>Empty trash</button>}
       {items.map((t) => (
         <div key={t.id} className="item">

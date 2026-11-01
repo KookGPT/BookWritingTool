@@ -11,7 +11,8 @@ import Plot from './Plot'
 import Manuscript from './Manuscript'
 import Search from './Search'
 import Settings from './Settings'
-import Timeline from './Timeline'
+import Scenes from './Scenes'
+import TimelinePage from './TimelinePage'
 import Trash from './Trash'
 import Wiki from './Wiki'
 import Write from './Write'
@@ -20,7 +21,7 @@ import { loadSettings, runSync, useSyncStatus } from './sync'
 
 const NAV: { label: string; items: [path: string, name: string, icon: IconName][] }[] = [
   { label: 'Write', items: [['write', 'Write', 'pen'], ['manuscript', 'Manuscript', 'book']] },
-  { label: 'Plan', items: [['timeline', 'Timeline', 'timeline'], ['plot', 'Plot threads', 'plot'], ['calendar', 'Calendar', 'calendar'], ['ideas', 'Ideas', 'idea']] },
+  { label: 'Plan', items: [['timeline', 'Timeline', 'timeline'], ['scenes', 'Scenes', 'list'], ['plot', 'Plot threads', 'plot'], ['calendar', 'Calendar', 'calendar'], ['ideas', 'Ideas', 'idea']] },
   { label: 'World', items: [['wiki', 'Wiki', 'wiki'], ['graph', 'Graph', 'graph'], ['map', 'Maps', 'map']] },
   { label: 'Review', items: [['insights', 'Insights', 'insights'], ['search', 'Search', 'search']] },
 ]
@@ -127,7 +128,8 @@ export default function App() {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/graph" element={<Graph />} />
           <Route path="/ideas" element={<Ideas />} />
-          <Route path="/timeline" element={<Timeline />} />
+          <Route path="/timeline" element={<TimelinePage />} />
+          <Route path="/scenes" element={<Scenes />} />
           <Route path="/map" element={<MapView />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/search" element={<Search />} />

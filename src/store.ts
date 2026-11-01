@@ -35,6 +35,11 @@ export interface Pin { id: string; y: number; x: number; label: string; wikiId?:
 // image is a downscaled JPEG data URL so the whole map syncs as one JSON file.
 export interface MapDoc { id: string; name: string; image: string; w: number; h: number; pins: Pin[] }
 
+// Timeline: party events draw above the rail, world events below, periods as bars on it. m/d optional (year-only dates).
+export interface TDate { y: number; m?: number; d?: number }
+export interface TEvent { id: string; kind: 'party' | 'world'; title: string; date: TDate; location: string; summary: string; estimated?: boolean; wikiId?: string }
+export interface Period { id: string; title: string; color: string; start: TDate; end: TDate; startEvent?: string; endEvent?: string; summary?: string }
+
 export interface Thread { id: string; name: string; resolved: boolean }
 
 export interface Book {
@@ -47,9 +52,11 @@ export interface Book {
   wiki: WikiEntry[]
   ideas: Idea[]
   scenes: Scene[]
+  events: TEvent[]
+  periods: Period[]
 }
 
-export const emptyBook = (): Book => ({ title: 'Untitled Book', threads: [], config: { types: {} }, stats: { goal: 500, days: {} }, maps: [], chapters: [], wiki: [], ideas: [], scenes: [] })
+export const emptyBook = (): Book => ({ title: 'Untitled Book', threads: [], config: { types: {} }, stats: { goal: 500, days: {} }, maps: [], chapters: [], wiki: [], ideas: [], scenes: [], events: [], periods: [] })
 export const plain = (html: string) => html.replace(/<[^>]+>/g, ' ')
 export const words = (html: string) => plain(html).split(/\s+/).filter(Boolean).length
 export const today = () => new Date().toLocaleDateString('en-CA') // YYYY-MM-DD, local time

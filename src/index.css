@@ -271,3 +271,32 @@ details > summary:hover { color: var(--fg) }
   .manuscript h2 { page-break-before: always; text-align: center; margin-top: 0; color: #000 }
 }
 button.ghost.on { background: var(--accent-soft); color: var(--fg) }
+
+/* ---------- Timeline (horizontal rail) ---------- */
+.tl .tl-scroll { overflow-x: auto; overflow-y: hidden; cursor: grab; padding-bottom: .5rem; border-radius: var(--r-lg); border: 1px solid var(--border); background: color-mix(in srgb, var(--surface-solid) 35%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px) }
+.tl-scroll:active { cursor: grabbing }
+.tl-canvas { position: relative; display: flex; flex-direction: column; min-width: 100% }
+.tl-top, .tl-bottom { position: relative; height: 230px }
+.tl-card { position: absolute; width: 190px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center }
+.tl-top .tl-card { bottom: 0; flex-direction: column }
+.tl-bottom .tl-card { top: 0; flex-direction: column-reverse }
+.tl-body { display: flex; flex-direction: column; align-items: flex-start; gap: .15rem; width: 100%; text-align: left; font-weight: 400; background: var(--surface); color: var(--fg); border: 1px solid var(--border-strong); padding: .55rem .7rem; -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px) }
+.tl-body:hover { filter: none; background: var(--hover) }
+.tl-body b { font-family: var(--serif); font-size: 1rem }
+.tl-sum { font-size: .8rem; color: var(--fg-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden }
+.tl-stem { width: 2px; height: 28px; background: var(--accent) }
+.tl-card.world .tl-stem { background: var(--ember) }
+.tl-card.world .tl-body { border-style: solid }
+.tl-card.est .tl-body { border-style: dashed; border-color: #b69cf0 }
+.tl-card.sel .tl-body { border-color: var(--ember); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ember) 25%, transparent) }
+.tl-rail { position: relative }
+.tl-line { position: absolute; left: 0; right: 0; top: 11px; height: 2px; background: var(--border-strong) }
+.tl-year { position: absolute; top: -6px; transform: translateX(-50%); font-size: .68rem; letter-spacing: .08em; color: var(--muted); background: var(--bg-2); padding: 0 .35rem; border-radius: 4px }
+.tl-dot { position: absolute; top: 6px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg-2) }
+.tl-dot.world { background: var(--ember) }
+.tl-period { position: absolute; height: 24px; padding: 0 .5rem; justify-content: flex-start; font-size: .75rem; font-weight: 600; color: #0a1411; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: block; line-height: 24px; border-radius: 6px; opacity: .88 }
+.tl-period:hover { opacity: 1; filter: none }
+.tl-period.sel { outline: 2px solid var(--fg); outline-offset: 1px; opacity: 1 }
+.tl-drawer { position: fixed; top: 7.5rem; bottom: 1rem; right: 1rem; width: min(380px, 92vw); padding: 1rem; z-index: 30; border: 1px solid var(--border-strong); border-radius: var(--r-lg) }
+.tl-drawer .panel { max-width: none; padding: 0; border: 0; background: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none }
+.tl-drawer .title { font-size: 1.1rem }

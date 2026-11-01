@@ -24,7 +24,7 @@ export default function Search() {
     }
     for (const s of book.scenes) {
       const t = `${s.title} ${s.summary}`
-      if (t.toLowerCase().includes(q)) hits.push({ key: s.id, kind: 'scene', title: s.title, text: snippet(t, q), to: '/timeline' })
+      if (t.toLowerCase().includes(q)) hits.push({ key: s.id, kind: 'scene', title: s.title, text: snippet(t, q), to: '/scenes' })
     }
     for (const i of book.ideas)
       if (i.text.toLowerCase().includes(q)) hits.push({ key: i.id, kind: 'idea', title: i.text.slice(0, 50), text: snippet(i.text, q), to: '/ideas' })
