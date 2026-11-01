@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react'
+import { trashIt } from './history'
 import { type Scene, uid, useBook } from './store'
 
 const STATUSES = ['planned', 'drafting', 'done'] as const
@@ -65,7 +66,8 @@ function SceneForm({ scene, onClose }: { scene: Scene; onClose: () => void }) {
         <button className="alt" disabled={i === book.scenes.length - 1} onClick={() => move(1)}>Later →</button>
         <button className="alt" onClick={onClose}>Close</button>
         <button className="danger" onClick={() => {
-          if (!confirm('Delete this scene?')) return
+          if (!confirm('Delete this scene? (It goes to Trash.)')) return
+          trashIt('scenes', scene.title, scene)
           update((b) => ({ ...b, scenes: b.scenes.filter((s) => s.id !== scene.id) }))
           onClose()
         }}>Delete</button>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { trashIt } from './history'
 import { mentions, plain, uid, useBook, type WikiEntry } from './store'
 
 const TYPES: Record<string, string[]> = {
@@ -43,7 +44,8 @@ function Entry({ entry }: { entry: WikiEntry }) {
         {!inChapters.length && !inWiki.length && <span className="muted">Nowhere yet. Writing the name (or [[{entry.name}]]) in a chapter links it here.</span>}
       </div>
       <button className="danger" onClick={() => {
-        if (!confirm(`Delete ${entry.name}?`)) return
+        if (!confirm(`Delete ${entry.name}? (It goes to Trash.)`)) return
+        trashIt('wiki', entry.name, entry)
         update((b) => ({ ...b, wiki: b.wiki.filter((w) => w.id !== entry.id) }))
         nav('/wiki')
       }}>Delete entry</button>

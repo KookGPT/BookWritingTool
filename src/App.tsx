@@ -6,6 +6,7 @@ import MapView from './MapView'
 import Search from './Search'
 import Settings from './Settings'
 import Timeline from './Timeline'
+import Trash from './Trash'
 import Wiki from './Wiki'
 import Write from './Write'
 import { useBook } from './store'
@@ -41,7 +42,8 @@ export default function App() {
       <nav>
         <h3>{book.title}{dirty && ' ●'}</h3>
         {tools.map((t) => <NavLink key={t} to={`/${t.toLowerCase()}`}>{t}</NavLink>)}
-        <NavLink to="/settings" className="bottom">Settings and Sync</NavLink>
+        <NavLink to="/trash" className="bottom">Trash</NavLink>
+        <NavLink to="/settings">Settings and Sync</NavLink>
       </nav>
       <main>
         <Routes>
@@ -53,6 +55,7 @@ export default function App() {
           <Route path="/map" element={<MapView />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/search" element={<Search />} />
+          <Route path="/trash" element={<Trash />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>

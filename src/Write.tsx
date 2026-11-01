@@ -1,15 +1,49 @@
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { history, type Snap, snapshot, trashIt } from './history'
 import { type Chapter, mentions, plain, today, uid, useBook, words } from './store'
 
 const STATUSES: Chapter['status'][] = ['draft', 'revised', 'done']
 
+function History({ chapter, restore }: { chapter: Chapter; restore: (html: string) => void }) {
+  const [snaps, setSnaps] = useState<Snap[]>([])
+  const [peek, setPeek] = useState<number | null>(null)
+  const load = () => history(chapter.id).then(setSnaps)
+  useEffect(() => { load() }, [chapter.id])
+  return (
+    <div className="history">
+      <button className="alt" onClick={async () => { await snapshot(chapter.id, chapter.body, 'Manual'); load() }}>Save snapshot now</button>
+      {snaps.map((s, i) => (
+        <div key={s.t} className="item">
+          <span>{new Date(s.t).toLocaleString()} · {words(s.body)} words {s.label && <small className="muted">({s.label})</small>}</span>
+          <div className="row">
+            <button className="alt" onClick={() => setPeek(peek === i ? null : i)}>{peek === i ? 'Hide' : 'Preview'}</button>
+            <button className="alt" onClick={async () => {
+              if (!confirm('Restore this version? Your current text is saved as a snapshot first.')) return
+              await snapshot(chapter.id, chapter.body, 'Before restore')
+              restore(s.body)
+              load()
+            }}>Restore</button>
+          </div>
+          {peek === i && <p className="peek">{plain(s.body).replace(/\s+/g, ' ').trim()}</p>}
+        </div>
+      ))}
+      {!snaps.length && <p className="muted">No snapshots yet. They are taken automatically as you write.</p>}
+    </div>
+  )
+}
+
 function Editor({ chapter }: { chapter: Chapter }) {
   const update = useBook((s) => s.update)
   const wiki = useBook((s) => s.book.wiki)
-  const patch = (p: Partial<Chapter>) =>
+  const [histOpen, setHistOpen] = useState(false)
+  const patch = (p: Partial<Chapter>) => {
+    if (p.body !== undefined) {
+      const old = useBook.getState().book.chapters.find((c) => c.id === chapter.id)
+      if (old) snapshot(chapter.id, old.body)
+    }
     update((b) => {
       const old = b.chapters.find((c) => c.id === chapter.id)
       const d = p.body === undefined || !old ? 0 : words(p.body) - words(old.body)
@@ -17,6 +51,7 @@ function Editor({ chapter }: { chapter: Chapter }) {
       const stats = d ? { ...b.stats, days: { ...b.stats.days, [day]: Math.max(0, (b.stats.days[day] ?? 0) + d) } } : b.stats
       return { ...b, stats, chapters: b.chapters.map((c) => (c.id === chapter.id ? { ...c, ...p } : c)) }
     })
+  }
   const editor = useEditor({
     extensions: [StarterKit],
     content: chapter.body,
@@ -51,6 +86,10 @@ function Editor({ chapter }: { chapter: Chapter }) {
         <summary>Chapter notes</summary>
         <textarea value={chapter.notes} onChange={(e) => patch({ notes: e.target.value })} rows={5} />
       </details>
+      <details onToggle={(e) => setHistOpen(e.currentTarget.open)}>
+        <summary>History</summary>
+        {histOpen && <History chapter={chapter} restore={(html) => editor?.commands.setContent(html, { emitUpdate: true })} />}
+      </details>
     </>
   )
 }
@@ -68,7 +107,9 @@ export default function Write() {
     setSel(c.id)
   }
   const remove = (id: string) => {
-    if (!confirm('Delete this chapter?')) return
+    if (!confirm('Delete this chapter? (It goes to Trash.)')) return
+    const c = book.chapters.find((c) => c.id === id)
+    if (c) trashIt('chapters', c.title, c)
     update((b) => ({ ...b, chapters: b.chapters.filter((c) => c.id !== id) }))
     setSel(null)
   }

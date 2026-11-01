@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { trashIt } from './history'
 import { uid, useBook, type WikiEntry } from './store'
 
 const TYPES = ['character', 'organization', 'location', 'event', 'item']
@@ -61,7 +62,7 @@ export default function Ideas() {
               <option value="">→ Wiki...</option>
               {TYPES.map((t) => <option key={t}>{t}</option>)}
             </select>
-            <button className="danger" onClick={() => drop(i.id)}>Delete</button>
+            <button className="danger" onClick={() => { trashIt('ideas', i.text.slice(0, 50), i); drop(i.id) }}>Delete</button>
           </div>
         </div>
       ))}

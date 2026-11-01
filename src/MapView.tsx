@@ -2,6 +2,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { trashIt } from './history'
 import { type MapDoc, type Pin, uid, useBook } from './store'
 
 const MAX = 2400
@@ -95,7 +96,8 @@ export default function MapView() {
         ))}
         {map && (
           <button className="danger" onClick={() => {
-            if (!confirm(`Delete map ${map.name}?`)) return
+            if (!confirm(`Delete map ${map.name}? (It goes to Trash.)`)) return
+            trashIt('maps', map.name, map)
             update((b) => ({ ...b, maps: b.maps.filter((m) => m.id !== map.id) }))
             setId(null)
           }}>Delete map</button>
