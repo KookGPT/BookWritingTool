@@ -641,6 +641,7 @@ export class MapScene {
     }
     puffs('smoke', g.vents.map((v) => [v.at[0], v.at[1], v.top * e]), 18, size * 0.006, size * 0.06)
     puffs('plume', g.summits.map((s) => [s[0], s[1], heightAt(g, ...s) * e]), 6, size * 0.0009, size * 0.012)
+    puffs('spray', g.steam.map((p) => [p[0], p[1], heightAt(g, ...p) * e]), 8, size * 0.0012, size * 0.01)
     puffs('spray', g.falls.map((f) => [f.at[0], f.at[1], (f.bottom + 20) * e]), 10, g.cell * 0.5, g.cell * 2.5)
     if (this.edgeMist.length) puffs('spray', this.edgeMist.map((p) => [p[0], p[1], p[2] * e]), 4, size * 0.006, size * 0.01)
     for (const z of g.zones) {

@@ -75,7 +75,7 @@ export type TreeKind = typeof TREE_KINDS[number]
 export const FX = { shimmer: 1, glow: 2, sparkle: 3, magic: 5, storm: 6, reef: 7, blizzard: 8 } as const
 
 type RGB = [number, number, number]
-type Shape = 'dunes' | 'terraces' | 'flat' | 'ice'
+type Shape = 'dunes' | 'terraces' | 'flat' | 'ice' | 'towers' | 'smooth'
 /** Ground types. `paint: true` = a feature kind you can paint as an area; the rest come from height, slope, coast and climate. */
 export const BIOMES: Record<string, { color: RGB; tree?: TreeKind; trees?: number; paint?: boolean; label?: string; fx?: keyof typeof FX; shape?: Shape }> = {
   grass: { color: [118, 170, 72], tree: 'broad', trees: 0.04, paint: true, label: 'Grassland' },
@@ -99,6 +99,10 @@ export const BIOMES: Record<string, { color: RGB; tree?: TreeKind; trees?: numbe
   glacier: { color: [206, 228, 246], paint: true, label: 'Glacier', fx: 'sparkle', shape: 'ice' },
   crystal: { color: [154, 140, 206], tree: 'crystal', trees: 0.35, paint: true, label: 'Crystal fields (glow)', fx: 'glow' },
   reef: { color: [244, 150, 126], paint: true, label: 'Coral reef (paint it in shallow sea)', fx: 'reef' },
+  karst: { color: [92, 146, 80], tree: 'jungle', trees: 0.3, paint: true, label: 'Karst towers (limestone pillars, like Guilin or Ha Long Bay)', shape: 'towers' },
+  geothermal: { color: [204, 176, 120], paint: true, label: 'Geothermal field (hot springs, steam, geysers)', fx: 'shimmer', shape: 'flat' },
+  lavafield: { color: [54, 52, 54], tree: 'pine', trees: 0.01, paint: true, label: 'Lava field (black basalt with moss)' },
+  floodplain: { color: [104, 158, 66], tree: 'broad', trees: 0.12, paint: true, label: 'Floodplain (wide flat river plain with wet meadows; paint it along a big river)', shape: 'smooth' },
   meadow: { color: [146, 186, 88] },
   beach: { color: [236, 216, 162] },
   mangrove: { color: [74, 112, 64], tree: 'mangrove', trees: 0.75 },
@@ -235,6 +239,7 @@ export interface Gen {
   zones: { kind: 'magic' | 'storm' | 'blizzard'; id: string; color: RGB; pts: Float32Array }[] // pts: x, y, ground m
   whirls: { at: XY; r: number }[]
   summits: XY[] // snowy peaks, for blowing snow
+  steam: XY[] // geysers and hot springs in geothermal fields
   exag: number // display km per km of height (before the zoom easing)
   maxH: number
   wx: Float32Array; wy: Float32Array // the shared warp: a feature written at p is drawn near p - warp
@@ -525,6 +530,7 @@ export function generate(fw: FlatWorld, long = 1536): Gen {
 
   // 7. Ground shaped by its biome: dunes, layered badland mesas, salt pans, thick ice, lava cracks.
   const duneF = coarse((x, y) => fbm(nE, x / 70, y / 70, 3.7, 2))
+  const plainF = feats.some((f) => f.kind === 'floodplain') ? boxBlur(ht, w, h, Math.max(3, Math.round(60 / cell))) : undefined
   for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
     const k = j * w + i
     if (ht[k] <= 2) continue
@@ -533,6 +539,16 @@ export function generate(fw: FlatWorld, long = 1536): Gen {
     else if (B.shape === 'terraces') { const v = ridged(nD, x / 34, y / 34, 7.7, 3) * 4; ht[k] += 360 * wgt * (Math.floor(v) + smooth(0.75, 1, v - Math.floor(v))) / 4 }
     else if (B.shape === 'flat') ht[k] = mix(ht[k], 12, wgt)
     else if (B.shape === 'ice') ht[k] += 80 * wgt
+    else if (B.shape === 'smooth' && plainF) ht[k] = mix(ht[k], Math.max(8, Math.min(ht[k], plainF[k]) * 0.6), wgt * 0.9) // levelled and lowered: rivers wander across it
+    else if (B.shape === 'towers') { // steep pillars on a jittered grid, flat-topped, each its own height
+      const sp = 15, a = Math.floor(x / sp), b = Math.floor(y / sp)
+      let d = 9, hz = 0
+      for (let db = -1; db <= 1; db++) for (let da = -1; da <= 1; da++) {
+        const q = Math.hypot(x / sp - (a + da + hash4(a + da, b + db, s0 & 0xffff, 21)), y / sp - (b + db + hash4(a + da, b + db, s0 & 0xffff, 22)))
+        if (q < d) { d = q; hz = hash4(a + da, b + db, s0 & 0xffff, 23) }
+      }
+      ht[k] += (900 + 900 * hz) * wgt * smooth(0.36, 0.3, d) + 120 * wgt * smooth(0.5, 0.36, d)
+    }
     if (g === 'wasteland') lava[k] = Math.max(lava[k], smooth(0.93, 0.975, ridged(nE, x / 16, y / 16, 5.5, 2)) * wgt)
   }
 
@@ -714,7 +730,7 @@ export function generate(fw: FlatWorld, long = 1536): Gen {
 
   // 10. Ground colour, water and effects data, close-up roughness, trees.
   const rgba = new Uint8Array(N * 4), data = new Uint8Array(N * 4), rough = new Uint8Array(N), tree = new Uint8Array(N), dens = new Uint8Array(N)
-  const R2 = (W / 2) ** 2
+  const R2 = (W / 2) ** 2, steam: XY[] = []
   let maxH = 0
   const C = BIOMES, n1F = coarse((x, y) => fbm(nC, x / 90, y / 90, 9, 4)), woodsF = coarse((x, y) => fbm(nD, x / 110, y / 110, 13, 4))
   const blur = boxBlur(ht, w, h, Math.max(2, Math.round(14 / cell)))
@@ -758,6 +774,15 @@ export function generate(fw: FlatWorld, long = 1536): Gen {
         if (painted === 'glacier') { const cr = smooth(0.9, 0.96, ridged(nE, x / 9, y / 9, 3.3, 2)); paint(col, [120, 160, 200], cr * 0.6 * wgt) }
         if (painted === 'badlands') { const band = Math.sin(z / 45) * 0.5 + 0.5; paint(col, [150, 80, 54], band * 0.5 * wgt) }
         if (painted === 'crystal') paint(col, [200, 170, 255], smooth(0.3, 0.6, n2) * 0.5 * wgt)
+        if (painted === 'geothermal') { // mineral crusts with blue pools ringed in orange
+          if (wgt > 0.7 && steam.length < 80 && hash4(i, j, s0 & 0xffff, 13) < 0.006) steam.push([x, y])
+          const v = ridged(nE, x / 7, y / 7, 6.6, 2)
+          paint(col, [226, 206, 96], smooth(0.2, 0.5, n2) * 0.6 * wgt)
+          paint(col, [214, 110, 48], smooth(0.8, 0.86, v) * wgt); paint(col, [60, 160, 190], smooth(0.9, 0.95, v) * wgt)
+        }
+        if (painted === 'floodplain') { paint(col, [72, 128, 64], smooth(0.78, 0.9, ridged(nC, x / 14, y / 30, 7.2, 2)) * 0.7 * wgt); paint(col, [176, 182, 96], smooth(0.25, 0.55, n2) * 0.35 * wgt) } // old channels, dry fields
+        if (painted === 'karst') { const s = smooth(40, 140, slope) * wgt; paint(col, [182, 176, 158], s); td *= 1 - s * 0.9 } // bare limestone walls, green tops
+        if (painted === 'lavafield') { paint(col, [96, 118, 80], smooth(0.05, 0.4, n2) * 0.55 * wgt); paint(col, [24, 22, 24], smooth(0.88, 0.94, ridged(nE, x / 6, y / 6, 4.4, 2)) * wgt) }
       }
       // shores: beaches, mangroves, palms on warm beaches; cliffs stay rock
       const ct = ctype[k], shore = coast[k] > -9 && z < 70 && ct !== 2 && ct !== 3
@@ -790,7 +815,7 @@ export function generate(fw: FlatWorld, long = 1536): Gen {
     data[k * 4 + 1] = lakeId[k] ? 255 : 0
     data[k * 4 + 2] = fx * 16 + fs
     data[k * 4 + 3] = Math.round(255 * (1 - 0.6 * Math.min(1, Math.max(0, (blur[k] - z) / 500))))
-    rough[k] = under || nearRiver[k] ? 0 : Math.round(255 * smooth(25, 350, z) * Math.min(1, 0.25 + 0.75 * smooth(700, 2400, z) + smooth(60, 200, slope) * 0.5) * (BIOMES[groundOf(k)].shape === 'flat' ? 0.1 : 1))
+    rough[k] = under || nearRiver[k] ? 0 : Math.round(255 * smooth(25, 350, z) * Math.min(1, 0.25 + 0.75 * smooth(700, 2400, z) + smooth(60, 200, slope) * 0.5) * (BIOMES[groundOf(k)].shape === 'flat' || BIOMES[groundOf(k)].shape === 'smooth' ? 0.1 : 1))
     if (tk && td > 0 && !under) { tree[k] = TREE_KINDS.indexOf(tk) + 1; dens[k] = Math.round(Math.min(1, td) * 255) }
   }
   // lake rims get their own surface, so the lake's water shader can find its shore
@@ -808,7 +833,7 @@ export function generate(fw: FlatWorld, long = 1536): Gen {
     if (summits.length < 40 && summits.every((s) => Math.hypot(s[0] - x, s[1] - y) > size * 0.03)) summits.push([x, y])
   }
   return {
-    w, h, cell, W, H, disc, edge: fw.edge ?? 'wall', height: ht, rgba, data, rough, tree, dens, rivers, lakes, falls, vents, props, zones, whirls, summits,
+    w, h, cell, W, H, disc, edge: fw.edge ?? 'wall', height: ht, rgba, data, rough, tree, dens, rivers, lakes, falls, vents, props, zones, whirls, summits, steam,
     exag: exagOf(fw), maxH, wx, wy, anchors, lines, snaps: new Float32Array(snaps),
   }
 }
