@@ -4,6 +4,7 @@ import { toDir, toLatLon, type Vec } from './geo.ts'
 import { fbm, hash, ridged, rng, simplex } from './noise.ts'
 import { compileOps, riverCourse, type Compiled, type LatLon, type Op } from './ops.ts'
 import type { Layer } from './layers.ts'
+import { TERRAINS } from './terrains.ts'
 
 export { toDir, toLatLon, type Vec }
 
@@ -23,17 +24,17 @@ export const groundSpec = (world: World) => JSON.stringify({ ...world, name: '',
 export const DEFAULT_PARAMS: WorldParams = { oceanPct: 64, plates: 14, ruggedness: 1, aridity: 0.5, tilt: 23, radiusKm: 6000 }
 
 
-// Whittaker-style lookup: rows = mean temperature (C), columns = moisture 0..1. Bilinear sampling keeps biome edges soft.
+// Whittaker-style lookup: rows = mean temperature (C), columns = moisture 0..1. Cells are terrain ids (see terrains.ts).
 const TEMPS = [-15, -2, 8, 18, 28]
 const MOIST = [0, 0.33, 0.66, 1]
-const BIOMES: [string, Vec][][] = [
-  [['Polar desert', [184, 180, 170]], ['Tundra', [150, 148, 124]], ['Wet tundra', [128, 136, 116]], ['Ice sheet', [232, 238, 244]]],
-  [['Cold desert', [168, 156, 126]], ['Cold steppe', [138, 138, 100]], ['Taiga', [66, 88, 62]], ['Boreal bog', [52, 76, 58]]],
-  [['Steppe', [176, 160, 112]], ['Grassland', [132, 150, 82]], ['Temperate forest', [64, 102, 52]], ['Temperate rainforest', [42, 88, 54]]],
-  [['Desert', [204, 178, 128]], ['Shrubland', [160, 150, 90]], ['Woodland', [84, 118, 54]], ['Subtropical forest', [48, 98, 44]]],
-  [['Hot desert', [222, 190, 138]], ['Savanna', [180, 164, 88]], ['Dry forest', [98, 128, 48]], ['Rainforest', [28, 88, 40]]],
+const CLIMATE: string[][] = [
+  ['polar_desert', 'tundra', 'tundra', 'ice'],
+  ['cold_desert', 'steppe', 'taiga', 'bog'],
+  ['steppe', 'grassland', 'forest', 'deep_forest'],
+  ['desert', 'scrub', 'woodland', 'subtropical_forest'],
+  ['desert', 'savanna', 'dry_forest', 'jungle'],
 ]
-const ROCK: Vec = [118, 108, 98], SNOW: Vec = [242, 245, 250], SEA_ICE: Vec = [222, 230, 238], LAKE: Vec = [48, 104, 132], RIVER: Vec = [58, 118, 146]
+const SEA_ICE: Vec = [222, 230, 238], LAKE: Vec = [48, 104, 132], RIVER: Vec = [58, 118, 146]
 const SHALLOW: Vec = [62, 160, 176], DEEP: Vec = [10, 28, 68]
 
 const smooth = (a: number, b: number, x: number) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t) }
@@ -53,6 +54,8 @@ export interface Planet {
   /** Linear-ish sRGB 0..255 surface colour; `slope` is rise/run from the tile builder. */
   color(x: number, y: number, z: number, h: number, slope?: number, detail?: number): Vec
   biome(x: number, y: number, z: number, h: number): string
+  /** The dominant terrain id at a point ('' on water) and how firmly it holds there (0..1, low near borders). */
+  terrain(x: number, y: number, z: number, h: number, slope?: number, detail?: number): { id: string; w: number }
   /** Water at a point: sea below 0, lakes at their level, river channels. */
   water(x: number, y: number, z: number, h: number): { kind: 'sea' | 'lake' | 'river'; level: number } | undefined
   /** Height of the visible surface (water surfaces are flat), metres, never below sea level. */
@@ -142,15 +145,20 @@ export function makePlanet(world: World): Planet {
   const ops = compileOps(world.ops ?? [], P.radiusKm, nOps, (p) => generated(p[0], p[1], p[2], 0))
   const course = (op: Extract<Op, { kind: 'river' }>) => riverCourse(op, P.radiusKm, nOps)
   const near = (c: Compiled, x: number, y: number, z: number) => x * c.cap.c[0] + y * c.cap.c[1] + z * c.cap.c[2] >= c.cap.cos
+  const paints = ops.filter((c) => c.paint), reshapes = paints.filter((c) => c.shape)
 
-  // generated terrain -> shape ops -> close-up relief (land only, never moves the coast) -> water ops
+  // generated terrain -> shape ops -> close-up relief (land only, never moves the coast) -> painted ground shapes
+  // (dunes, terraces, crystal spikes) -> water ops
   const elevation = (x: number, y: number, z: number, detail = 0) => {
     let h = generated(x, y, z, detail)
     const p: Vec = [x, y, z]
     for (const c of ops) if (c.stage === 'shape' && near(c, x, y, z)) h = c.apply(h, p)
     if (h > 0) {
-      const rough = (0.2 + 1.6 * smooth(300, 2500, h)) * P.ruggedness * smooth(0, 120, h) // highlands craggy, coasts calm
+      let calm = 1 // painted dunes and terraces tame the generic relief so their own shape shows
+      for (const c of reshapes) if (near(c, x, y, z)) calm = Math.min(calm, 1 - c.shape!.calm * c.paint!(p))
+      const rough = (0.2 + 1.6 * smooth(300, 2500, h)) * P.ruggedness * smooth(0, 120, h) * calm // highlands craggy, coasts calm
       h = Math.max(0.5, h + rough * relief(x, y, z, 2 + detail))
+      if (h > 3) for (const c of reshapes) if (near(c, x, y, z)) { const w = c.paint!(p); if (w > 0) h = Math.max(1, c.shape!.apply(h, p, w)) }
     }
     for (const c of ops) if (c.stage === 'water' && near(c, x, y, z)) h = c.apply(h, p)
     return h
@@ -181,41 +189,66 @@ export function makePlanet(world: World): Planet {
     return { temp, moist: Math.max(0, Math.min(1, moist)) }
   }
 
-  const landColor = (temp: number, moist: number): Vec => {
-    const a = axis(TEMPS, temp), m = axis(MOIST, moist)
-    const c0 = mix(BIOMES[a.i][m.i][1], BIOMES[a.i][m.i + 1][1], m.t)
-    const c1 = mix(BIOMES[a.i + 1][m.i][1], BIOMES[a.i + 1][m.i + 1][1], m.t)
-    return mix(c0, c1, a.t)
+  // The ground at a point: which terrain wins, how firmly, and its colour. Climate picks from a Whittaker grid with
+  // sharpened borders (so regions read as distinct), height/steepness/cold override it, and painted ops win last.
+  const nTer = simplex(seed + 6)
+  const unit = (v: number) => Math.max(0, Math.min(1, v))
+  const ground = (x: number, y: number, z: number, h: number, slope: number, detail: number): { id: string; w: number; rgb: Vec } => {
+    const { temp, moist: m0 } = climate(x, y, z, h)
+    const big = fbm(nClim, x * 12, y * 12, z * 12, 1 + detail) // always on, so neighbouring LOD levels match
+    const mid = fbm(nTer, x * 70, y * 70, z * 70, 3 + Math.min(detail, 3)) // woods and fields alternate at regional scale
+    const fine = fbm(nTer, x * 400 + 9, y * 400, z * 400, 2 + Math.min(detail, 4))
+    const a = axis(TEMPS, temp + 2.5 * mid), m = axis(MOIST, unit(m0 + big * 0.18 + mid * 0.34))
+    const ta = smooth(0.28, 0.72, a.t), tm = smooth(0.28, 0.72, m.t)
+    const vary = (id: string) => id === 'desert' && mid > 0.1 ? 'dunes' : id === 'grassland' && fine > 0.12 ? 'meadow' : id
+    const cells = [
+      { id: vary(CLIMATE[a.i][m.i]), w: (1 - ta) * (1 - tm) }, { id: vary(CLIMATE[a.i][m.i + 1]), w: (1 - ta) * tm },
+      { id: vary(CLIMATE[a.i + 1][m.i]), w: ta * (1 - tm) }, { id: vary(CLIMATE[a.i + 1][m.i + 1]), w: ta * tm },
+    ]
+    const tone = unit(0.5 + 0.9 * fine + 0.3 * big) // which of a terrain's two ground colours
+    const paint = (id: string): Vec => { const t = TERRAINS[id]; return mix(t.ground, t.ground2, tone) }
+    let id = cells[0].id, best = -1, rgb: Vec = [0, 0, 0]
+    for (const c of cells) { if (c.w > best) { best = c.w; id = c.id } const g = paint(c.id); rgb = [rgb[0] + g[0] * c.w, rgb[1] + g[1] * c.w, rgb[2] + g[2] * c.w] }
+    let w = smooth(0.3, 0.6, best)
+    // overrides, weakest first; each one that takes over (> 0.5) names the terrain
+    const set = (to: string, k: number) => { if (k <= 0) return; rgb = mix(rgb, paint(to), k); if (k > 0.5) { id = to; w = Math.max(k, 0.7) } }
+    if (h < 14 && temp > -4) set('beach', 1 - smooth(3, 14, h))
+    if (h < 90 && temp > 6 && m0 > 0.55) set('swamp', smooth(0.5, 0.72, m0 + 0.35 * mid) * (1 - smooth(20, 90, h)))
+    if (h > 1200) set('alpine', smooth(1200, 1900, h) * (1 - smooth(0.25, 0.5, slope)) * smooth(6, 2, temp) * (1 - smooth(-4, -9, temp))) // between the tree line and the snow line
+    if (temp < -8 && h > 1500) set('glacier', smooth(-8, -12, temp))
+    set('rock', Math.max(smooth(0.28, 0.62, slope), smooth(2600, 4200, h) * 0.85))
+    set('snow', smooth(-3, -10, temp + 6 * big) * (1 - smooth(0.5, 0.9, slope) * 0.6)) // patchy, thinner on cliffs
+    let pid = '', pw = 0
+    if (paints.length) { const p: Vec = [x, y, z]; for (const c of paints) if (near(c, x, y, z)) { const k = c.paint!(p); if (k > 0 && k >= pw) { pw = k; pid = c.terrain! } } }
+    if (pid) { rgb = mix(rgb, paint(pid), smooth(0.15, 0.7, pw)); if (pw > 0.5) { id = pid; w = 1 } }
+    const k = 1 + 0.16 * fbm(nHill, x * 20, y * 20, z * 20, 1 + detail) // ground texture
+    return { id, w, rgb: [rgb[0] * k, rgb[1] * k, rgb[2] * k] }
   }
 
   const color = (x: number, y: number, z: number, h: number, slope = 0, detail = 0): Vec => {
-    const { temp, moist: m0 } = climate(x, y, z, h)
-    // close up, vegetation breaks into patches and the ground gets texture
-    const patch = fbm(nClim, x * 12, y * 12, z * 12, 1 + detail) // always on, so neighbouring LOD levels match
-    const moist = Math.max(0, Math.min(1, m0 + patch * 0.18))
     const w = water(x, y, z, h)
-    if (w?.kind === 'sea') return temp < -10 ? SEA_ICE : mix(SHALLOW, DEEP, Math.pow(Math.min(1, -h / 5500), 0.45))
-    if (w) return temp < -12 ? SEA_ICE : w.kind === 'river' ? RIVER : mix(LAKE, DEEP, Math.min(1, (w.level - h) / 400) * 0.6)
-    let c = landColor(temp, moist)
-    const k = 1 + 0.1 * fbm(nHill, x * 20, y * 20, z * 20, 1 + detail)
-    c = [c[0] * k, c[1] * k, c[2] * k]
-    c = mix(c, ROCK, Math.max(smooth(0.25, 0.6, slope), smooth(2600, 4200, h) * 0.8))
-    c = mix(c, SNOW, smooth(-5, -11, temp + 6 * patch) * (1 - smooth(0.5, 0.9, slope) * 0.6)) // patchy, thinner on cliffs
-    return c
+    if (w) {
+      const { temp } = climate(x, y, z, h)
+      if (w.kind === 'sea') return temp < -10 ? SEA_ICE : mix(SHALLOW, DEEP, Math.pow(Math.min(1, -h / 5500), 0.45))
+      return temp < -12 ? SEA_ICE : w.kind === 'river' ? RIVER : mix(LAKE, DEEP, Math.min(1, (w.level - h) / 400) * 0.6)
+    }
+    return ground(x, y, z, h, slope, detail).rgb
+  }
+
+  const terrain = (x: number, y: number, z: number, h: number, slope = 0, detail = 0) => {
+    if (water(x, y, z, h)) return { id: '', w: 0 }
+    const g = ground(x, y, z, h, slope, detail)
+    return { id: g.id, w: g.w }
   }
 
   const biome = (x: number, y: number, z: number, h: number) => {
-    const { temp, moist } = climate(x, y, z, h)
+    const { temp } = climate(x, y, z, h)
     const w = water(x, y, z, h)
     if (w?.kind === 'lake') return 'Lake'
     if (w?.kind === 'river') return 'River'
     if (h < 0) return temp < -10 ? 'Sea ice' : h > -200 ? 'Shallow sea' : 'Ocean'
-    if (temp < -8) return h > 1500 ? 'Glacier' : 'Ice sheet'
-    if (h > 3200) return 'Alpine'
-    const ti = Math.min(TEMPS.length - 1, Math.max(0, Math.round(axis(TEMPS, temp).i + axis(TEMPS, temp).t)))
-    const mi = Math.min(MOIST.length - 1, Math.max(0, Math.round(axis(MOIST, moist).i + axis(MOIST, moist).t)))
-    return BIOMES[ti][mi][0]
+    return TERRAINS[ground(x, y, z, h, 0, 4).id]?.label ?? 'Land'
   }
 
-  return { world, radiusM: P.radiusKm * 1000, elevation, climate, color, biome, water, surface, ops, course }
+  return { world, radiusM: P.radiusKm * 1000, elevation, climate, color, biome, terrain, water, surface, ops, course }
 }

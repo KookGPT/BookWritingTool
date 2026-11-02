@@ -4,6 +4,7 @@ import { capOf, dirOf, dot, inPolygon, makePath, pathDist, type LatLon, type Vec
 
 export type { LatLon }
 import { hash, rng, type Noise3 } from './noise.ts'
+import { TERRAINS, type Shape } from './terrains.ts'
 
 interface Base { id: string; name?: string; note?: string; wikiId?: string }
 export type Op = Base & (
@@ -19,15 +20,18 @@ export type Op = Base & (
   | { kind: 'raise' | 'lower'; at: LatLon; radius: number; amount: number }
   | { kind: 'flatten'; at: LatLon; radius: number; height: number }
   | { kind: 'land' | 'sea'; area: LatLon[]; height?: number; edge?: number }
+  | { kind: 'terrain'; terrain: string; at: LatLon; radius: number; edge?: number }
+  | { kind: 'zone'; terrain: string; area: LatLon[]; edge?: number }
+  | { kind: 'spires'; at: LatLon; radius: number; count: number; height: number; width?: number }
 )
 export type OpKind = Op['kind']
 
-type Field = 'path' | 'at' | 'area' | 'num'
+type Field = 'path' | 'at' | 'area' | 'num' | 'str'
 // One table drives validation and the AI brief. [field, type, required, description]
 export const OP_SPECS: Record<OpKind, { label: string; desc: string; fields: [string, Field, boolean, string][]; example: Record<string, unknown> }> = {
   range: { label: 'Mountain range', desc: 'Ridged mountains along a path; tapers at both ends.', fields: [['path', 'path', true, '>=2 points along the crest'], ['height', 'num', true, 'peak elevation, m (e.g. 3000-8000)'], ['width', 'num', true, 'km across (e.g. 80-300)']], example: { kind: 'range', name: 'The Spine', path: [[42, 10], [38, 18], [33, 22]], height: 5200, width: 180 } },
   rift: { label: 'Rift valley', desc: 'A long trough cut into the terrain.', fields: [['path', 'path', true, 'points along the rift'], ['depth', 'num', true, 'm below surroundings'], ['width', 'num', true, 'km across']], example: { kind: 'rift', name: 'Sundering Rift', path: [[5, 30], [-8, 34]], depth: 1200, width: 60 } },
-  river: { label: 'River', desc: 'Cuts a valley falling steadily from the source to sea level at the mouth. Start in highlands, follow low ground, end at a coast or lake.', fields: [['path', 'path', true, 'source first, mouth last; 4+ points look natural'], ['width', 'num', false, 'channel km at the mouth (default 1.5)'], ['depth', 'num', false, 'channel depth below the valley floor, m (default 15)']], example: { kind: 'river', name: 'Ashrun', path: [[40, 16], [38.5, 14], [37, 13.2], [35.2, 11]] } },
+  river: { label: 'River', desc: 'Cuts a valley falling steadily from the source to sea level at the mouth. Start in highlands, follow low ground, end at a coast or lake.', fields: [['path', 'path', true, 'source first, mouth last; 4+ points look natural'], ['width', 'num', false, 'channel km at the mouth (default 5; rivers are drawn wide on purpose)'], ['depth', 'num', false, 'channel depth below the valley floor, m (default 15)']], example: { kind: 'river', name: 'Ashrun', path: [[40, 16], [38.5, 14], [37, 13.2], [35.2, 11]] } },
   volcano: { label: 'Volcano', desc: 'A cone with a summit crater; makes an island if placed at sea.', fields: [['at', 'at', true, 'summit'], ['height', 'num', true, 'summit elevation, m'], ['radius', 'num', true, 'base radius, km']], example: { kind: 'volcano', name: 'Mount Ember', at: [36, 24], height: 4200, radius: 40 } },
   plateau: { label: 'Plateau', desc: 'Flat-topped upland with steep edges.', fields: [['at', 'at', true, 'centre'], ['radius', 'num', true, 'km'], ['height', 'num', true, 'top elevation, m']], example: { kind: 'plateau', name: 'High Steppe', at: [30, 40], radius: 300, height: 2200 } },
   basin: { label: 'Basin', desc: 'Lowers the land in a bowl; deep enough and it floods into an inland sea.', fields: [['at', 'at', true, 'centre'], ['radius', 'num', true, 'km'], ['depth', 'num', true, 'm lowered at the centre']], example: { kind: 'basin', name: 'The Sink', at: [20, 50], radius: 250, depth: 1500 } },
@@ -39,6 +43,9 @@ export const OP_SPECS: Record<OpKind, { label: string; desc: string; fields: [st
   flatten: { label: 'Flatten', desc: 'Levels an area to one elevation (for a city, plain or dam).', fields: [['at', 'at', true, 'centre'], ['radius', 'num', true, 'km'], ['height', 'num', true, 'target elevation, m']], example: { kind: 'flatten', at: [38, 18], radius: 8, height: 200 } },
   land: { label: 'Land', desc: 'Raises a polygon above sea: new peninsulas, islands or land bridges.', fields: [['area', 'area', true, '>=3 points, in order around the outline'], ['height', 'num', false, 'typical elevation, m (default 250)'], ['edge', 'num', false, 'coast softness, km (default 40)']], example: { kind: 'land', name: 'Hook Peninsula', area: [[20, 0], [24, 6], [18, 9], [15, 3]] } },
   sea: { label: 'Sea', desc: 'Drowns a polygon: bays, straits, inland seas.', fields: [['area', 'area', true, '>=3 points around the outline'], ['height', 'num', false, 'depth, m (default 1500)'], ['edge', 'num', false, 'coast softness, km (default 40)']], example: { kind: 'sea', name: 'Gulf of Teeth', area: [[5, 40], [9, 46], [3, 50], [0, 44]] } },
+  terrain: { label: 'Terrain patch', desc: 'Paints a ground type (forest, dunes, crystal, lava... see the terrain list) on a circle. Dunes, badlands, crystal and lava also reshape the ground.', fields: [['terrain', 'str', true, 'a terrain id from the terrain list'], ['at', 'at', true, 'centre'], ['radius', 'num', true, 'km'], ['edge', 'num', false, 'how soft the rim is, 0.05-1 of the radius (default 0.3)']], example: { kind: 'terrain', terrain: 'crystal', name: 'Glasswood', at: [24, 30], radius: 120 } },
+  zone: { label: 'Terrain zone', desc: 'Paints a ground type on a polygon (a forest, a desert, a blighted region...).', fields: [['terrain', 'str', true, 'a terrain id from the terrain list'], ['area', 'area', true, '>=3 points around the outline'], ['edge', 'num', false, 'rim softness, km (default 25)']], example: { kind: 'zone', terrain: 'redwood', name: 'The Elderwood', area: [[30, 10], [34, 16], [28, 20], [25, 12]] } },
+  spires: { label: 'Spires', desc: 'A cluster of narrow stone pillars and towers (karst, hoodoos, shattered peaks), deterministic per op id.', fields: [['at', 'at', true, 'centre'], ['radius', 'num', true, 'km spread'], ['count', 'num', true, 'pillars (1-80)'], ['height', 'num', true, 'tallest pillar above the ground, m'], ['width', 'num', false, 'pillar base width, km (default 4)']], example: { kind: 'spires', name: 'The Needles', at: [35, 40], radius: 60, count: 24, height: 2400 } },
 }
 export const OP_KINDS = Object.keys(OP_SPECS) as OpKind[]
 
@@ -83,9 +90,22 @@ const taper = (t: number) => smooth(0, 0.12, t) * smooth(1, 0.88, t)
 export interface Compiled {
   op: Op
   cap: { c: Vec; cos: number }
-  stage: 'shape' | 'water'
+  stage: 'shape' | 'water' | 'paint'
   apply: (h: number, p: Vec) => number
   water?: (p: Vec, h: number) => number | 'river' | undefined // lake level, or river channel
+  /** Painted terrain: how firmly this op's ground type holds at p (0..1), and what it also does to the height. */
+  paint?: (p: Vec) => number
+  terrain?: string
+  shape?: { calm: number; apply: (h: number, p: Vec, w: number) => number }
+}
+
+// How a painted terrain bends the ground (see Shape in terrains.ts). Dunes are long parallel crests with a sharp lee face.
+const shapeOf = (kind: Shape, salt: number, N: (p: Vec, f: number, off?: number) => number): NonNullable<Compiled['shape']> => {
+  const wind: Vec = [Math.cos(salt), 0.35, Math.sin(salt)]
+  const saw = (a: number) => { const f = a - Math.floor(a); return Math.min(f / 0.72, (1 - f) / 0.28) }
+  if (kind === 'ripple') return { calm: 0.9, apply: (h, p, w) => h + w * (170 * saw((p[0] * wind[0] + p[1] * wind[1] + p[2] * wind[2]) * 520 + 1.8 * N(p, 60, salt)) + 40 * saw(N(p, 900, salt + 4) * 1.7 + 3 * N(p, 300, salt))) }
+  if (kind === 'terrace') return { calm: 0.5, apply: (h, p, w) => { const step = 110, q = (h + 25 * N(p, 120, salt)) / step, f = q - Math.floor(q); return mix(h, (Math.floor(q) + smooth(0.55, 0.65, f)) * step, w * 0.9) + w * 60 } }
+  return { calm: 0, apply: (h, p, w) => { const r = 1 - Math.abs(N(p, 700, salt)), s = 1 - Math.abs(N(p, 2100, salt + 5)); return h + w * (170 * r * r * r + 60 * s * s) } }
 }
 
 /** Turns ops into fast appliers. `ground` gives the pre-op elevation (for lake levels). */
@@ -123,7 +143,7 @@ export function compileOps(ops: Op[], radiusKm: number, n: Noise3, ground: (p: V
       case 'river': {
         // the river cuts a valley down to a bed that falls steadily from the source to sea level at the mouth,
         // so it always runs downhill whatever the generated terrain does
-        const path = makePath(riverCourse(op, radiusKm, n)), w = op.width ?? 1.5, depth = op.depth ?? 15, half = 10 + w * 3
+        const path = makePath(riverCourse(op, radiusKm, n)), w = op.width ?? 5, depth = op.depth ?? Math.max(15, w * 6), half = 10 + w * 3
         const src = Math.max(0, ground(path.pts[0]))
         const bed = (t: number) => src * (1 - t) ** 1.3
         out.push({ op, stage: 'water', cap: capOf(path.pts, rad(half * 1.2)), apply: (h, p) => {
@@ -210,6 +230,38 @@ export function compileOps(ops: Op[], radiusKm: number, n: Noise3, ground: (p: V
       }
       case 'flatten': {
         out.push({ op, stage: 'water', cap: capOf([point!], rad(op.radius)), apply: (h, p) => mix(h, op.height, 1 - smooth(0.7, 1, u(p, op.radius))) })
+        break
+      }
+      case 'terrain': {
+        const edge = Math.max(0.05, Math.min(1, op.edge ?? 0.3))
+        const sh = TERRAINS[op.terrain]?.shape
+        out.push({ op, stage: 'paint', cap: capOf([point!], rad(op.radius * 1.4)), apply: (h) => h, terrain: op.terrain, shape: sh && shapeOf(sh, salt, N),
+          paint: (p) => 1 - smooth(1 - edge, 1, u(p, op.radius) * (1 + 0.2 * N(p, 45, salt))) })
+        break
+      }
+      case 'zone': {
+        const poly = op.area.map(dirOf), ring = makePath([...op.area, op.area[0]]), edge = op.edge ?? 25
+        const sh = TERRAINS[op.terrain]?.shape
+        out.push({ op, stage: 'paint', cap: capOf(poly, rad(edge * 2.5)), apply: (h) => h, terrain: op.terrain, shape: sh && shapeOf(sh, salt, N),
+          paint: (p) => smooth(-edge, edge, (inPolygon(p, poly) ? 1 : -1) * km(pathDist(p, ring).d) + edge * (0.5 * N(p, 40, salt) + 0.8 * N(p, 14, salt + 3))) }) // two noise scales: a ragged rim up close, a wandering outline from orbit
+        break
+      }
+      case 'spires': {
+        const r = rng(hash(op.id)), wd = op.width ?? 4
+        const count = Math.max(1, Math.min(80, Math.round(op.count)))
+        const pillars = Array.from({ length: count }, () => {
+          const b = r() * Math.PI * 2, dist = Math.sqrt(r()) * op.radius
+          const lat = op.at[0] + (dist / radiusKm) * 180 / Math.PI * Math.cos(b)
+          const lon = op.at[1] + (dist / radiusKm) * 180 / Math.PI * Math.sin(b) / Math.max(0.1, Math.cos(op.at[0] * Math.PI / 180))
+          return { c: dirOf([lat, lon]), w: wd * (0.5 + r()), top: op.height * (0.3 + 0.7 * r()) }
+        })
+        out.push({ op, stage: 'shape', cap: capOf([point!], rad(op.radius * 1.5 + wd * 2)), apply: (h, p) => {
+          for (const pl of pillars) {
+            const x = km(Math.acos(Math.max(-1, Math.min(1, dot(p, pl.c))))) / pl.w * (1 + 0.15 * N(p, 150, salt))
+            if (x < 1.4) h += pl.top * (x < 0.55 ? 1 - 0.1 * x : Math.max(0, 1 - (x - 0.55) / 0.85) ** 2 * 0.95) // near-vertical wall, flared foot
+          }
+          return h
+        } })
         break
       }
       case 'land':

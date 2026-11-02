@@ -1,0 +1,549 @@
+{
+  "id": "terrain-showcase",
+  "name": "Terrain Showcase",
+  "generatorVersion": 1,
+  "seed": "showcase-2",
+  "params": {
+    "oceanPct": 55,
+    "plates": 9,
+    "ruggedness": 1.4,
+    "aridity": 0.5,
+    "tilt": 23,
+    "radiusKm": 6000
+  },
+  "ops": [
+    {
+      "id": "r-titan",
+      "kind": "range",
+      "name": "The Titan's Wall",
+      "path": [
+        [
+          38,
+          -38
+        ],
+        [
+          32,
+          -33
+        ],
+        [
+          26,
+          -31
+        ],
+        [
+          19,
+          -34
+        ]
+      ],
+      "height": 13000,
+      "width": 240,
+      "note": "The tallest range in the world, snow-capped all year."
+    },
+    {
+      "id": "r-glasswall",
+      "kind": "range",
+      "name": "Glasswall Range",
+      "path": [
+        [
+          36,
+          -114
+        ],
+        [
+          28,
+          -108
+        ],
+        [
+          20,
+          -104
+        ]
+      ],
+      "height": 10000,
+      "width": 220
+    },
+    {
+      "id": "v-cinder",
+      "kind": "volcano",
+      "name": "Mount Cinder",
+      "at": [
+        16,
+        -66
+      ],
+      "height": 9000,
+      "radius": 170,
+      "note": "Smokes constantly; the land around it is ash and lava."
+    },
+    {
+      "id": "t-ash",
+      "kind": "terrain",
+      "terrain": "ashland",
+      "name": "Ashfall",
+      "at": [
+        16,
+        -66
+      ],
+      "radius": 700,
+      "edge": 0.6
+    },
+    {
+      "id": "t-lava",
+      "kind": "terrain",
+      "terrain": "lava",
+      "name": "Cinder Fields",
+      "at": [
+        16,
+        -66
+      ],
+      "radius": 110,
+      "edge": 0.5
+    },
+    {
+      "id": "z-elder",
+      "kind": "zone",
+      "terrain": "redwood",
+      "name": "The Elderwood",
+      "area": [
+        [
+          44,
+          -98
+        ],
+        [
+          44,
+          -86
+        ],
+        [
+          35,
+          -84
+        ],
+        [
+          32,
+          -94
+        ]
+      ],
+      "edge": 200
+    },
+    {
+      "id": "t-moor",
+      "kind": "terrain",
+      "terrain": "moor",
+      "name": "Greywater Moor",
+      "at": [
+        47,
+        -76
+      ],
+      "radius": 340
+    },
+    {
+      "id": "t-glass",
+      "kind": "terrain",
+      "terrain": "crystal",
+      "name": "The Glasswood",
+      "at": [
+        32,
+        -100
+      ],
+      "radius": 380
+    },
+    {
+      "id": "t-fungus",
+      "kind": "terrain",
+      "terrain": "fungal",
+      "name": "Gloomcap Wood",
+      "at": [
+        18,
+        -96
+      ],
+      "radius": 330
+    },
+    {
+      "id": "t-jungle",
+      "kind": "terrain",
+      "terrain": "jungle",
+      "name": "The Verdant Maw",
+      "at": [
+        4,
+        -45
+      ],
+      "radius": 700
+    },
+    {
+      "id": "t-swamp",
+      "kind": "terrain",
+      "terrain": "swamp",
+      "name": "The Drowned Fens",
+      "at": [
+        -6,
+        -34
+      ],
+      "radius": 450
+    },
+    {
+      "id": "t-dunes",
+      "kind": "terrain",
+      "terrain": "dunes",
+      "name": "Sunscar Dunes",
+      "at": [
+        8,
+        -22
+      ],
+      "radius": 600,
+      "edge": 0.35
+    },
+    {
+      "id": "t-salt",
+      "kind": "terrain",
+      "terrain": "salt_flat",
+      "name": "Mirror Pan",
+      "at": [
+        14,
+        -12
+      ],
+      "radius": 190
+    },
+    {
+      "id": "t-bad",
+      "kind": "terrain",
+      "terrain": "badlands",
+      "name": "Redrock Badlands",
+      "at": [
+        27,
+        -12
+      ],
+      "radius": 420
+    },
+    {
+      "id": "s-needles",
+      "kind": "spires",
+      "name": "The Needles",
+      "at": [
+        27,
+        -12
+      ],
+      "radius": 180,
+      "count": 60,
+      "height": 3200,
+      "width": 3
+    },
+    {
+      "id": "t-bone",
+      "kind": "terrain",
+      "terrain": "bonewood",
+      "name": "Bonewood",
+      "at": [
+        44,
+        -30
+      ],
+      "radius": 330
+    },
+    {
+      "id": "t-blight",
+      "kind": "terrain",
+      "terrain": "blight",
+      "name": "The Blight",
+      "at": [
+        36,
+        -12
+      ],
+      "radius": 260
+    },
+    {
+      "id": "i-pearl",
+      "kind": "islands",
+      "name": "Pearl Isles",
+      "at": [
+        -8,
+        -88
+      ],
+      "radius": 320,
+      "count": 16,
+      "height": 700
+    },
+    {
+      "id": "l-mirror",
+      "kind": "lake",
+      "name": "Mirrormere",
+      "at": [
+        10,
+        -76
+      ],
+      "radius": 90
+    },
+    {
+      "id": "riv-aldur",
+      "kind": "river",
+      "name": "Great Aldur",
+      "path": [
+        [
+          46,
+          -60
+        ],
+        [
+          40,
+          -56
+        ],
+        [
+          33,
+          -50
+        ],
+        [
+          24,
+          -42
+        ],
+        [
+          14,
+          -42
+        ],
+        [
+          6,
+          -41
+        ],
+        [
+          1,
+          -37
+        ],
+        [
+          -4,
+          -42
+        ],
+        [
+          -12,
+          -43
+        ]
+      ],
+      "width": 10
+    },
+    {
+      "id": "riv-silver",
+      "kind": "river",
+      "name": "Silverwind",
+      "path": [
+        [
+          28,
+          -112
+        ],
+        [
+          28,
+          -116
+        ],
+        [
+          27.5,
+          -120
+        ],
+        [
+          27,
+          -123
+        ]
+      ],
+      "width": 7
+    },
+    {
+      "id": "riv-rime",
+      "kind": "river",
+      "name": "Rime",
+      "path": [
+        [
+          54,
+          -73
+        ],
+        [
+          57,
+          -72.5
+        ],
+        [
+          59,
+          -72.5
+        ],
+        [
+          60.5,
+          -73
+        ]
+      ],
+      "width": 8
+    }
+  ],
+  "layers": [
+    {
+      "id": "cities",
+      "name": "Cities",
+      "kind": "cities",
+      "items": [
+        {
+          "id": "c-aldur",
+          "name": "Port Aldur",
+          "at": [
+            -12,
+            -43
+          ],
+          "props": {
+            "type": "capital"
+          }
+        },
+        {
+          "id": "c-highwater",
+          "name": "Highwater",
+          "at": [
+            38,
+            -62
+          ],
+          "props": {
+            "type": "town"
+          }
+        },
+        {
+          "id": "c-silverford",
+          "name": "Silverford",
+          "at": [
+            10,
+            -98
+          ],
+          "props": {
+            "type": "city"
+          }
+        },
+        {
+          "id": "c-cinderhold",
+          "name": "Cinderhold",
+          "at": [
+            20,
+            -61
+          ],
+          "props": {
+            "type": "city"
+          }
+        },
+        {
+          "id": "c-sunreach",
+          "name": "Sunreach",
+          "at": [
+            2,
+            -18
+          ],
+          "props": {
+            "type": "town"
+          }
+        },
+        {
+          "id": "c-elderhome",
+          "name": "Elderhome",
+          "at": [
+            36,
+            -88
+          ],
+          "props": {
+            "type": "town"
+          }
+        },
+        {
+          "id": "c-bone",
+          "name": "Bonehollow",
+          "at": [
+            42,
+            -32
+          ],
+          "props": {
+            "type": "village"
+          }
+        }
+      ]
+    },
+    {
+      "id": "regions",
+      "name": "Realms",
+      "kind": "regions",
+      "items": [
+        {
+          "id": "g-aldur",
+          "name": "Kingdom of Aldur",
+          "area": [
+            [
+              30,
+              -70
+            ],
+            [
+              30,
+              -44
+            ],
+            [
+              0,
+              -42
+            ],
+            [
+              -8,
+              -52
+            ],
+            [
+              8,
+              -72
+            ]
+          ]
+        },
+        {
+          "id": "g-marches",
+          "name": "The Free Marches",
+          "area": [
+            [
+              42,
+              -102
+            ],
+            [
+              42,
+              -80
+            ],
+            [
+              26,
+              -82
+            ],
+            [
+              24,
+              -102
+            ]
+          ]
+        }
+      ],
+      "hidden": true
+    },
+    {
+      "id": "roads",
+      "name": "Roads",
+      "kind": "roads",
+      "items": [
+        {
+          "id": "w-aldur",
+          "name": "The Aldur Road",
+          "path": [
+            [
+              40,
+              -60
+            ],
+            [
+              33,
+              -51
+            ],
+            [
+              24,
+              -43
+            ],
+            [
+              14,
+              -42
+            ],
+            [
+              6,
+              -41
+            ],
+            [
+              1,
+              -37
+            ],
+            [
+              -4,
+              -42
+            ],
+            [
+              -12,
+              -43
+            ]
+          ]
+        }
+      ]
+    }
+  ]
+}

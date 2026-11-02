@@ -1,6 +1,9 @@
 // Cube-sphere tiles: each cube face is a quadtree; a tile is (face, level, x, y). Pure, runs in the worker and in tests.
 import type { Vec } from './geo.ts'
+import { hash4 as rnd } from './noise.ts'
 import type { Planet } from './terrain.ts'
+import { SMALL, TIERS } from './props.ts'
+import { TERRAINS, type DecorKind } from './terrains.ts'
 
 export const SEG = 64 // quads per tile edge
 // Face frames chosen so cross(u, v) = n, which makes the grid triangles wind counter-clockwise seen from outside.
@@ -33,11 +36,15 @@ export interface TileData {
   h: Float32Array // visible surface height in radius units (sea and lakes are flat), scaled by exaggeration in the shader
   grad: Float32Array // surface gradient of h (radius units per radius unit), for normals at any exaggeration
   col: Float32Array // linear RGB 0..1
+  props?: PropSet[]
 }
+/** Instances of one prop kind, 12 floats each: position relative to the tile centre (3), up (3), [height, size, yaw] in radius units, linear colour (3). */
+export interface PropSet { kind: DecorKind; data: Float32Array }
+export const PROP_STRIDE = 12
 
 const lin = (c: number) => Math.pow(c / 255, 2.2)
 
-export function buildTile(planet: Planet, face: number, level: number, tx: number, ty: number): TileData {
+export function buildTile(planet: Planet, face: number, level: number, tx: number, ty: number, light = false): TileData {
   const n = SEG, W = n + 3 // one extra ring each side for gradients
   const s = tileSpan(level)
   const detail = Math.max(0, Math.min(14, level - 2))
@@ -91,7 +98,46 @@ export function buildTile(planet: Planet, face: number, level: number, tx: numbe
   for (let i = 0; i <= n; i++) edge(i, n)
   for (let j = 0; j <= n; j++) edge(0, j)
   for (let j = 0; j <= n; j++) edge(n, j)
-  return { center, pos, up, h, grad, col }
+  return { center, pos, up, h, grad, col, props: light ? undefined : buildProps(planet, face, level, tx, ty, { n, W, s, S, H, slopes, center }) }
+}
+
+const smooth = (a: number, b: number, x: number) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t) }
+
+interface Grid { n: number; W: number; s: number; S: Float64Array; H: Float64Array; slopes: Float32Array; center: Vec }
+
+// Props sit on fixed face-coordinate lattices (see TIERS), jittered inside their cell, so every LOD level agrees on where
+// each tree is. Which prop a spot gets depends on the terrain there; sea, lakes and rivers get none.
+function buildProps(planet: Planet, face: number, level: number, tx: number, ty: number, g: Grid): PropSet[] | undefined {
+  const { n, W, s, S, H, slopes, center } = g, R = planet.radiusM
+  const per = new Map<DecorKind, number[]>()
+  const u0 = -1 + s * tx, v0 = -1 + s * ty
+  TIERS.forEach((T, ti) => {
+    if (level < T.lo || level > T.hi) return
+    const nc = Math.round(T.m * 2 ** (T.ref - level)), cell = 2 / 2 ** T.ref / T.m
+    for (let cj = 0; cj < nc; cj++) for (let ci = 0; ci < nc; ci++) {
+      const gi = tx * nc + ci, gj = ty * nc + cj, rk = (k: number) => rnd(face, gi, gj, ti * 16 + k)
+      const U = -1 + (gi + 0.15 + 0.7 * rk(0)) * cell, V = -1 + (gj + 0.15 + 0.7 * rk(1)) * cell
+      const fi = (U - u0) / s * n, fj = (V - v0) / s * n
+      const i0 = Math.max(0, Math.min(n - 1, Math.floor(fi))), j0 = Math.max(0, Math.min(n - 1, Math.floor(fj))), ax = fi - i0, ay = fj - j0
+      const k = (j0 + 1) * W + i0 + 1
+      const lerp = (A: Float64Array) => (A[k] * (1 - ax) + A[k + 1] * ax) * (1 - ay) + (A[k + W] * (1 - ax) + A[k + W + 1] * ax) * ay
+      const hg = lerp(H)
+      if (hg <= 1.5) continue
+      const sl = slopes[Math.max(0, Math.min(n, Math.round(fj))) * (n + 1) + Math.max(0, Math.min(n, Math.round(fi)))]
+      if (sl > 1.2) continue
+      const d = faceDir(face, U, V), tr = planet.terrain(d[0], d[1], d[2], hg, sl, Math.max(0, level - 3))
+      if (!tr.id) continue
+      const decor = TERRAINS[tr.id].decor.filter((e) => SMALL.has(e.kind) === T.small), f = smooth(0.3, 0.75, tr.w)
+      let r = rk(2), pick
+      for (const e of decor) { r -= e.density * f; if (r < 0) { pick = e; break } }
+      if (!pick) continue
+      const size = (pick.size[0] + (pick.size[1] - pick.size[0]) * rk(3)) * T.scale / R, c = pick.colors[Math.floor(rk(5) * pick.colors.length)], b = 1.1 + 0.6 * rk(6) // stylised: brighter than the palette, and every instance differs
+      let out = per.get(pick.kind)
+      if (!out) per.set(pick.kind, out = [])
+      out.push(d[0] - center[0], d[1] - center[1], d[2] - center[2], d[0], d[1], d[2], lerp(S) / R, size, rk(4) * Math.PI * 2, lin(c[0] * b), lin(c[1] * b), lin(c[2] * b))
+    }
+  })
+  return per.size ? [...per].map(([kind, a]) => ({ kind, data: new Float32Array(a) })) : undefined
 }
 
 // Shared index buffer: grid triangles plus double-sided skirt strips.

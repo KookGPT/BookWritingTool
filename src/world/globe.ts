@@ -3,7 +3,10 @@ import * as THREE from 'three'
 import { groundSpec, makePlanet, toDir, toLatLon, type Planet, type World } from './terrain.ts'
 import { layerColor, outline, pickFeature, pointSize, refKey, type Feature } from './layers.ts'
 import type { LatLon } from './geo.ts'
-import { tileAngle, tileCenter, tileIndex, type TileData } from './tile.ts'
+import { collectLabels, placeLabels, type Label } from './labels.ts'
+import { PROP_STRIDE, tileAngle, tileCenter, tileIndex, type TileData } from './tile.ts'
+import { propMesh as unitProp } from './props.ts'
+import type { DecorKind } from './terrains.ts'
 
 const MAX_LEVEL = 15
 const SPLIT = 5 // split a tile when the camera is closer than SPLIT * its angular size (~3px quads at the switch)
@@ -13,7 +16,7 @@ export const lightMode = () => typeof matchMedia === 'function' && matchMedia('(
 const DEG = Math.PI / 180
 const MAX_TILT = 85 * DEG
 
-interface Tile { key: string; face: number; level: number; x: number; y: number; center: THREE.Vector3; mesh?: THREE.Mesh; pending: boolean; used: number }
+interface Tile { key: string; face: number; level: number; x: number; y: number; center: THREE.Vector3; mesh?: THREE.Mesh; props?: THREE.Mesh[]; pending: boolean; used: number }
 interface View { lat: number; lon: number; dist: number; heading: number; tilt: number }
 export interface Hover { lat: number; lon: number; elevation: number; biome: string; feature?: Feature }
 export interface ViewInfo { altitudeKm: number; lat: number; lon: number }
@@ -28,6 +31,28 @@ const drapeMat = (color: string | number, alpha: number, round = false) => new T
   uniforms: { exag: { value: 1 }, color: { value: new THREE.Color(color) }, alpha: { value: alpha } },
   vertexShader: 'attribute float h; attribute float size; uniform float exag; varying float vis; void main(){ vec3 w = position * (1. + h * exag); vis = dot(normalize(position), normalize(cameraPosition - w)); gl_PointSize = size; gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.); }',
   fragmentShader: `uniform vec3 color; uniform float alpha; varying float vis; void main(){ if (vis < 0.02) discard; vec3 c = color;${round ? ' float r = length(gl_PointCoord - .5); if (r > .5) discard; if (r > .36) c = vec3(.06);' : ''} gl_FragColor = vec4(c, alpha); }`,
+})
+
+// Lines with a real width: screen-space ribbons (a quad per segment) at `wk` world units half-width, never thinner than
+// `minPx`. Rivers use it to stay visible from orbit and to be drawn wide up close; `fade` lets the terrain's own colour
+// take over once the ribbon is wide enough to see on its own.
+const ribbonMat = (color: string | number, alpha: number, minPx: number, fade = false) => new THREE.ShaderMaterial({
+  depthTest: false, depthWrite: false, transparent: true, side: THREE.DoubleSide,
+  uniforms: { exag: { value: 1 }, res: { value: new THREE.Vector2(1, 1) }, color: { value: new THREE.Color(color) }, alpha: { value: alpha }, minPx: { value: minPx }, fade: { value: fade ? 1 : 0 } },
+  vertexShader: `attribute vec3 other; attribute float h; attribute float ho; attribute float side; attribute float wk;
+uniform float exag; uniform vec2 res; uniform float minPx; varying float vis; varying float tpx;
+void main(){
+  vec3 w = position * (1. + h * exag), wo = other * (1. + ho * exag);
+  vis = dot(normalize(position), normalize(cameraPosition - w));
+  vec4 c = projectionMatrix * viewMatrix * vec4(w, 1.), co = projectionMatrix * viewMatrix * vec4(wo, 1.);
+  vec2 d = co.xy / co.w * res - c.xy / c.w * res;
+  float l = length(d); d = l > 1e-4 ? d / l : vec2(1., 0.);
+  float px = wk * projectionMatrix[1][1] / max(c.w, 1e-9) * res.y * .5; // half width in pixels
+  tpx = px * 2.;
+  gl_Position = c;
+  gl_Position.xy += vec2(-d.y, d.x) * side * max(px, minPx * .5) / (res * .5) * c.w;
+}`,
+  fragmentShader: 'uniform vec3 color; uniform float alpha; uniform float fade; varying float vis; varying float tpx; void main(){ if (vis < 0.02) discard; gl_FragColor = vec4(color, alpha * (1. - fade * smoothstep(5., 14., tpx))); }',
 })
 
 // split a lat/lon triangle until its edges are short, so big polygons hug the curved surface
@@ -48,6 +73,16 @@ export class Globe {
   private camera = new THREE.PerspectiveCamera(40, 1, 1e-6, 100)
   private material: THREE.MeshStandardMaterial
   private exag = { value: 20 }
+  private res = { value: new THREE.Vector2(1, 1) } // drawing buffer size, for the ribbon shader
+  private light: boolean
+  private labelCv: HTMLCanvasElement
+  private labelList: Label[] = []
+  private labelPos = new Map<Label, { d: [number, number, number]; h: number }>()
+  private labelW = new Map<string, number>()
+  private labelsOn = true
+  /** Draw the names of features and layer items over the globe. */
+  setLabels(on: boolean) { this.labelsOn = on; this.dirty = true }
+  private propMat: THREE.MeshStandardMaterial
   private relief = 1
   private index = new THREE.BufferAttribute(tileIndex(), 1)
   private tiles = new Map<string, Tile>()
@@ -78,11 +113,17 @@ export class Globe {
 
   constructor(canvas: HTMLCanvasElement, light = lightMode()) {
     this.canvas = canvas
+    this.light = light
     this.maxTiles = light ? MAX_TILES / 3 : MAX_TILES
     this.split = light ? SPLIT * 0.7 : SPLIT
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true })
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, light ? 1.5 : 2))
     this.scene.background = this.space.clone()
+    // names are drawn on a 2D canvas above the globe (under the panels), so they stay crisp and can avoid each other
+    this.labelCv = document.createElement('canvas')
+    this.labelCv.setAttribute('aria-hidden', 'true')
+    Object.assign(this.labelCv.style, { pointerEvents: 'none', cursor: 'default' })
+    canvas.after(this.labelCv)
 
     this.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.93, metalness: 0 })
     this.material.onBeforeCompile = (s) => {
@@ -90,6 +131,19 @@ export class Globe {
       s.vertexShader = 'attribute vec3 up;\nattribute float h;\nattribute vec3 grad;\nuniform float exag;\n' + s.vertexShader
         .replace('#include <beginnormal_vertex>', 'vec3 objectNormal = normalize(up - grad * exag);')
         .replace('#include <begin_vertex>', 'vec3 transformed = position + up * (h * exag);')
+    }
+    // props: instanced low-poly trees and the like. Each instance is planted at its ground height (lifted with the relief
+    // exaggeration) but keeps its own size; flat shading comes from screen-space derivatives, so no normals are stored.
+    this.propMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0, flatShading: true, side: THREE.DoubleSide })
+    this.propMat.onBeforeCompile = (s) => {
+      s.uniforms.exag = this.exag
+      s.vertexShader = 'attribute vec3 iPos;\nattribute vec3 iUp;\nattribute vec3 iA;\nattribute vec3 iCol;\nattribute float fix;\nuniform float exag;\n' + s.vertexShader.replace('#include <begin_vertex>', `
+        vec3 rf = abs(iUp.y) < 0.95 ? vec3(0., 1., 0.) : vec3(1., 0., 0.);
+        vec3 t1 = normalize(cross(rf, iUp)), t2 = cross(iUp, t1);
+        float cy = cos(iA.z), sy = sin(iA.z);
+        vec3 lp = position * iA.y;
+        vec3 transformed = iPos + iUp * (iA.x * exag - iA.y * 0.05) + t1 * (cy * lp.x - sy * lp.z) + t2 * (sy * lp.x + cy * lp.z) + iUp * lp.y;
+        vColor = (fix > 0.5 ? color : color * iCol) * mix(0.5, 1.25, clamp(position.y, 0., 1.));`)
     }
     this.scene.add(new THREE.HemisphereLight(0xc8d8ff, 0x1a2420, 0.9))
     this.scene.add(this.sun, this.sun.target)
@@ -145,12 +199,14 @@ export class Globe {
     const spec = groundSpec(world)
     const layers = JSON.stringify(world.layers ?? [])
     this.world = world
+    this.labelList = collectLabels(world); this.labelPos.clear(); this.dirty = true
     if (spec === this.spec) {
       if (layers !== this.layersSpec) { this.layersSpec = layers; this.buildOverlays() }
       return
     }
     this.spec = spec; this.layersSpec = layers
     this.planet = makePlanet(world)
+    this.labelPos.clear()
     this.gen++
     for (const t of this.tiles.values()) this.drop(t)
     this.tiles.clear(); this.queue = []
@@ -173,9 +229,32 @@ export class Globe {
     if (sizes) g.setAttribute('size', new THREE.Float32BufferAttribute(sizes.map((s) => s * this.renderer.getPixelRatio()), 1))
     return g
   }
-  private segs = (lines: LatLon[][]) => lines.flatMap((l) => l.slice(1).flatMap((q, i) => [l[i], q]))
+  /** Ribbon geometry for lines; `km` (full width per point) is optional, leaving it out gives a constant-pixel line. */
+  private ribbonGeom(lines: { pts: LatLon[]; km?: number[] }[]) {
+    const p = this.planet!, R = p.radiusM / 1000, pos: number[] = [], oth: number[] = [], h: number[] = [], ho: number[] = [], side: number[] = [], wk: number[] = [], idx: number[] = []
+    for (const { pts, km } of lines) {
+      const dirs = pts.map((ll) => toDir(ll[0], ll[1])), hs = dirs.map((d) => p.surface(d[0], d[1], d[2], p.elevation(d[0], d[1], d[2], 4)) / p.radiusM)
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const base = pos.length / 3
+        for (const [a, b, sgn] of [[i, i + 1, 1], [i + 1, i, -1]] as const) for (const sd of [-1, 1]) {
+          pos.push(...dirs[a]); oth.push(...dirs[b]); h.push(hs[a]); ho.push(hs[b]); side.push(sd * sgn); wk.push((km?.[a] ?? 0) / 2 / R)
+        }
+        idx.push(base, base + 1, base + 3, base, base + 3, base + 2)
+      }
+    }
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('other', new THREE.Float32BufferAttribute(oth, 3))
+    g.setAttribute('h', new THREE.Float32BufferAttribute(h, 1)); g.setAttribute('ho', new THREE.Float32BufferAttribute(ho, 1))
+    g.setAttribute('side', new THREE.Float32BufferAttribute(side, 1)); g.setAttribute('wk', new THREE.Float32BufferAttribute(wk, 1))
+    g.setIndex(idx)
+    return g
+  }
+  private ribbon = (lines: LatLon[][], color: string | number, alpha: number, px: number) =>
+    new THREE.Mesh(this.ribbonGeom(lines.map((pts) => ({ pts }))), ribbonMat(color, alpha, px * this.renderer.getPixelRatio()))
   private addOverlay(list: THREE.Object3D[], o: THREE.Mesh | THREE.LineSegments | THREE.Points, order: number) {
-    ;(o.material as THREE.ShaderMaterial).uniforms.exag = this.exag
+    const u = (o.material as THREE.ShaderMaterial).uniforms
+    u.exag = this.exag
+    if (u.res) u.res = this.res
     o.frustumCulled = false
     o.renderOrder = order
     this.scene.add(o); list.push(o)
@@ -187,8 +266,12 @@ export class Globe {
     this.clearOverlays(this.overlays)
     this.hiKey = ''; this.clearOverlays(this.hi)
     const p = this.planet!, w = this.world!, add = this.addOverlay.bind(this, this.overlays)
-    const rivers = (w.ops ?? []).flatMap((op) => (op.kind === 'river' ? [p.course(op)] : []))
-    if (rivers.length) add(new THREE.LineSegments(this.drapeGeom(this.segs(rivers)), drapeMat(0x4fa3e8, 0.9)), 2)
+    const wide = (w.ops ?? []).flatMap((op) => {
+      if (op.kind !== 'river') return []
+      const pts = p.course(op), full = op.width ?? 5
+      return [{ pts, km: pts.map((_, i) => full * (0.35 + 0.65 * i / Math.max(1, pts.length - 1))) }]
+    })
+    if (wide.length) add(new THREE.Mesh(this.ribbonGeom(wide), ribbonMat(0x4a9fe0, 0.92, 2.4 * this.renderer.getPixelRatio(), true)), 2)
     for (const l of w.layers ?? []) {
       if (l.hidden) continue
       const col = layerColor(l), a = l.opacity ?? 1
@@ -201,7 +284,7 @@ export class Globe {
       }
       if (fills.length) add(new THREE.Mesh(this.drapeGeom(fills), drapeMat(col, a * 0.3)), 1)
       const lines = l.items.flatMap((it) => (it.path ? [it.path] : it.area ? [[...it.area, it.area[0]]] : []))
-      if (lines.length) add(new THREE.LineSegments(this.drapeGeom(this.segs(lines)), drapeMat(col, a * 0.9)), 3)
+      if (lines.length) add(this.ribbon(lines, col, a * 0.9, 2.4), 3)
       const pts = l.items.filter((it) => it.at)
       if (pts.length) add(new THREE.Points(this.drapeGeom(pts.map((it) => it.at!), pts.map(pointSize)), drapeMat(col, a, true)), 5)
     }
@@ -219,7 +302,7 @@ export class Globe {
     this.canvas.style.cursor = f ? 'pointer' : ''
     if (f) {
       const lines = outline(f, this.planet!.radiusM / 1000, ptKm, (op) => this.planet!.course(op))
-      this.addOverlay(this.hi, new THREE.LineSegments(this.drapeGeom(this.segs(lines)), drapeMat(0xffffff, 1)), 6)
+      this.addOverlay(this.hi, this.ribbon(lines, 0xffffff, 1, 3.6), 6)
     }
     this.dirty = true
   }
@@ -250,7 +333,8 @@ export class Globe {
     c.removeEventListener('pointerleave', this.leave); c.removeEventListener('wheel', this.wheel)
     c.removeEventListener('dblclick', this.dbl); c.removeEventListener('contextmenu', this.noMenu); c.removeEventListener('keydown', this.key)
     this.clearOverlays(this.overlays); this.clearOverlays(this.hi)
-    this.material.dispose(); this.renderer.dispose()
+    this.labelCv.remove()
+    this.material.dispose(); this.propMat.dispose(); this.renderer.dispose()
   }
 
   // ---------- tiles ----------
@@ -298,7 +382,24 @@ export class Globe {
     mesh.visible = false
     t.mesh = mesh
     this.scene.add(mesh)
+    t.props = m.t.props?.map(({ kind, data }) => this.addProps(t, kind, data))
     this.dirty = true
+  }
+  private addProps(t: Tile, kind: DecorKind, data: Float32Array) {
+    const u = unitProp(kind), g = new THREE.InstancedBufferGeometry(), buf = new THREE.InstancedInterleavedBuffer(data, PROP_STRIDE)
+    g.setAttribute('position', new THREE.BufferAttribute(u.pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(u.col, 3)); g.setAttribute('fix', new THREE.BufferAttribute(u.fix, 1))
+    g.setIndex(new THREE.BufferAttribute(u.idx, 1))
+    g.setAttribute('iPos', new THREE.InterleavedBufferAttribute(buf, 3, 0)); g.setAttribute('iUp', new THREE.InterleavedBufferAttribute(buf, 3, 3))
+    g.setAttribute('iA', new THREE.InterleavedBufferAttribute(buf, 3, 6)); g.setAttribute('iCol', new THREE.InterleavedBufferAttribute(buf, 3, 9))
+    g.instanceCount = data.length / PROP_STRIDE
+    g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), tileAngle(t.level) * 0.8 + 0.08)
+    const mesh = new THREE.Mesh(g, this.propMat)
+    mesh.position.copy(t.center)
+    mesh.matrixAutoUpdate = false
+    mesh.updateMatrix()
+    mesh.visible = false
+    this.scene.add(mesh)
+    return mesh
   }
   private drop(t: Tile) {
     if (!t.mesh) return
@@ -306,6 +407,8 @@ export class Globe {
     t.mesh.geometry.index = null // the index buffer is shared; don't let dispose() delete it
     t.mesh.geometry.dispose()
     t.mesh = undefined
+    for (const m of t.props ?? []) { this.scene.remove(m); m.geometry.dispose() }
+    t.props = undefined
   }
 
   private updateTiles() {
@@ -327,14 +430,14 @@ export class Globe {
       draw.add(t)
     }
     for (let f = 0; f < 6; f++) visit(this.tile(f, 0, 0, 0))
-    for (const t of this.tiles.values()) if (t.mesh) t.mesh.visible = draw.has(t)
+    for (const t of this.tiles.values()) if (t.mesh) { const on = draw.has(t); t.mesh.visible = on; for (const m of t.props ?? []) m.visible = on }
 
     // dispatch: coarse and near first; forget requests nobody needs any more
     this.queue = this.queue.filter((t) => { if (t.used >= this.frame - 1) return true; t.pending = false; return false })
     this.queue.sort((a, b) => a.level - b.level || cam.distanceTo(a.center) - cam.distanceTo(b.center))
     while (this.idle.length && this.queue.length) {
       const t = this.queue.shift()!
-      this.idle.pop()!.postMessage({ world: this.spec, face: t.face, level: t.level, x: t.x, y: t.y, key: t.key, gen: this.gen })
+      this.idle.pop()!.postMessage({ world: this.spec, face: t.face, level: t.level, x: t.x, y: t.y, key: t.key, gen: this.gen, light: this.light })
     }
     // evict least recently used meshes beyond the cap; level 0 stays
     if (this.tiles.size > this.maxTiles) {
@@ -364,7 +467,7 @@ export class Globe {
 
     // relief exaggeration: dramatic from orbit, near true scale on the ground
     const zt = clamp((Math.log10(c.dist) - Math.log10(0.0005)) / (Math.log10(3) - Math.log10(0.0005)), 0, 1)
-    this.exag.value = (1.5 + 18 * zt ** 3) * this.relief
+    this.exag.value = (2 + 22 * zt ** 2.5) * this.relief
 
     const U = new THREE.Vector3(...toDir(c.lat, c.lon))
     const T = U.clone().multiplyScalar(1 + this.ground(U))
@@ -415,7 +518,40 @@ export class Globe {
     this.frame++
     this.updateTiles()
     this.renderer.render(this.scene, this.camera)
+    this.drawLabels()
     if (this.mouse) this.hover(this.mouse.x, this.mouse.y)
+  }
+
+  private drawLabels() {
+    const cv = this.labelCv, W = this.canvas.width, H = this.canvas.height, p = this.planet
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H }
+    const ctx = cv.getContext('2d')!
+    ctx.clearRect(0, 0, W, H)
+    if (!this.labelsOn || !p || !this.labelList.length) return
+    const k = this.renderer.getPixelRatio(), cam = this.camera.position, exag = this.exag.value, w = new THREE.Vector3(), v = new THREE.Vector3()
+    const at = (l: Label): [number, number] | undefined => {
+      let c = this.labelPos.get(l)
+      if (!c) { const d = toDir(l.at[0], l.at[1]); c = { d, h: p.surface(d[0], d[1], d[2], p.elevation(d[0], d[1], d[2], 4)) / p.radiusM }; this.labelPos.set(l, c) }
+      w.set(c.d[0], c.d[1], c.d[2]).multiplyScalar(1 + c.h * exag)
+      v.copy(cam).sub(w)
+      if ((c.d[0] * v.x + c.d[1] * v.y + c.d[2] * v.z) / (v.length() || 1) < 0.06) return undefined // behind the horizon
+      if (v.copy(w).applyMatrix4(this.camera.matrixWorldInverse).z > -this.camera.near) return undefined // behind the camera
+      v.copy(w).project(this.camera)
+      return [(v.x + 1) / 2 * W, (1 - v.y) / 2 * H]
+    }
+    const font = (l: Label) => `${l.italic ? 'italic ' : ''}600 ${l.size * k * 1.1}px system-ui, sans-serif`
+    const measure = (l: Label) => {
+      const key = `${k}|${l.size}|${l.italic}|${l.text}`
+      let m = this.labelW.get(key)
+      if (m === undefined) { ctx.font = font(l); this.labelW.set(key, m = ctx.measureText(l.text).width) }
+      return m
+    }
+    ctx.textAlign = 'center'; ctx.lineJoin = 'round'
+    for (const { label, x, y } of placeLabels(this.labelList, at, measure, W, H, k)) {
+      ctx.font = font(label); ctx.lineWidth = 3.2 * k
+      ctx.strokeStyle = 'rgba(8,12,14,.78)'; ctx.strokeText(label.text, x, y)
+      ctx.fillStyle = label.prio === 0 ? '#ffd9a8' : '#f4f6f2'; ctx.fillText(label.text, x, y)
+    }
   }
 
   private resize() {
@@ -423,6 +559,7 @@ export class Globe {
     const w = p.clientWidth, h = p.clientHeight
     if (!w || !h) return
     this.renderer.setSize(w, h, false)
+    this.res.value.set(this.renderer.domElement.width, this.renderer.domElement.height)
     this.camera.aspect = w / h
     this.camera.updateProjectionMatrix()
     this.dirty = true

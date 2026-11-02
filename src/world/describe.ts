@@ -2,6 +2,7 @@
 // Pure (no DOM) so the app and `scripts/world.ts` share them.
 import { angle, dirOf, inPolygon, makePath, pathDist, toDir, type LatLon } from './geo.ts'
 import { OP_KINDS, OP_SPECS, opCenter, type Op } from './ops.ts'
+import { TERRAINS, TERRAIN_IDS } from './terrains.ts'
 import { LAYER_KINDS, validateLayers } from './layers.ts'
 import { DEFAULT_PARAMS, makePlanet, type Planet, type World } from './terrain.ts'
 
@@ -150,11 +151,13 @@ export function validate(world: World): Problems {
       const v = o[f]
       if (v === undefined) { if (req) errors.push(`${at}: missing ${f}`); continue }
       if (type === 'num' && (typeof v !== 'number' || !Number.isFinite(v) || (f !== 'level' && v < 0))) errors.push(`${at}: ${f} must be a ${f === 'level' ? '' : 'non-negative '}number`)
+      if (type === 'str' && (typeof v !== 'string' || (f === 'terrain' && !TERRAINS[v]))) errors.push(`${at}: ${f} must be one of ${TERRAIN_IDS.join(', ')}`)
       if (type === 'at' && !isLL(v)) errors.push(`${at}: ${f} must be [lat, lon] with |lat|<=90, |lon|<=180`)
       if ((type === 'path' || type === 'area') && (!Array.isArray(v) || v.length < (type === 'area' ? 3 : 2) || !v.every(isLL))) errors.push(`${at}: ${f} must be a list of at least ${type === 'area' ? 3 : 2} [lat, lon] points`)
     }
-    if (op.kind === 'range' && op.height > 9500) warnings.push(`${at}: ${op.height} m is taller than anything on Earth`)
+    if (op.kind === 'range' && op.height > 16000) warnings.push(`${at}: ${op.height} m is far beyond what the generator shapes well (try 6000-14000)`)
     if (op.kind === 'islands' && (op.count < 1 || op.count > 60)) warnings.push(`${at}: count is clamped to 1..60`)
+    if (op.kind === 'spires' && (op.count < 1 || op.count > 80)) warnings.push(`${at}: count is clamped to 1..80`)
   })
   validateLayers(world.layers, ids, errors, warnings)
   if (errors.length) return { errors, warnings }
@@ -207,6 +210,11 @@ You are editing a fantasy planet for a novel. The planet is generated from \`see
 
 ## Ops
 ${ops}
+
+## Terrain
+The ground type decides colour, trees and other props on the 3D globe and the symbols on the flat map. Climate picks one automatically (forest, grassland, desert, taiga, jungle, tundra...); paint any of them anywhere with \`terrain\` (circle) or \`zone\` (polygon) ops, which win over climate. Painted dunes, badlands, crystal and lava also reshape the ground.
+${TERRAIN_IDS.map((id) => `\`${id}\` ${TERRAINS[id].label}${TERRAINS[id].shape ? ` (${TERRAINS[id].shape})` : ''}${TERRAINS[id].paint ? ' [paint only]' : ''}`).join(', ')}.
+- Exaggerate on purpose: the world is a demonstration, not to scale. Ranges of 8000-14000 m, rivers 5-15 km wide, and spires/terrain patches make features pop.
 
 ## Layers
 Overlays that never change the ground: \`layers: [{ id, name, kind, color?, opacity?, hidden?, items: [...] }]\`.

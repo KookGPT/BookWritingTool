@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { DEFAULT_PARAMS, makePlanet, toDir, toLatLon, type World } from '../src/world/terrain.ts'
-import { buildTile, faceDir, SEG, tileIndex } from '../src/world/tile.ts'
+import { buildTile, faceDir, PROP_STRIDE, SEG, tileIndex, tileSpan } from '../src/world/tile.ts'
 import { describe, validate } from '../src/world/describe.ts'
 import { dirOf, inPolygon, makePath, pathDist } from '../src/world/geo.ts'
 
@@ -134,4 +134,44 @@ console.log('world: all checks passed')
   const at = (y: number) => activeAt([layer], y * 360, DEFAULT_CAL)[0].items.map((i) => i.id).join()
   assert.equal(at(3), 'x'); assert.equal(at(5), 'x'); assert.equal(at(6), 'y'); assert.equal(activeAt([layer], undefined, DEFAULT_CAL)[0].items.length, 2)
   assert.ok(validate({ ...w('t'), layers: [{ ...layer, items: [{ ...layer.items[1], from: { y: 'x' } as never }] }] }).errors.some((e) => e.includes('from must be a date')))
+}
+
+// terrains: painted types, zones and spires validate; paint shows in the classifier; water has no terrain; chunked distances match brute force
+{
+  const { TERRAIN_IDS } = await import('../src/world/terrains.ts')
+  const { brief } = await import('../src/world/describe.ts')
+  const { readFileSync } = await import('node:fs')
+  const big = [...Array(40).keys()].map((i) => [10 + 25 * Math.sin(i / 4), -60 + i * 3] as [number, number])
+  const lp = makePath(big), brute = { ...lp, chunks: [] }
+  for (const [lat, lon] of [[0, 0], [20, -30], [-10, 50], [35, -100], [10, -60]]) {
+    const q = pathDist(dirOf([lat, lon]), lp), r = pathDist(dirOf([lat, lon]), brute)
+    assert.ok(Math.abs(q.d - r.d) < 1e-12 && Math.abs(q.t - r.t) < 1e-12, `chunked pathDist at ${lat},${lon}`)
+  }
+
+  const t0: World = { ...sea, ops: [{ id: 't', kind: 'terrain', terrain: 'bonewood', at: land, radius: 200 }, { id: 'z', kind: 'zone', terrain: 'crystal', area: [[0, 0], [0, 5], [5, 5]] }, { id: 's', kind: 'spires', at: land, radius: 50, count: 10, height: 2000, width: 3 }] }
+  assert.deepEqual(validate(t0).errors, [])
+  assert.ok(validate({ ...t0, ops: [{ id: 't', kind: 'terrain', terrain: 'nope', at: land, radius: 200 }] }).errors.some((e) => e.includes('terrain must be one of')))
+  const text = brief(t0)
+  assert.ok(TERRAIN_IDS.every((id) => text.includes(id)), 'brief lists every terrain')
+
+  const pt = makePlanet(t0), [x, y, z] = toDir(...land), h = pt.elevation(x, y, z, 4)
+  assert.equal(pt.terrain(x, y, z, h, 0.1, 4).id, 'bonewood', 'painted terrain wins at its centre')
+  const [wx, wy, wz] = toDir(spot[0], spot[1])
+  assert.equal(pt.terrain(wx, wy, wz, pt.elevation(wx, wy, wz, 4) - 1, 0, 4).id, '') // pick a spot under water via the volcano search above
+
+  // props: a tile and its four children (same tier) agree on where the trees are
+  const [px, py, pz] = [x, y, z]
+  const face = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].map((n) => px * n[0] + py * n[1] + pz * n[2]).reduce((b, v, i, a) => (v > a[b] ? i : b), 0)
+  const FACES = [[[1, 0, 0], [0, 0, -1], [0, 1, 0]], [[-1, 0, 0], [0, 0, 1], [0, 1, 0]], [[0, 1, 0], [1, 0, 0], [0, 0, -1]], [[0, -1, 0], [1, 0, 0], [0, 0, 1]], [[0, 0, 1], [1, 0, 0], [0, 1, 0]], [[0, 0, -1], [-1, 0, 0], [0, 1, 0]]]
+  const [fn, fu, fv] = FACES[face], dn = px * fn[0] + py * fn[1] + pz * fn[2]
+  const U = Math.atan((px * fu[0] + py * fu[1] + pz * fu[2]) / dn) * 4 / Math.PI, V = Math.atan((px * fv[0] + py * fv[1] + pz * fv[2]) / dn) * 4 / Math.PI
+  const tx = Math.floor((U + 1) / tileSpan(11)), ty = Math.floor((V + 1) / tileSpan(11))
+  const keys = (lv: number, i: number, j: number) => (buildTile(pt, face, lv, i, j).props ?? []).flatMap((s) => Array.from({ length: s.data.length / PROP_STRIDE }, (_, n) => `${s.kind}${Array.from(s.data.slice(n * PROP_STRIDE + 3, n * PROP_STRIDE + 6), (v) => v.toFixed(5))}`))
+  const parent = keys(11, tx, ty), kids = new Set([0, 1, 2, 3].flatMap((c) => keys(12, tx * 2 + (c & 1), ty * 2 + (c >> 1))))
+  assert.ok(parent.length > 10, `props placed (${parent.length})`)
+  assert.ok(parent.filter((k) => kids.has(k)).length >= parent.length * 0.85, 'LOD levels place the same props')
+
+  // the demo world stays valid
+  const demo = JSON.parse(readFileSync(new URL('../examples/terrain-showcase.json', import.meta.url), 'utf8')) as World
+  assert.deepEqual(validate(demo).errors, [])
 }

@@ -130,6 +130,7 @@ export default function WorldPage() {
     return () => clearTimeout(t)
   }, [gworld])
   useEffect(() => globe.current?.setRelief(relief), [relief])
+  useEffect(() => globe.current?.setLabels(labels), [labels, hasWorld])
   useEffect(() => { if (globe.current) globe.current.orbit = orbit }, [orbit, hasWorld])
   const exportPng = () => flatApi.current?.toBlob((b) => {
     if (!b) return
@@ -252,6 +253,7 @@ export default function WorldPage() {
           <div className="row" role="group" aria-label="View">
             {(['globe', 'map'] as const).map((v) => <button key={v} className={view === v ? '' : 'alt'} aria-pressed={view === v} style={{ flex: 1 }} onClick={() => { setView(v); if (v === 'map') setMapOpened(true) }}>{v === 'globe' ? 'Globe' : 'Flat map'}</button>)}
           </div>
+          <label className="small" style={{ display: "flex", flexDirection: "row", gap: ".4rem", alignItems: "center" }}><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Names on the map</label>
           {view === 'map' && <div className="globe-sec" style={{ borderTop: 0, paddingTop: 0 }}>
             <label className="globe-field">Projection<select value={proj} onChange={(e) => setProj(e.target.value as ProjName)}>
               {Object.entries(PROJECTIONS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
@@ -259,7 +261,6 @@ export default function WorldPage() {
               {Object.entries(MAP_STYLES).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
             <label className="globe-field">Contour lines<select value={contour} onChange={(e) => setContour(Number(e.target.value))}>
               <option value={0}>Off</option><option value={250}>Every 250 m</option><option value={500}>Every 500 m</option><option value={1000}>Every 1000 m</option></select></label>
-            <label className="small" style={{ display: "flex", flexDirection: "row", gap: ".4rem", alignItems: "center" }}><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Names on the map</label>
             <div className="row">
               <button className="alt" style={{ flex: 1 }} onClick={() => flatApi.current?.reset()}>Reset view</button>
               <button className="alt" style={{ flex: 1 }} onClick={exportPng} disabled={busy}>{busy ? 'Rendering…' : 'Export PNG'}</button>

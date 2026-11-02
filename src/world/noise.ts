@@ -7,6 +7,13 @@ export const hash = (s: string) => {
   return h >>> 0
 }
 
+/** A deterministic 0..1 value for four integers (a lattice cell and a salt). */
+export const hash4 = (a: number, b: number, c: number, d: number) => {
+  let h = Math.imul(a + 1013904223, 0x9e3779b1) ^ Math.imul(b + 0x7f4a7c15, 0x85ebca6b) ^ Math.imul(c + 0x165667b1, 0xc2b2ae35) ^ Math.imul(d + 0x27d4eb2f, 0x9e3779b1)
+  h ^= h >>> 15; h = Math.imul(h, 0x2c1b3c6d); h ^= h >>> 12; h = Math.imul(h, 0x297a2d39); h ^= h >>> 15
+  return (h >>> 0) / 4294967296
+}
+
 // mulberry32
 export const rng = (seed: number) => () => {
   seed = (seed + 0x6d2b79f5) | 0

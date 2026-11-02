@@ -20,30 +20,49 @@ export const angle = (a: Vec, b: Vec) => Math.atan2(Math.hypot(...cross(a, b)), 
 /** Great-circle distance in km. */
 export const distKm = (a: LatLon, b: LatLon, radiusKm: number) => angle(dirOf(a), dirOf(b)) * radiusKm
 
-export interface Path { pts: Vec[]; cum: number[]; total: number } // cumulative angle along the path
+// Long paths (a densified river is thousands of segments) are split into chunks with a bounding cap each, so a distance
+// query only walks the chunks that could hold the nearest point.
+const CHUNK = 12
+export interface Path { pts: Vec[]; cum: number[]; total: number; nrm: (Vec | undefined)[]; chunks: { c: Vec; r: number; from: number; to: number }[] } // cumulative angle along the path
 export const makePath = (ll: LatLon[]): Path => {
-  const pts = ll.map(dirOf), cum = [0]
-  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + angle(pts[i - 1], pts[i]))
-  return { pts, cum, total: cum[cum.length - 1] || 1e-12 }
+  const pts = ll.map(dirOf), cum = [0], nrm: (Vec | undefined)[] = [], chunks: Path['chunks'] = []
+  for (let i = 1; i < pts.length; i++) {
+    cum.push(cum[i - 1] + angle(pts[i - 1], pts[i]))
+    const n = cross(pts[i - 1], pts[i]), l = Math.hypot(...n)
+    nrm.push(l < 1e-12 ? undefined : [n[0] / l, n[1] / l, n[2] / l])
+  }
+  for (let i = 0; i < pts.length - 1; i += CHUNK) {
+    const j = Math.min(pts.length - 1, i + CHUNK), c = norm(pts.slice(i, j + 1).reduce<Vec>((s, v) => [s[0] + v[0], s[1] + v[1], s[2] + v[2]], [0, 0, 0]))
+    chunks.push({ c, r: Math.max(...pts.slice(i, j + 1).map((v) => angle(c, v))), from: i, to: j })
+  }
+  return { pts, cum, total: cum[cum.length - 1] || 1e-12, nrm, chunks }
 }
 
 /** Distance (radians) from p to a polyline of great-circle arcs, and how far along it (0..1) the nearest point is. */
 export function pathDist(p: Vec, path: Path) {
   let best = Infinity, t = 0
-  const { pts, cum } = path
+  const { pts, cum, nrm, chunks } = path
   if (pts.length === 1) return { d: angle(p, pts[0]), t: 0 }
-  for (let i = 0; i < pts.length - 1; i++) {
-    const a = pts[i], b = pts[i + 1], n = cross(a, b), nl = Math.hypot(...n)
-    let d: number, along: number
-    if (nl < 1e-12) { d = angle(p, a); along = 0 } else {
-      const nn: Vec = [n[0] / nl, n[1] / nl, n[2] / nl], s = dot(p, nn)
-      const q: Vec = [p[0] - nn[0] * s, p[1] - nn[1] * s, p[2] - nn[2] * s]
-      if (dot(cross(a, q), nn) >= 0 && dot(cross(q, b), nn) >= 0) { d = Math.abs(Math.asin(Math.max(-1, Math.min(1, s)))); along = angle(a, norm(q)) } else {
-        const da = angle(p, a), db = angle(p, b)
-        if (da < db) { d = da; along = 0 } else { d = db; along = cum[i + 1] - cum[i] }
+  const run = (from: number, to: number) => {
+    for (let i = from; i < to; i++) {
+      const a = pts[i], b = pts[i + 1], nn = nrm[i]
+      let d: number, along: number
+      if (!nn) { d = angle(p, a); along = 0 } else {
+        const s = dot(p, nn), q: Vec = [p[0] - nn[0] * s, p[1] - nn[1] * s, p[2] - nn[2] * s]
+        if (dot(cross(a, q), nn) >= 0 && dot(cross(q, b), nn) >= 0) { d = Math.abs(Math.asin(Math.max(-1, Math.min(1, s)))); along = angle(a, norm(q)) } else {
+          const da = angle(p, a), db = angle(p, b)
+          if (da < db) { d = da; along = 0 } else { d = db; along = cum[i + 1] - cum[i] }
+        }
       }
+      if (d < best) { best = d; t = (cum[i] + along) / path.total }
     }
-    if (d < best) { best = d; t = (cum[i] + along) / path.total }
+  }
+  if (chunks.length < 3) run(0, pts.length - 1)
+  else {
+    let k0 = 0, top = -2 // the chunk whose centre is nearest gives a tight bound first, then the rest are skipped unless they could beat it
+    for (let k = 0; k < chunks.length; k++) { const c = dot(p, chunks[k].c); if (c > top) { top = c; k0 = k } }
+    run(chunks[k0].from, chunks[k0].to)
+    for (let k = 0; k < chunks.length; k++) if (k !== k0 && dot(p, chunks[k].c) >= Math.cos(Math.min(Math.PI, best + chunks[k].r))) run(chunks[k].from, chunks[k].to)
   }
   return { d: best, t }
 }

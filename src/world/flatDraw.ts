@@ -1,8 +1,9 @@
 // Draws the vector side of a flat map (rivers, layers, labels) onto a 2D canvas in screen pixels. Browser only.
 import type { MapStyle, Proj } from './flat.ts'
 import type { LatLon } from './geo.ts'
+import { drawGlyphs } from './glyphs.ts'
+import { collectLabels, placeLabels } from './labels.ts'
 import { layerColor, pointSize } from './layers.ts'
-import { opCenter } from './ops.ts'
 import type { Planet, World } from './terrain.ts'
 
 // straight lat/lon steps of at most 1 degree, so lines bend with the projection
@@ -32,68 +33,55 @@ const THEMES: Record<MapStyle, { fill: string; halo: string; serif: boolean }> =
   political: { fill: '#222', halo: 'rgba(255,255,255,.85)', serif: false },
 }
 
-interface Label { text: string; at: LatLon; size: number; italic: boolean; prio: number; dot?: number }
-interface Rect { x: number; y: number; w: number; h: number }
-const hit = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
-
 /** k = device pixels per CSS pixel, so lines and text keep their size on hi-dpi screens. */
 export function drawOverlays(ctx: CanvasRenderingContext2D, planet: Planet, world: World, p: Proj, style: MapStyle, showLabels: boolean, k = 1) {
   const theme = THEMES[style], W = ctx.canvas.width, H = ctx.canvas.height
-  const cands: Label[] = [], taken: Rect[] = [] // taken: point markers, so no name sits on top of a dot
+  drawGlyphs(ctx, planet, p, style, k)
   ctx.lineCap = 'round'
-  for (const op of world.ops ?? []) {
-    if (op.kind === 'river') { trace(ctx, p, planet.course(op)); ctx.strokeStyle = '#3d7fc4'; ctx.lineWidth = 1.5 * k; ctx.stroke() }
-    if (op.name) cands.push({ text: op.name, at: opCenter(op), size: 11, italic: true, prio: 1 })
-  }
+  for (const op of world.ops ?? []) if (op.kind === 'river') drawRiver(ctx, p, planet.course(op), op.width ?? 5, k)
   for (const l of world.layers ?? []) {
     if (l.hidden) continue
     const col = layerColor(l), a = l.opacity ?? 1
     for (const it of l.items) {
       ctx.strokeStyle = col; ctx.fillStyle = col
-      let at: LatLon | undefined
       if (it.area) {
         trace(ctx, p, [...it.area, it.area[0]])
         ctx.globalAlpha = a * 0.25; ctx.fill()
         ctx.globalAlpha = a; ctx.lineWidth = 1.5 * k; ctx.stroke()
-        at = [it.area.reduce((s, v) => s + v[0], 0) / it.area.length, it.area.reduce((s, v) => s + v[1], 0) / it.area.length]
-        if (it.name) cands.push({ text: it.name, at, size: 12, italic: true, prio: 0 })
       } else if (it.path) {
         trace(ctx, p, it.path)
         ctx.globalAlpha = a; ctx.lineWidth = 1.8 * k; ctx.setLineDash(l.kind === 'borders' ? [6 * k, 4 * k] : []); ctx.stroke(); ctx.setLineDash([])
-        if (it.name) cands.push({ text: it.name, at: it.path[Math.floor(it.path.length / 2)], size: 10, italic: true, prio: 6 })
       } else if (it.at) {
         const [x, y] = p.fwd(it.at[0], it.at[1]), r = pointSize(it) * k / 2
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2)
         ctx.globalAlpha = a; ctx.fill(); ctx.lineWidth = 1.5 * k; ctx.strokeStyle = '#1a1410'; ctx.stroke()
-        taken.push({ x: x - r, y: y - r, w: 2 * r, h: 2 * r })
-        // bigger settlements are placed first, so they keep their names when space is tight
-        if (it.name) cands.push({ text: it.name, at: it.at, size: 10, italic: false, prio: 2 + 4 / pointSize(it), dot: r })
       }
       ctx.globalAlpha = 1
     }
   }
   if (!showLabels) return
 
-  // greedy placement: most important first; try centred, then above/below/beside; skip what still collides
-  const pad = 2 * k
   ctx.textAlign = 'center'; ctx.lineJoin = 'round'
-  for (const L of cands.sort((x, y) => x.prio - y.prio)) {
-    const [x, y] = p.fwd(L.at[0], L.at[1])
-    if (x < -50 || y < -50 || x > W + 50 || y > H + 50) continue
-    const px = L.size * k
-    ctx.font = `${L.italic ? 'italic ' : ''}${px}px ${theme.serif ? 'Georgia, serif' : 'system-ui, sans-serif'}`
-    const w = ctx.measureText(L.text).width, h = px * 1.1, r = L.dot ?? 0
-    const tries: [number, number][] = r
-      ? [[0, -(r + 3 * k)], [0, r + h + k], [w / 2 + r + 4 * k, h * 0.3], [-(w / 2 + r + 4 * k), h * 0.3]]
-      : [[0, h * 0.3], [0, -h * 0.8], [0, h * 1.5]]
-    for (const [dx, dy] of tries) {
-      const box: Rect = { x: x + dx - w / 2 - pad, y: y + dy - h * 0.85 - pad, w: w + 2 * pad, h: h + 2 * pad }
-      if (box.x < 0 || box.y < 0 || box.x + box.w > W || box.y + box.h > H || taken.some((t) => hit(t, box))) continue
-      taken.push(box)
-      ctx.lineWidth = 3 * k
-      ctx.strokeStyle = theme.halo; ctx.strokeText(L.text, x + dx, y + dy)
-      ctx.fillStyle = theme.fill; ctx.fillText(L.text, x + dx, y + dy)
-      break
-    }
+  const font = (l: { size: number; italic: boolean }) => `${l.italic ? 'italic ' : ''}${l.size * k}px ${theme.serif ? 'Georgia, serif' : 'system-ui, sans-serif'}`
+  const placed = placeLabels(collectLabels(world), (l) => { const [x, y] = p.fwd(l.at[0], l.at[1]); return [x, y] }, (l) => { ctx.font = font(l); return ctx.measureText(l.text).width }, W, H, k)
+  for (const { label, x, y } of placed) {
+    ctx.font = font(label); ctx.lineWidth = 3 * k
+    ctx.strokeStyle = theme.halo; ctx.strokeText(label.text, x, y)
+    ctx.fillStyle = theme.fill; ctx.fillText(label.text, x, y)
+  }
+}
+
+/** A river as a tapered ribbon: thin at the source, wide at the mouth, in screen pixels at the map's zoom (width is exaggerated on purpose). */
+function drawRiver(ctx: CanvasRenderingContext2D, p: Proj, course: LatLon[], widthKm: number, k: number) {
+  const pts = dens(course), n = pts.length
+  if (n < 2) return
+  const grow = Math.max(1, Math.pow(p.scale / 200, 0.4)) // wider than life, and still growing as you zoom in
+  const px = (t: number) => Math.max(1.5, Math.min(26, (0.35 + 0.65 * t) * widthKm * 0.5 * grow)) * k
+  ctx.strokeStyle = '#3d7fc4'; ctx.lineCap = 'round'
+  let prev: [number, number] | undefined
+  for (let i = 0; i < n; i++) {
+    const q = p.fwd(pts[i][0], pts[i][1])
+    if (prev && Math.abs(q[0] - prev[0]) < p.mapW / 2) { ctx.lineWidth = px(i / (n - 1)); ctx.beginPath(); ctx.moveTo(prev[0], prev[1]); ctx.lineTo(q[0], q[1]); ctx.stroke() }
+    prev = q
   }
 }

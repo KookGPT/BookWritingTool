@@ -30,6 +30,7 @@ export const fitScale = (name: ProjName, w: number, h: number) => { const { X, Y
 /** What part of the map is shown: the centre in unit coordinates and the zoom in pixels per unit. */
 export interface View { x: number; y: number; s: number }
 export interface Proj {
+  name: ProjName
   w: number; h: number
   view: View
   scale: number // px per unit; the same as view.s
@@ -64,7 +65,7 @@ export function makeProj(name: ProjName, w: number, h?: number, view?: View): Pr
   }
   const s0 = h ? fitScale(name, w, h) : w / (2 * X), H = h ?? Math.round(2 * Y * s0), v = view ?? { x: 0, y: 0, s: s0 }
   return {
-    w, h: H, view: v, scale: v.s, mapW: 2 * X * v.s,
+    name, w, h: H, view: v, scale: v.s, mapW: 2 * X * v.s,
     fwd: (la, lo) => { const [x, y] = f(la, ((lo + 540) % 360) - 180); return [w / 2 + (x - v.x) * v.s, H / 2 - (y - v.y) * v.s] },
     inv: (px, py) => g(v.x + (px - w / 2) / v.s, v.y - (py - H / 2) / v.s),
   }
@@ -118,7 +119,7 @@ export function paintFlat(planet: Planet, p: Proj, s: Samples, o: { style: MapSt
     if (!ok[k]) { out[i + 3] = 0; continue }
     const e = x + 1 < w && ok[k + 1] ? k + 1 : k, n = y + 1 < h && ok[k + w] ? k + w : k
     const hh = hs[k], water = wet[k] === 1
-    const shade = water || L.shade[0] === L.shade[1] ? 1 : clamp(1 + ((hh - Math.max(0, hs[e])) + (hh - Math.max(0, hs[n]))) / px * 4, L.shade[0], L.shade[1])
+    const shade = water || L.shade[0] === L.shade[1] ? 1 : clamp(1 + ((hh - Math.max(0, hs[e])) + (hh - Math.max(0, hs[n]))) / px * 10, L.shade[0], L.shade[1])
     let c: RGB
     if (o.style === 'terrain') {
       const d = toDir(...(p.inv(x + 0.5, y + 0.5) as [number, number]))
