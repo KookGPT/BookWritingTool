@@ -382,3 +382,44 @@ button.ghost.on { background: var(--accent-soft); color: var(--fg) }
 .flatwrap { position: absolute; inset: 0 }
 .flatwrap canvas { width: 100%; height: 100%; display: block; cursor: grab; touch-action: none }
 .flatwrap canvas:active { cursor: grabbing }
+
+/* New Map Test: full-screen diorama with a slim floating bar */
+.maptest-page { position: relative; height: 100vh; overflow: hidden; background: #b9d3e6 }
+.maptest-page canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab }
+.maptest-page canvas:active { cursor: grabbing }
+.maptest-bar { position: absolute; top: 1rem; left: 1rem; right: 1rem; width: fit-content; max-width: calc(100% - 2rem); display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .5rem .7rem; border-radius: var(--r-lg) }
+.maptest-bar strong { display: inline-flex; align-items: center; gap: .4rem; font-family: var(--serif, inherit); margin-right: .3rem }
+.maptest-bar label { display: inline-flex; align-items: center; gap: .3rem }
+.maptest-msg { position: absolute; bottom: 4.2rem; left: 50%; transform: translateX(-50%); max-width: min(40rem, calc(100% - 2rem)); padding: .5rem .8rem; border-radius: var(--r-lg); cursor: pointer }
+.maptest-empty { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 26rem; padding: 1rem 1.2rem; border-radius: var(--r-lg); text-align: center }
+.maptest-hud { pointer-events: none; cursor: auto }
+.maptest-bar input[type=search] { width: 11rem }
+.maptest-search { position: relative }
+.maptest-results { position: absolute; top: calc(100% + .3rem); left: 0; min-width: 16rem; list-style: none; margin: 0; padding: .3rem; border-radius: var(--r-lg); z-index: 5 }
+.maptest-results button { width: 100%; justify-content: space-between; text-align: left; display: flex; gap: .6rem }
+.maptest-tools { position: absolute; top: 5rem; left: 1rem; display: flex; flex-direction: column; gap: .25rem; padding: .35rem; border-radius: var(--r-lg) }
+.maptest-tools hr { width: 100%; border: 0; border-top: 1px solid var(--border); margin: .15rem 0 }
+.maptest-tools button { padding: .4rem; display: grid; place-items: center }
+.maptest-hint { position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: .6rem; padding: .45rem .8rem; border-radius: var(--r-lg); max-width: min(46rem, calc(100% - 30rem)) }
+.maptest-layers { position: absolute; top: 5rem; right: 1rem; width: 290px; max-height: calc(100% - 22rem); overflow: auto; padding: .7rem .8rem; border-radius: var(--r-lg); display: flex; flex-direction: column; gap: .5rem }
+.maptest-layers.closed { width: auto }
+.maptest-layers strong { display: inline-flex; align-items: center; gap: .4rem; font-family: var(--serif, inherit) }
+.maptest-layers ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .2rem }
+.maptest-layers li { display: flex; align-items: center; gap: .3rem; padding: .1rem .2rem; border-radius: 8px; border: 1px solid transparent }
+.maptest-layers li.active { border-color: var(--border) }
+.maptest-layers input[type=color] { width: 1.6rem; height: 1.6rem; padding: 0; border: 0; background: none }
+.maptest-layers input.name { flex: 1; min-width: 0; background: transparent; border-color: transparent }
+.maptest-popup { position: absolute; width: 270px; padding: .6rem .7rem; border-radius: var(--r-lg); display: flex; flex-direction: column; gap: .4rem; z-index: 6 }
+.maptest-popup input, .maptest-popup textarea, .maptest-popup select { width: 100% }
+.maptest-page .maptest-mini { position: absolute; inset: auto auto 1rem 1rem; width: 200px; height: auto; padding: 0; border-radius: 10px; cursor: crosshair; touch-action: none }
+.maptest-dress { position: absolute; right: 1rem; bottom: 1rem; display: flex; flex-direction: column; align-items: flex-end; gap: .5rem; pointer-events: none }
+.maptest-dress > * { pointer-events: auto }
+.maptest-legend { list-style: none; margin: 0; padding: .45rem .7rem; border-radius: var(--r-lg); display: flex; flex-direction: column; gap: .2rem }
+.maptest-legend li { display: flex; align-items: center; gap: .45rem }
+.maptest-scale { padding: .55rem .7rem .35rem; border-radius: var(--r-lg) }
+.maptest-scale div { height: 6px; border: 1px solid currentColor; background: repeating-linear-gradient(90deg, currentColor 0 25%, transparent 25% 50%); position: relative; margin-top: 1rem }
+.maptest-scale div::after { content: attr(data-km); position: absolute; right: 0; bottom: 8px; white-space: nowrap; font-variant-numeric: tabular-nums }
+.maptest-scale div::before { content: "0"; position: absolute; left: 0; bottom: 8px }
+.maptest-compass { position: relative; width: 50px; height: 50px; padding: 0; border-radius: 50%; background: none; border: 0; display: grid; place-items: center; transition: none }
+.maptest-compass span { position: absolute; top: -2px; font: 700 10px var(--serif, Georgia, serif); color: #9b2c2c }
+.maptest-hint label { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap }

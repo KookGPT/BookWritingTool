@@ -35,6 +35,7 @@ export function sampleBook(): Book {
       id: 'm1', name: 'The Realm of Vaelen', image: mapImage(), w: 900, h: 560,
       pins: [{ id: 'p1', x: 330, y: 215, label: 'Stormhold', wikiId: 'w4' }, { id: 'p2', x: 560, y: 340, label: 'Pinebound Wood', wikiId: 'w5' }, { id: 'p3', x: 640, y: 190, label: 'Ashport' }],
     }],
+    flatWorlds: [],
     worlds: [{
       id: 'g1', name: 'Vaelen', generatorVersion: 1, seed: 'ashen-crown', params: { oceanPct: 62, plates: 14, ruggedness: 1, aridity: 0.5, tilt: 23, radiusKm: 6000 },
       ops: [

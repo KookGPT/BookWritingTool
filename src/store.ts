@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { get as idbGet, set as idbSet } from 'idb-keyval'
 import { type Calendar, DEFAULT_CAL, type SDate } from './calendar'
 import type { World } from './world/terrain.ts'
+import type { FlatWorld } from './flatworld/gen.ts'
 
 export interface Chapter { id: string; title: string; body: string; status: 'draft' | 'revised' | 'done'; notes: string }
 export interface WikiEntry {
@@ -58,6 +59,7 @@ export interface Book {
   stats: { goal: number; days: Record<string, number> } // days = net words written per local date
   maps: MapDoc[]
   worlds: World[] // 3D globes; the planet is regenerated from seed + params, so these stay tiny
+  flatWorlds: FlatWorld[] // New Map Test: flat (rectangle or disc) worlds built from named features
   chapters: Chapter[] // array order = book order
   wiki: WikiEntry[]
   ideas: Idea[]
@@ -66,7 +68,7 @@ export interface Book {
   periods: Period[]
 }
 
-export const emptyBook = (): Book => ({ title: 'Untitled Book', threads: [], config: { types: {} }, stats: { goal: 500, days: {} }, maps: [], worlds: [], chapters: [], wiki: [], ideas: [], scenes: [], events: [], periods: [] })
+export const emptyBook = (): Book => ({ title: 'Untitled Book', threads: [], config: { types: {} }, stats: { goal: 500, days: {} }, maps: [], worlds: [], flatWorlds: [], chapters: [], wiki: [], ideas: [], scenes: [], events: [], periods: [] })
 export const plain = (html: string) => html.replace(/<[^>]+>/g, ' ')
 export const words = (html: string) => plain(html).split(/\s+/).filter(Boolean).length
 export const today = () => new Date().toLocaleDateString('en-CA') // YYYY-MM-DD, local time

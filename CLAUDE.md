@@ -49,5 +49,16 @@ Gotchas:
 - `setWorld` ignores name/note/wikiId changes, so renames don't rebuild tiles. Keep it that way for layer item labels too.
 - Settlement shaders read the same `iPos/iUp/iA` frame as props (yaw measured against the shader's own tangent frame, fixed up in `buildSite`); changing a prop attribute layout means changing `settleMat` too. Decals sit 3.5 m above the ground and instances stand on `g.h`; the log depth buffer ignores polygonOffset, so lift geometry instead.
 
+## New Map Test (flat worlds)
+
+A separate section (`/map-test`, `src/flatworld/`) that leaves the Globe alone. A flat world is a rectangle or a disc (`shape`, `size` in km, x east / y north from the centre) plus named `features` (land, sea, range, peak, volcano, hills, plateau, canyon, river, lake, painted biomes; Claude writes these) and `layers` (cities, landmarks, regions, borders, roads; the user draws these). Stored as `book.flatWorlds`, synced as `flatworlds/<id>.json`.
+- `gen.ts` (pure): `validate`, `generate` (one shared domain warp bends every outline; rivers run downhill to the sea; also label `anchors`, warped crest `lines`, `snaps`), meshes, `treesOf`, `brief`. Heights are stylised: `exagOf` = map size / 90. The worker gets the world with names, notes and layers stripped, so renames and layer edits never rebuild terrain.
+- `scene.ts`: three.js diorama, toon shaders (terrain with draped region fills, water with foam, rivers, swaying trees, volcano smoke, clouds only at continent zoom), final pass for sky, ink outlines, haze. `MapControls`; Q/E turn; `proj`/`ground`/`flyTo`/`north`/`footprint`/`snapshot` for the page.
+- `hud.ts`: screen-space 2D layer each frame (borders, roads, region outlines, city/landmark icons, labels with curved text on rivers/ranges, ruler, drafts, handles) and the hit list for picking. `dress.ts`: compass rose, scale bar, legend, parchment frame for PNG export.
+- `MapTestPage.tsx`: tools (select/drag, city, landmark, region, border, road, ruler; snapping), popups (rename, notes, size/icon, zoom to, delete), layers panel, search, minimap, undo/redo (Ctrl+Z/Y), Export/Import JSON, "For Claude" (copies brief + JSON), PNG.
+- CLI: `node scripts/map.ts brief|describe|validate|preview|add <file>`. Demo: `examples/map-test-demo.json` ("Load demo").
+- In dev, `window.mapScene` is the live scene. The preview pane runs the generator ~7x slower than node; drive tools there with dispatched pointer events (screenshot and click coordinates differ).
+- Not yet: wiki/timeline/scene links and party route (planned later), terrain LOD for close-ups (one 1536-sample mesh), waterfalls, ships and birds.
+
 ## Checks
 `npx tsc -b`, `npm test`, `npm run build`.
