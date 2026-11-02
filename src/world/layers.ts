@@ -4,7 +4,7 @@ import { angle, areaKm2, dirOf, inPolygon, makePath, pathDist, type LatLon } fro
 import type { Calendar } from '../calendar.ts'
 import { dayOf, type TDate } from '../timelineScale.ts'
 import { OP_SPECS, type Op } from './ops.ts'
-import { footprintKm, markerPx, siteOf, SITE_IDS } from './sites.ts'
+import { footprintKm, markerPx, siteFlag, siteOf, SITE_IDS } from './sites.ts'
 
 export interface LayerItem {
   id: string; name?: string; note?: string; wikiId?: string
@@ -24,6 +24,8 @@ export const LAYER_KINDS = {
   custom: { label: 'Custom', geom: 'any', color: '#4cc9f0', example: { id: 'x1', name: 'Battle of the Ford', at: [36, 15] } },
 } as const
 export type LayerKind = keyof typeof LAYER_KINDS
+/** Kinds offered when adding a layer (the structures kind stays valid in saved files, but is hidden while sites are off). */
+export const pickableKinds = () => Object.entries(LAYER_KINDS).filter(([k]) => siteFlag.on || k !== 'structures')
 /** Layers the globe page builds on the fly from the story (places, route, party, ruler); never saved, and never drawn as settlements. */
 export const DERIVED_LAYERS = new Set(['story', 'route', 'party', 'measure'])
 export const layerColor = (l: Layer) => l.color ?? LAYER_KINDS[l.kind]?.color ?? '#ffffff'
@@ -72,7 +74,7 @@ export function validateLayers(layers: unknown, ids: Set<string>, errors: string
       if (spec && spec.geom !== 'any' && spec.geom !== g) warnings.push(`${iat}: ${l.kind} layers usually use ${spec.geom}, not ${g}`)
       if (!it.name) warnings.push(`${iat}: has no name`)
       const ty = it.props?.type
-      if ((l.kind === 'cities' || l.kind === 'structures') && !siteOf(it)) warnings.push(`${iat}: props.type ${ty === undefined ? 'is missing' : `"${ty}" is not a known site type`} (use ${SITE_IDS.join(', ')}); it will show as a plain marker`)
+      if (siteFlag.on && (l.kind === 'cities' || l.kind === 'structures') && !siteOf(it)) warnings.push(`${iat}: props.type ${ty === undefined ? 'is missing' : `"${ty}" is not a known site type`} (use ${SITE_IDS.join(', ')}); it will show as a plain marker`)
     })
   })
 }

@@ -180,6 +180,7 @@ console.log('world: all checks passed')
 {
   const { layoutSite } = await import('../src/world/layout.ts')
   const { buildSite } = await import('../src/world/settle.ts')
+  ;(await import('../src/world/sites.ts')).siteFlag.on = true
   const { PALETTES, SITE_TYPES, footprintKm, siteOf, tierOf } = await import('../src/world/sites.ts')
   const { BUILD_KINDS } = await import('../src/world/buildings.ts')
   const { siteIssues, terrainIssues, snapToCoast } = await import('../src/world/fit.ts')

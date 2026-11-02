@@ -9,7 +9,7 @@ import { arc, legs as routeLegs, partyAt, type Stop } from './story'
 import { Globe, type Hover } from './globe'
 import { brief, fmtLL, validate } from './describe'
 import { distKm } from './geo'
-import { activeAt, DERIVED_LAYERS, findFeature, type Feature, LAYER_KINDS, layerColor, refKey, stats, type FeatureRef, type Layer, type LayerKind } from './layers'
+import { activeAt, DERIVED_LAYERS, findFeature, type Feature, LAYER_KINDS, layerColor, pickableKinds, refKey, stats, type FeatureRef, type Layer, type LayerKind } from './layers'
 import { OP_SPECS, opCenter, type Op } from './ops'
 import { siteOf } from './sites'
 import { DEFAULT_PARAMS, type World, type WorldParams } from './terrain'
@@ -353,7 +353,7 @@ export default function WorldPage() {
             </label>}
             <select value="" aria-label="Add layer" onChange={(e) => e.target.value && addLayer(e.target.value as LayerKind)}>
               <option value="">Add layer…</option>
-              {Object.entries(LAYER_KINDS).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
+              {pickableKinds().map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
             </select>
           </details>
           <details className="globe-sec">

@@ -819,7 +819,8 @@
             "style": "aqueduct"
           }
         }
-      ]
+      ],
+      "hidden": true
     },
     {
       "id": "regions",

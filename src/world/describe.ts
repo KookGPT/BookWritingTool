@@ -4,8 +4,8 @@ import { angle, dirOf, inPolygon, makePath, pathDist, toDir, type LatLon } from 
 import { OP_KINDS, OP_SPECS, opCenter, type Op } from './ops.ts'
 import { TERRAINS, TERRAIN_IDS } from './terrains.ts'
 import { siteIssues, terrainIssues } from './fit.ts'
-import { SITE_TYPES } from './sites.ts'
-import { LAYER_KINDS, validateLayers } from './layers.ts'
+import { SITE_TYPES, siteFlag } from './sites.ts'
+import { pickableKinds, validateLayers } from './layers.ts'
 import { DEFAULT_PARAMS, makePlanet, type Planet, type World } from './terrain.ts'
 
 const fmtLat = (v: number) => `${Math.abs(v).toFixed(1)}°${v >= 0 ? 'N' : 'S'}`
@@ -203,7 +203,7 @@ export function validate(world: World): Problems {
 export function brief(world: World, planet: Planet = makePlanet(world)) {
   const ops = Object.entries(OP_SPECS).map(([k, s]) =>
     `- **${k}** (${s.label}): ${s.desc}\n  fields: ${s.fields.map(([f, , req, d]) => `\`${f}\`${req ? '' : '?'} ${d}`).join('; ')}\n  e.g. \`${JSON.stringify(s.example)}\``).join('\n')
-  return `# Bookwright world brief: ${world.name}
+  const text = `# Bookwright world brief: ${world.name}
 
 You are editing a fantasy planet for a novel. The planet is generated from \`seed\` + \`params\`; you shape it with \`ops\`, an ordered list of named geographic features. Never invent other fields.
 
@@ -223,11 +223,11 @@ ${TERRAIN_IDS.map((id) => `\`${id}\` ${TERRAINS[id].label}${TERRAINS[id].shape ?
 
 ## Layers
 Overlays that never change the ground: \`layers: [{ id, name, kind, color?, opacity?, hidden?, items: [...] }]\`.
-- kinds: ${Object.entries(LAYER_KINDS).map(([k, s]) => `\`${k}\` (${s.label}, items use \`${s.geom === 'any' ? 'at/path/area' : s.geom}\`)`).join(', ')}.
+- kinds: ${pickableKinds().map(([k, s]) => `\`${k}\` (${s.label}, items use \`${s.geom === 'any' ? 'at/path/area' : s.geom}\`)`).join(', ')}.
 - item: \`{ id, name, at | path | area, props?, note?, wikiId? }\` with exactly one of \`at\` [lat, lon], \`path\` (line, >=2 points) or \`area\` (polygon, >=3 points). \`props\` holds free facts as strings/numbers; for cities \`props.type\` = capital | city | town | village sets the marker size.
 - optional \`from\` / \`to\` on an item: \`{ "y": 412, "m": 3, "d": 9 }\` dates on the book's calendar (m, d optional). The item only shows while the app's time slider is within them; use it for borders and cities that change over the story.
 - ids are unique across ops, layers and items. color is "#rrggbb", opacity 0..1.
-- e.g. ${Object.entries(LAYER_KINDS).slice(0, 3).map(([k, s]) => `\`${JSON.stringify({ id: k, name: s.label, kind: k, items: [s.example] })}\``).join(' ')}
+- e.g. ${pickableKinds().slice(0, 3).map(([k, s]) => `\`${JSON.stringify({ id: k, name: s.label, kind: k, items: [s.example] })}\``).join(' ')}
 - Put cities on coasts, rivers and passes; draw borders along ranges and rivers; roads link cities through low ground.
 
 ## Settlements and structures (3D buildings, flat-map icons)
@@ -271,4 +271,7 @@ ${describe(world, planet)}
 ${JSON.stringify(world, null, 2)}
 \`\`\`
 `
+  if (siteFlag.on) return text
+  // settlements and structures are off for now: drop their sections and tool lines from the brief
+  return text.replace(/## Settlements and structures[\s\S]*?(?=## Natural placement)/, '').split('\n').filter((l) => !/^- Settlements go where|world\.ts sites /.test(l)).join('\n').replace('terrain|site <id>', 'terrain <id>')
 }

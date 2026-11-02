@@ -45,8 +45,12 @@ export const SITE_IDS = Object.keys(SITE_TYPES)
 export type BridgeStyle = 'stone' | 'wood' | 'rope' | 'aqueduct' | 'draw'
 export const BRIDGE_STYLES: BridgeStyle[] = ['stone', 'wood', 'rope', 'aqueduct', 'draw']
 
+/** Settlements and structures are switched off for now (code kept): flip `on` to bring them back. Tests turn it on. */
+export const siteFlag = { on: false }
+
 /** The site type of a layer item, from props.type (case-insensitive). */
 export const siteOf = (it: Pick<LayerItem, 'props'>): { id: string; def: SiteType } | undefined => {
+  if (!siteFlag.on) return undefined
   const id = String(it.props?.type ?? '').trim().toLowerCase(), def = SITE_TYPES[id]
   return def ? { id, def } : undefined
 }
