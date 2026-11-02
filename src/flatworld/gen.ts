@@ -77,7 +77,9 @@ export const FX = { shimmer: 1, glow: 2, sparkle: 3, magic: 5, storm: 6, reef: 7
 type RGB = [number, number, number]
 type Shape = 'dunes' | 'terraces' | 'flat' | 'ice' | 'towers' | 'smooth'
 /** Ground types. `paint: true` = a feature kind you can paint as an area; the rest come from height, slope, coast and climate. */
-export const BIOMES: Record<string, { color: RGB; tree?: TreeKind; trees?: number; paint?: boolean; label?: string; fx?: keyof typeof FX; shape?: Shape }> = {
+/** Pillar fields (shape 'towers'): spacing km (never under ~2.6 cells), height range m, core radius (fraction of spacing), cone = pointed needles instead of flat tops. */
+type Pillars = { sp: number; lo: number; hi: number; r: number; cone?: boolean }
+export const BIOMES: Record<string, { color: RGB; tree?: TreeKind; trees?: number; paint?: boolean; label?: string; fx?: keyof typeof FX; shape?: Shape; pillars?: Pillars }> = {
   grass: { color: [118, 170, 72], tree: 'broad', trees: 0.04, paint: true, label: 'Grassland' },
   forest: { color: [72, 130, 58], tree: 'broad', trees: 0.92, paint: true, label: 'Forest' },
   taiga: { color: [92, 124, 88], tree: 'pine', trees: 0.88, paint: true, label: 'Pine forest' },
@@ -99,7 +101,13 @@ export const BIOMES: Record<string, { color: RGB; tree?: TreeKind; trees?: numbe
   glacier: { color: [206, 228, 246], paint: true, label: 'Glacier', fx: 'sparkle', shape: 'ice' },
   crystal: { color: [154, 140, 206], tree: 'crystal', trees: 0.35, paint: true, label: 'Crystal fields (glow)', fx: 'glow' },
   reef: { color: [244, 150, 126], paint: true, label: 'Coral reef (paint it in shallow sea)', fx: 'reef' },
-  karst: { color: [92, 146, 80], tree: 'jungle', trees: 0.3, paint: true, label: 'Karst towers (limestone pillars, like Guilin or Ha Long Bay)', shape: 'towers' },
+  karst: { color: [92, 146, 80], tree: 'jungle', trees: 0.3, paint: true, label: 'Karst towers (limestone pillars, like Guilin or Ha Long Bay)', shape: 'towers', pillars: { sp: 15, lo: 900, hi: 1800, r: 0.36 } },
+  tsingy: { color: [128, 128, 124], tree: 'dead', trees: 0.05, paint: true, label: 'Tsingy (a forest of razor-sharp grey limestone needles)', shape: 'towers', pillars: { sp: 9, lo: 350, hi: 800, r: 0.42, cone: true } },
+  hoodoos: { color: [214, 126, 72], paint: true, label: 'Hoodoos (orange rock spires, like Bryce Canyon or Cappadocia)', shape: 'towers', pillars: { sp: 10, lo: 300, hi: 700, r: 0.4, cone: true } },
+  penitentes: { color: [236, 242, 250], paint: true, label: 'Penitentes (fields of blade-like ice spikes on high dry plateaus)', shape: 'towers', pillars: { sp: 8, lo: 150, hi: 400, r: 0.45, cone: true }, fx: 'sparkle' },
+  rainbow: { color: [198, 118, 88], paint: true, label: 'Rainbow mountains (hills striped red, gold, teal and violet, like Zhangye or Vinicunca)', shape: 'terraces' },
+  dunelakes: { color: [242, 238, 226], paint: true, label: 'White dunes with blue lagoons in every hollow (like Lençóis Maranhenses)', shape: 'dunes' },
+  travertine: { color: [238, 238, 230], paint: true, label: 'Travertine terraces (white mineral steps holding turquoise pools, like Pamukkale)' },
   geothermal: { color: [204, 176, 120], paint: true, label: 'Geothermal field (hot springs, steam, geysers)', fx: 'shimmer', shape: 'flat' },
   lavafield: { color: [54, 52, 54], tree: 'pine', trees: 0.01, paint: true, label: 'Lava field (black basalt with moss)' },
   floodplain: { color: [104, 158, 66], tree: 'broad', trees: 0.12, paint: true, label: 'Floodplain (wide flat river plain with wet meadows; paint it along a big river)', shape: 'smooth' },
@@ -540,15 +548,17 @@ export function generate(fw: FlatWorld, long = 1536): Gen {
     else if (B.shape === 'flat') ht[k] = mix(ht[k], 12, wgt)
     else if (B.shape === 'ice') ht[k] += 80 * wgt
     else if (B.shape === 'smooth' && plainF) ht[k] = mix(ht[k], Math.max(8, Math.min(ht[k], plainF[k]) * 0.6), wgt * 0.9) // levelled and lowered: rivers wander across it
-    else if (B.shape === 'towers') { // steep pillars on a jittered grid, flat-topped, each its own height
-      const sp = 15, a = Math.floor(x / sp), b = Math.floor(y / sp)
+    else if (B.shape === 'towers' && B.pillars) { // steep pillars on a jittered grid, each its own height; flat tops or needles
+      const P = B.pillars, sp = Math.max(P.sp, cell * 2.6), a = Math.floor(x / sp), b = Math.floor(y / sp)
       let d = 9, hz = 0
       for (let db = -1; db <= 1; db++) for (let da = -1; da <= 1; da++) {
         const q = Math.hypot(x / sp - (a + da + hash4(a + da, b + db, s0 & 0xffff, 21)), y / sp - (b + db + hash4(a + da, b + db, s0 & 0xffff, 22)))
         if (q < d) { d = q; hz = hash4(a + da, b + db, s0 & 0xffff, 23) }
       }
-      ht[k] += (900 + 900 * hz) * wgt * smooth(0.36, 0.3, d) + 120 * wgt * smooth(0.5, 0.36, d)
+      const top = P.cone ? Math.pow(Math.max(0, 1 - d / P.r), 1.3) : smooth(P.r, P.r * 0.83, d)
+      ht[k] += (P.lo + (P.hi - P.lo) * hz) * wgt * top + 120 * wgt * smooth(P.r * 1.4, P.r, d)
     }
+
     if (g === 'wasteland') lava[k] = Math.max(lava[k], smooth(0.93, 0.975, ridged(nE, x / 16, y / 16, 5.5, 2)) * wgt)
   }
 
@@ -781,6 +791,10 @@ export function generate(fw: FlatWorld, long = 1536): Gen {
           paint(col, [214, 110, 48], smooth(0.8, 0.86, v) * wgt); paint(col, [60, 160, 190], smooth(0.9, 0.95, v) * wgt)
         }
         if (painted === 'floodplain') { paint(col, [72, 128, 64], smooth(0.78, 0.9, ridged(nC, x / 14, y / 30, 7.2, 2)) * 0.7 * wgt); paint(col, [176, 182, 96], smooth(0.25, 0.55, n2) * 0.35 * wgt) } // old channels, dry fields
+        if (painted === 'rainbow') { const bands: RGB[] = [[200, 70, 60], [232, 170, 70], [92, 160, 150], [150, 96, 150], [236, 210, 150]], q = (z / 70 + n2 * 0.6) % 5, n = Math.floor(q < 0 ? q + 5 : q); paint(col, bands[n], 0.85 * wgt) }
+        if (painted === 'dunelakes') { const ph = Math.pow(1 - Math.abs(Math.sin((x * 0.8 + y * 0.35) / 9 + duneF[k] * 5)), 3); paint(col, [60, 170, 196], smooth(0.08, 0.02, ph) * wgt) }
+        if (painted === 'travertine') { const v = ridged(nE, x / 5, y / 5, 8.8, 2); paint(col, [96, 200, 210], smooth(0.82, 0.9, v) * wgt); paint(col, [250, 250, 246], smooth(0.92, 0.97, v) * wgt) }
+        if (painted === 'tsingy' || painted === 'hoodoos') { const s = smooth(60, 200, slope) * wgt; paint(col, painted === 'tsingy' ? [92, 92, 92] : [236, 150, 90], s * 0.5) }
         if (painted === 'karst') { const s = smooth(40, 140, slope) * wgt; paint(col, [182, 176, 158], s); td *= 1 - s * 0.9 } // bare limestone walls, green tops
         if (painted === 'lavafield') { paint(col, [96, 118, 80], smooth(0.05, 0.4, n2) * 0.55 * wgt); paint(col, [24, 22, 24], smooth(0.88, 0.94, ridged(nE, x / 6, y / 6, 4.4, 2)) * wgt) }
       }
