@@ -123,12 +123,13 @@ export function makePlanet(world: World): Planet {
 
   // Close-up relief in metres: ridged octaves with a slow falloff, so valleys and spurs keep appearing as you zoom.
   const nDet = simplex(seed + 5)
-  const relief = (x: number, y: number, z: number, octaves: number) => {
+  // `fine` (0..1) scales the octaves finer than a few km: plains stay open and flat at human scale, only hills and mountains are craggy
+  const relief = (x: number, y: number, z: number, octaves: number, fine = 1) => {
     let sum = 0, amp = 1, f = 30, w = 1
     for (let o = 0; o < octaves; o++) {
       let v = 1 - Math.abs(nDet(x * f, y * f, z * f))
       v *= v
-      sum += (v - 0.45) * amp * w
+      sum += (v - 0.45) * amp * w * (o >= 4 ? fine : 1)
       w = Math.max(0.25, Math.min(1, v * 1.6)) // fine detail mostly on ridges, valleys stay smoother (reads as erosion)
       amp *= 0.66; f *= 2
     }
@@ -157,7 +158,7 @@ export function makePlanet(world: World): Planet {
       let calm = 1 // painted dunes and terraces tame the generic relief so their own shape shows
       for (const c of reshapes) if (near(c, x, y, z)) calm = Math.min(calm, 1 - c.shape!.calm * c.paint!(p))
       const rough = (0.2 + 1.6 * smooth(300, 2500, h)) * P.ruggedness * smooth(0, 120, h) * calm // highlands craggy, coasts calm
-      h = Math.max(0.5, h + rough * relief(x, y, z, 2 + detail))
+      h = Math.max(0.5, h + rough * relief(x, y, z, 2 + detail, 0.18 + 0.82 * smooth(150, 1200, h)))
       if (h > 3) for (const c of reshapes) if (near(c, x, y, z)) { const w = c.paint!(p); if (w > 0) h = Math.max(1, c.shape!.apply(h, p, w)) }
     }
     for (const c of ops) if (c.stage === 'water' && near(c, x, y, z)) h = c.apply(h, p)
@@ -220,7 +221,13 @@ export function makePlanet(world: World): Planet {
     set('snow', smooth(-3, -10, temp + 6 * big) * (1 - smooth(0.5, 0.9, slope) * 0.6)) // patchy, thinner on cliffs
     let pid = '', pw = 0
     if (paints.length) { const p: Vec = [x, y, z]; for (const c of paints) if (near(c, x, y, z)) { const k = c.paint!(p); if (k > 0 && k >= pw) { pw = k; pid = c.terrain! } } }
-    if (pid) { rgb = mix(rgb, paint(pid), smooth(0.15, 0.7, pw)); if (pw > 0.5) { id = pid; w = 1 } }
+    if (pid) {
+      // the rim breaks up into patches (clearings, scattered trees) instead of a clean line, and fades through the terrain's fringe type
+      pw += 0.5 * 4 * pw * (1 - pw) * (0.8 * mid + 1.1 * fine)
+      const fr = TERRAINS[pid].fringe
+      if (fr && pw < 0.5) set(fr, smooth(0.04, 0.2, pw))
+      rgb = mix(rgb, paint(pid), smooth(0.15, 0.7, pw)); if (pw > 0.5) { id = pid; w = 1 }
+    }
     const k = 1 + 0.16 * fbm(nHill, x * 20, y * 20, z * 20, 1 + detail) // ground texture
     return { id, w, rgb: [rgb[0] * k, rgb[1] * k, rgb[2] * k] }
   }

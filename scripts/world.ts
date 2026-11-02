@@ -3,6 +3,8 @@
 //   node scripts/world.ts query    <world.json> <lat> <lon>
 //   node scripts/world.ts validate <world.json>
 //   node scripts/world.ts preview  <world.json | --seed NAME> [out.png] [--w 1440] [--region lat0,lat1,lon0,lon1]
+//   node scripts/world.ts fit      <world.json> terrain|site <id> [--region N,S,W,E] [--step 4]   (where it makes sense)
+//   node scripts/world.ts sites    <world.json>   (every settlement/structure with its size and any siting problems)
 //   node scripts/world.ts add      <world.json> '<op json>'
 //   node scripts/world.ts brief    <world.json>
 // <world.json> is one world (as exported from the app or stored in the data repo at worlds/<id>.json).
@@ -11,6 +13,8 @@ import { crc32, deflateSync } from 'node:zlib'
 import { brief, describe, query, validate } from '../src/world/describe.ts'
 import { opCenter, type Op } from '../src/world/ops.ts'
 import { layerColor } from '../src/world/layers.ts'
+import { fitSite, fitTerrain, siteIssues } from '../src/world/fit.ts'
+import { footprintKm, popOf, siteOf, tierOf } from '../src/world/sites.ts'
 import { DEFAULT_PARAMS, makePlanet, toDir, type World } from '../src/world/terrain.ts'
 
 const args = process.argv.slice(2)
@@ -113,6 +117,24 @@ switch (cmd) {
     break
   }
   case 'preview': preview(world!, args[0] ?? 'world-preview.png'); break
+  case 'fit': {
+    const [what, id] = args, step = Number(flag('--step') ?? 4), p = makePlanet(world!)
+    const spots = what === 'terrain' ? fitTerrain(p, id, region, step) : what === 'site' ? fitSite(p, id, region, step) : undefined
+    if (!spots) { console.error('usage: fit <world.json> terrain|site <id> [--region N,S,W,E] [--step 4]'); process.exit(2) }
+    if (!spots.length) console.log(what === 'terrain' ? `no natural habitat found for "${id}" in this region (fantasy terrain has no climate limits: place it where the story needs it, and ring it with its fringe terrain)` : `no suitable ground for "${id}" in this region`)
+    for (const s of spots) console.log(`[${s.at[0]}, ${s.at[1]}]  ${s.note}`)
+    break
+  }
+  case 'sites': {
+    const p = makePlanet(world!)
+    for (const l of world!.layers ?? []) for (const it of l.items) {
+      const s = siteOf(it)
+      if (!s) continue
+      const bad = siteIssues(p, it)
+      console.log(`${l.name} / ${it.name ?? it.id}: ${s.id}${s.def.cls === 'settlement' ? `, pop ${popOf(it).toLocaleString('en-US')} (tier ${tierOf(popOf(it))})` : ''}, footprint ${footprintKm(it).toFixed(2)} km${it.at ? ` at [${it.at}]` : ''}${bad.length ? `\n  PROBLEM: ${bad.join('\n  PROBLEM: ')}` : ''}`)
+    }
+    break
+  }
   case 'add': {
     const op = JSON.parse(args[0]) as Op
     op.id ||= Math.random().toString(36).slice(2, 10)

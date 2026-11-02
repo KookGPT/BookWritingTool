@@ -44,7 +44,9 @@ export const PROP_STRIDE = 12
 
 const lin = (c: number) => Math.pow(c / 255, 2.2)
 
-export function buildTile(planet: Planet, face: number, level: number, tx: number, ty: number, light = false): TileData {
+/** `clear`: discs (unit direction, angular radius) where no trees or rocks grow, e.g. under settlements. */
+export interface Clearing { d: Vec; cos: number }
+export function buildTile(planet: Planet, face: number, level: number, tx: number, ty: number, light = false, clear: Clearing[] = []): TileData {
   const n = SEG, W = n + 3 // one extra ring each side for gradients
   const s = tileSpan(level)
   const detail = Math.max(0, Math.min(14, level - 2))
@@ -98,7 +100,7 @@ export function buildTile(planet: Planet, face: number, level: number, tx: numbe
   for (let i = 0; i <= n; i++) edge(i, n)
   for (let j = 0; j <= n; j++) edge(0, j)
   for (let j = 0; j <= n; j++) edge(n, j)
-  return { center, pos, up, h, grad, col, props: light ? undefined : buildProps(planet, face, level, tx, ty, { n, W, s, S, H, slopes, center }) }
+  return { center, pos, up, h, grad, col, props: light ? undefined : buildProps(planet, face, level, tx, ty, { n, W, s, S, H, slopes, center }, clear) }
 }
 
 const smooth = (a: number, b: number, x: number) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t) }
@@ -107,7 +109,7 @@ interface Grid { n: number; W: number; s: number; S: Float64Array; H: Float64Arr
 
 // Props sit on fixed face-coordinate lattices (see TIERS), jittered inside their cell, so every LOD level agrees on where
 // each tree is. Which prop a spot gets depends on the terrain there; sea, lakes and rivers get none.
-function buildProps(planet: Planet, face: number, level: number, tx: number, ty: number, g: Grid): PropSet[] | undefined {
+function buildProps(planet: Planet, face: number, level: number, tx: number, ty: number, g: Grid, clear: Clearing[]): PropSet[] | undefined {
   const { n, W, s, S, H, slopes, center } = g, R = planet.radiusM
   const per = new Map<DecorKind, number[]>()
   const u0 = -1 + s * tx, v0 = -1 + s * ty
@@ -125,7 +127,9 @@ function buildProps(planet: Planet, face: number, level: number, tx: number, ty:
       if (hg <= 1.5) continue
       const sl = slopes[Math.max(0, Math.min(n, Math.round(fj))) * (n + 1) + Math.max(0, Math.min(n, Math.round(fi)))]
       if (sl > 1.2) continue
-      const d = faceDir(face, U, V), tr = planet.terrain(d[0], d[1], d[2], hg, sl, Math.max(0, level - 3))
+      const d = faceDir(face, U, V)
+      if (clear.some((c) => c.d[0] * d[0] + c.d[1] * d[1] + c.d[2] * d[2] > c.cos)) continue
+      const tr = planet.terrain(d[0], d[1], d[2], hg, sl, Math.max(0, level - 3))
       if (!tr.id) continue
       const decor = TERRAINS[tr.id].decor.filter((e) => SMALL.has(e.kind) === T.small), f = smooth(0.3, 0.75, tr.w)
       let r = rk(2), pick

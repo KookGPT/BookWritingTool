@@ -17,16 +17,16 @@ export const TIERS: Tier[] = [
   { ref: 15, m: 24, lo: 14, hi: 15, scale: 1.7, small: true }, // ~12 m apart
 ]
 
-type V3 = [number, number, number]
+export type V3 = [number, number, number]
 export interface PropMesh { pos: Float32Array; col: Float32Array; fix: Float32Array; idx: Uint16Array }
 
 const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]]
 const unit = (a: V3): V3 => { const l = Math.hypot(...a) || 1; return [a[0] / l, a[1] / l, a[2] / l] }
 
-class Builder {
+export class Builder {
   pos: number[] = []; col: number[] = []; fix: number[] = []; idx: number[] = []
-  private v(p: V3, c: V3, fix: number) { this.pos.push(...p); this.col.push(...c); this.fix.push(fix); return this.pos.length / 3 - 1 }
+  v(p: V3, c: V3, fix: number) { this.pos.push(...p); this.col.push(...c); this.fix.push(fix); return this.pos.length / 3 - 1 }
   /** Frustum from a to b (r1 = 0: a cone). `fix` colours are absolute; the others are tinted by the instance colour. */
   tube(a: V3, b: V3, r0: number, r1: number, n: number, c: V3, fix = 0) {
     const w = unit(sub(b, a)), ref: V3 = Math.abs(w[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0], u = unit(cross(ref, w)), v = cross(w, u)

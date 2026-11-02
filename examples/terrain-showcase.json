@@ -7,7 +7,7 @@
     "oceanPct": 55,
     "plates": 9,
     "ruggedness": 1.4,
-    "aridity": 0.5,
+    "aridity": 0.62,
     "tilt": 23,
     "radiusKm": 6000
   },
@@ -72,177 +72,17 @@
       "note": "Smokes constantly; the land around it is ash and lava."
     },
     {
-      "id": "t-ash",
-      "kind": "terrain",
-      "terrain": "ashland",
-      "name": "Ashfall",
-      "at": [
-        16,
-        -66
-      ],
-      "radius": 700,
-      "edge": 0.6
-    },
-    {
-      "id": "t-lava",
-      "kind": "terrain",
-      "terrain": "lava",
-      "name": "Cinder Fields",
-      "at": [
-        16,
-        -66
-      ],
-      "radius": 110,
-      "edge": 0.5
-    },
-    {
-      "id": "z-elder",
-      "kind": "zone",
-      "terrain": "redwood",
-      "name": "The Elderwood",
-      "area": [
-        [
-          44,
-          -98
-        ],
-        [
-          44,
-          -86
-        ],
-        [
-          35,
-          -84
-        ],
-        [
-          32,
-          -94
-        ]
-      ],
-      "edge": 200
-    },
-    {
-      "id": "t-moor",
-      "kind": "terrain",
-      "terrain": "moor",
-      "name": "Greywater Moor",
-      "at": [
-        47,
-        -76
-      ],
-      "radius": 340
-    },
-    {
-      "id": "t-glass",
-      "kind": "terrain",
-      "terrain": "crystal",
-      "name": "The Glasswood",
-      "at": [
-        32,
-        -100
-      ],
-      "radius": 380
-    },
-    {
-      "id": "t-fungus",
-      "kind": "terrain",
-      "terrain": "fungal",
-      "name": "Gloomcap Wood",
-      "at": [
-        18,
-        -96
-      ],
-      "radius": 330
-    },
-    {
-      "id": "t-jungle",
-      "kind": "terrain",
-      "terrain": "jungle",
-      "name": "The Verdant Maw",
-      "at": [
-        4,
-        -45
-      ],
-      "radius": 700
-    },
-    {
-      "id": "t-swamp",
-      "kind": "terrain",
-      "terrain": "swamp",
-      "name": "The Drowned Fens",
-      "at": [
-        -6,
-        -34
-      ],
-      "radius": 450
-    },
-    {
-      "id": "t-dunes",
-      "kind": "terrain",
-      "terrain": "dunes",
-      "name": "Sunscar Dunes",
-      "at": [
-        8,
-        -22
-      ],
-      "radius": 600,
-      "edge": 0.35
-    },
-    {
-      "id": "t-salt",
-      "kind": "terrain",
-      "terrain": "salt_flat",
-      "name": "Mirror Pan",
-      "at": [
-        14,
-        -12
-      ],
-      "radius": 190
-    },
-    {
-      "id": "t-bad",
-      "kind": "terrain",
-      "terrain": "badlands",
-      "name": "Redrock Badlands",
-      "at": [
-        27,
-        -12
-      ],
-      "radius": 420
-    },
-    {
       "id": "s-needles",
       "kind": "spires",
       "name": "The Needles",
       "at": [
-        27,
-        -12
+        37,
+        -86
       ],
-      "radius": 180,
-      "count": 60,
+      "radius": 70,
+      "count": 48,
       "height": 3200,
       "width": 3
-    },
-    {
-      "id": "t-bone",
-      "kind": "terrain",
-      "terrain": "bonewood",
-      "name": "Bonewood",
-      "at": [
-        44,
-        -30
-      ],
-      "radius": 330
-    },
-    {
-      "id": "t-blight",
-      "kind": "terrain",
-      "terrain": "blight",
-      "name": "The Blight",
-      "at": [
-        36,
-        -12
-      ],
-      "radius": 260
     },
     {
       "id": "i-pearl",
@@ -357,6 +197,227 @@
         ]
       ],
       "width": 8
+    },
+    {
+      "id": "t-ash",
+      "kind": "terrain",
+      "terrain": "ashland",
+      "name": "Ashfall",
+      "at": [
+        16,
+        -66
+      ],
+      "radius": 170,
+      "aspect": 3,
+      "angle": 75,
+      "edge": 0.6
+    },
+    {
+      "id": "t-lava",
+      "kind": "terrain",
+      "terrain": "lava",
+      "name": "Cinder Fields",
+      "at": [
+        16,
+        -66
+      ],
+      "radius": 42,
+      "aspect": 1.5,
+      "angle": 75,
+      "edge": 0.5
+    },
+    {
+      "id": "z-elder",
+      "kind": "zone",
+      "terrain": "redwood",
+      "name": "The Elderwood",
+      "area": [
+        [
+          53.5,
+          -99.5
+        ],
+        [
+          54.5,
+          -95
+        ],
+        [
+          51.5,
+          -91
+        ],
+        [
+          47.5,
+          -92
+        ],
+        [
+          45.8,
+          -96.5
+        ],
+        [
+          48.5,
+          -100.2
+        ]
+      ],
+      "edge": 60
+    },
+    {
+      "id": "t-moor",
+      "kind": "terrain",
+      "terrain": "moor",
+      "name": "Greywater Moor",
+      "at": [
+        56.5,
+        -19
+      ],
+      "radius": 170,
+      "aspect": 1.9,
+      "angle": 100,
+      "edge": 0.35
+    },
+    {
+      "id": "t-glass",
+      "kind": "terrain",
+      "terrain": "crystal",
+      "name": "The Glasswood",
+      "at": [
+        27,
+        -100
+      ],
+      "radius": 220,
+      "aspect": 2.4,
+      "angle": 160,
+      "edge": 0.35
+    },
+    {
+      "id": "t-fungus",
+      "kind": "terrain",
+      "terrain": "fungal",
+      "name": "Gloomcap Wood",
+      "at": [
+        12,
+        -100
+      ],
+      "radius": 200,
+      "aspect": 1.6,
+      "angle": 120,
+      "edge": 0.35
+    },
+    {
+      "id": "t-jungle",
+      "kind": "terrain",
+      "terrain": "jungle",
+      "name": "The Verdant Maw",
+      "at": [
+        4,
+        -46
+      ],
+      "radius": 420,
+      "aspect": 1.9,
+      "angle": 90,
+      "edge": 0.35
+    },
+    {
+      "id": "t-swamp",
+      "kind": "terrain",
+      "terrain": "swamp",
+      "name": "The Drowned Fens",
+      "at": [
+        -6,
+        -41
+      ],
+      "radius": 140,
+      "aspect": 2.2,
+      "angle": 10,
+      "edge": 0.35
+    },
+    {
+      "id": "t-dunes",
+      "kind": "terrain",
+      "terrain": "dunes",
+      "name": "Sunscar Dunes",
+      "at": [
+        29,
+        -90
+      ],
+      "radius": 320,
+      "aspect": 2.2,
+      "angle": 80,
+      "edge": 0.3
+    },
+    {
+      "id": "t-salt",
+      "kind": "terrain",
+      "terrain": "salt_flat",
+      "name": "Mirror Pan",
+      "at": [
+        33,
+        -97
+      ],
+      "radius": 110,
+      "aspect": 1.8,
+      "angle": 30,
+      "edge": 0.35
+    },
+    {
+      "id": "t-bad",
+      "kind": "terrain",
+      "terrain": "badlands",
+      "name": "Redrock Badlands",
+      "at": [
+        37,
+        -86
+      ],
+      "radius": 240,
+      "aspect": 2,
+      "angle": 35,
+      "edge": 0.35
+    },
+    {
+      "id": "t-bone",
+      "kind": "terrain",
+      "terrain": "bonewood",
+      "name": "Bonewood",
+      "at": [
+        46,
+        -26
+      ],
+      "radius": 300,
+      "aspect": 1.7,
+      "angle": 60,
+      "edge": 0.35
+    },
+    {
+      "id": "t-blight",
+      "kind": "terrain",
+      "terrain": "blight",
+      "name": "The Blight",
+      "at": [
+        30,
+        -14
+      ],
+      "radius": 200,
+      "aspect": 2,
+      "angle": 120,
+      "edge": 0.35
+    },
+    {
+      "id": "l-bone",
+      "kind": "lake",
+      "name": "Boneglass Mere",
+      "at": [
+        46.5,
+        -27.5
+      ],
+      "radius": 38
+    },
+    {
+      "id": "l-tarn",
+      "kind": "lake",
+      "name": "Cinder Tarn",
+      "at": [
+        13.5,
+        -62.5
+      ],
+      "radius": 32
     }
   ],
   "layers": [
@@ -369,77 +430,393 @@
           "id": "c-aldur",
           "name": "Port Aldur",
           "at": [
-            -12,
-            -43
+            -11.7,
+            -43.71
           ],
+          "note": "The capital: a megacity of towers at the mouth of the Great Aldur.",
           "props": {
-            "type": "capital"
-          }
-        },
-        {
-          "id": "c-highwater",
-          "name": "Highwater",
-          "at": [
-            38,
-            -62
-          ],
-          "props": {
-            "type": "town"
+            "type": "megacity",
+            "population": 3200000
           }
         },
         {
           "id": "c-silverford",
           "name": "Silverford",
           "at": [
-            10,
-            -98
+            28.5,
+            -120.81
+          ],
+          "note": "Great harbour city at the mouth of the Silverwind.",
+          "props": {
+            "type": "metropolis",
+            "population": 380000
+          }
+        },
+        {
+          "id": "c-highwater",
+          "name": "Highwater",
+          "at": [
+            44.6,
+            -59.12
           ],
           "props": {
-            "type": "city"
+            "type": "capital",
+            "population": 90000
           }
         },
         {
           "id": "c-cinderhold",
           "name": "Cinderhold",
           "at": [
-            20,
-            -61
+            15.8,
+            -62.17
           ],
           "props": {
-            "type": "city"
+            "type": "city",
+            "population": 24000
           }
         },
         {
           "id": "c-sunreach",
           "name": "Sunreach",
           "at": [
-            2,
-            -18
+            21.4,
+            -52.47
           ],
+          "note": "An oasis town on the edge of the dry heartland.",
           "props": {
-            "type": "town"
+            "type": "town",
+            "population": 6500
           }
         },
         {
           "id": "c-elderhome",
           "name": "Elderhome",
           "at": [
-            36,
-            -88
+            51.8,
+            -96.6
           ],
           "props": {
-            "type": "town"
+            "type": "town",
+            "population": 4200
           }
         },
         {
           "id": "c-bone",
           "name": "Bonehollow",
           "at": [
-            42,
-            -32
+            46.4,
+            -26.89
           ],
           "props": {
-            "type": "village"
+            "type": "village",
+            "population": 400
+          }
+        },
+        {
+          "id": "c-rimehaven",
+          "name": "Rimehaven",
+          "at": [
+            60.177,
+            -76.096
+          ],
+          "props": {
+            "type": "port",
+            "population": 3800
+          }
+        },
+        {
+          "id": "c-greenmarch",
+          "name": "Greenmarch",
+          "at": [
+            40.75,
+            -56.41
+          ],
+          "props": {
+            "type": "town",
+            "population": 7200
+          }
+        },
+        {
+          "id": "c-tallow",
+          "name": "Tallow End",
+          "at": [
+            39.25,
+            -55.28
+          ],
+          "props": {
+            "type": "village",
+            "population": 620
+          }
+        },
+        {
+          "id": "c-maw",
+          "name": "Stilthaven",
+          "at": [
+            4.8,
+            -40.18
+          ],
+          "props": {
+            "type": "village",
+            "population": 900
+          }
+        },
+        {
+          "id": "c-fens",
+          "name": "Reedmoor",
+          "at": [
+            -6.9,
+            -41.06
+          ],
+          "props": {
+            "type": "hamlet",
+            "population": 90
+          }
+        },
+        {
+          "id": "c-pearl",
+          "name": "Pearl Landing",
+          "at": [
+            -6.1,
+            -86.96
+          ],
+          "props": {
+            "type": "village",
+            "population": 340
+          }
+        },
+        {
+          "id": "c-ridge",
+          "name": "Hightarn",
+          "at": [
+            29.5,
+            -31.96
+          ],
+          "props": {
+            "type": "hamlet",
+            "population": 70
+          }
+        },
+        {
+          "id": "c-gloam",
+          "name": "Gloamstead",
+          "at": [
+            13.1,
+            -100.81
+          ],
+          "props": {
+            "type": "hamlet",
+            "population": 110
+          }
+        }
+      ]
+    },
+    {
+      "id": "sites",
+      "name": "Structures & sites",
+      "kind": "structures",
+      "items": [
+        {
+          "id": "s-hollow",
+          "name": "Hollow Farm",
+          "at": [
+            39.9,
+            -71.44
+          ],
+          "props": {
+            "type": "farm"
+          }
+        },
+        {
+          "id": "s-brook",
+          "name": "Brookside Farm",
+          "at": [
+            41.3,
+            -62.02
+          ],
+          "props": {
+            "type": "farm"
+          }
+        },
+        {
+          "id": "s-manor",
+          "name": "Eastholme Manor",
+          "at": [
+            41.9,
+            -57.77
+          ],
+          "props": {
+            "type": "manor"
+          }
+        },
+        {
+          "id": "s-mill",
+          "name": "Windy Mill",
+          "at": [
+            37.2,
+            -58.58
+          ],
+          "props": {
+            "type": "windmill"
+          }
+        },
+        {
+          "id": "s-castle",
+          "name": "Greywatch Keep",
+          "at": [
+            28.6,
+            -54.82
+          ],
+          "props": {
+            "type": "castle"
+          }
+        },
+        {
+          "id": "s-fort",
+          "name": "Ironfort",
+          "at": [
+            24.9,
+            -31.51
+          ],
+          "props": {
+            "type": "fort"
+          }
+        },
+        {
+          "id": "s-tower",
+          "name": "The Lone Spire",
+          "at": [
+            26.4,
+            -107.22
+          ],
+          "props": {
+            "type": "tower"
+          }
+        },
+        {
+          "id": "s-temple",
+          "name": "Temple of the Sun",
+          "at": [
+            31.9,
+            -87.75
+          ],
+          "props": {
+            "type": "temple"
+          }
+        },
+        {
+          "id": "s-monastery",
+          "name": "Silent Cloister",
+          "at": [
+            29.6,
+            -109.17
+          ],
+          "props": {
+            "type": "monastery"
+          }
+        },
+        {
+          "id": "s-mine",
+          "name": "Deepvein Mine",
+          "at": [
+            35.2,
+            -35.72
+          ],
+          "props": {
+            "type": "mine"
+          }
+        },
+        {
+          "id": "s-lighthouse",
+          "name": "Cape Light",
+          "at": [
+            3.209,
+            -76.841
+          ],
+          "props": {
+            "type": "lighthouse"
+          }
+        },
+        {
+          "id": "s-ruins",
+          "name": "Sandbound Ruins",
+          "at": [
+            28.4,
+            -85.65
+          ],
+          "props": {
+            "type": "ruins"
+          }
+        },
+        {
+          "id": "s-camp",
+          "name": "Reaver's Camp",
+          "at": [
+            24.9,
+            -64.88
+          ],
+          "props": {
+            "type": "camp"
+          }
+        },
+        {
+          "id": "b-aldur1",
+          "name": "The Titan Span",
+          "at": [
+            38.92,
+            -55.2
+          ],
+          "props": {
+            "type": "bridge",
+            "style": "rope"
+          }
+        },
+        {
+          "id": "b-aldur2",
+          "name": "Highwater Bridge",
+          "at": [
+            29.26,
+            -46.76
+          ],
+          "props": {
+            "type": "bridge",
+            "style": "stone"
+          }
+        },
+        {
+          "id": "b-aldur3",
+          "name": "Long Ford Bridge",
+          "at": [
+            14.15,
+            -41.91
+          ],
+          "props": {
+            "type": "bridge",
+            "style": "wood"
+          }
+        },
+        {
+          "id": "b-silver",
+          "name": "Silverwind Crossing",
+          "at": [
+            27.85,
+            -117.58
+          ],
+          "props": {
+            "type": "bridge",
+            "style": "draw"
+          }
+        },
+        {
+          "id": "b-rime",
+          "name": "Rime Aqueduct",
+          "at": [
+            56.61,
+            -72.42
+          ],
+          "props": {
+            "type": "bridge",
+            "style": "aqueduct"
           }
         }
       ]
@@ -499,51 +876,6 @@
         }
       ],
       "hidden": true
-    },
-    {
-      "id": "roads",
-      "name": "Roads",
-      "kind": "roads",
-      "items": [
-        {
-          "id": "w-aldur",
-          "name": "The Aldur Road",
-          "path": [
-            [
-              40,
-              -60
-            ],
-            [
-              33,
-              -51
-            ],
-            [
-              24,
-              -43
-            ],
-            [
-              14,
-              -42
-            ],
-            [
-              6,
-              -41
-            ],
-            [
-              1,
-              -37
-            ],
-            [
-              -4,
-              -42
-            ],
-            [
-              -12,
-              -43
-            ]
-          ]
-        }
-      ]
     }
   ]
 }

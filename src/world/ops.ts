@@ -1,6 +1,6 @@
 // Feature operations: the declarative, AI-editable layer on top of the generated planet.
 // Each op is plain JSON in geography terms (km, metres, lat/lon) and is applied in order after generation.
-import { capOf, dirOf, dot, inPolygon, makePath, pathDist, type LatLon, type Vec } from './geo.ts'
+import { capOf, cross, dirOf, dot, inPolygon, makePath, norm, pathDist, type LatLon, type Vec } from './geo.ts'
 
 export type { LatLon }
 import { hash, rng, type Noise3 } from './noise.ts'
@@ -20,7 +20,7 @@ export type Op = Base & (
   | { kind: 'raise' | 'lower'; at: LatLon; radius: number; amount: number }
   | { kind: 'flatten'; at: LatLon; radius: number; height: number }
   | { kind: 'land' | 'sea'; area: LatLon[]; height?: number; edge?: number }
-  | { kind: 'terrain'; terrain: string; at: LatLon; radius: number; edge?: number }
+  | { kind: 'terrain'; terrain: string; at: LatLon; radius: number; edge?: number; aspect?: number; angle?: number }
   | { kind: 'zone'; terrain: string; area: LatLon[]; edge?: number }
   | { kind: 'spires'; at: LatLon; radius: number; count: number; height: number; width?: number }
 )
@@ -43,7 +43,7 @@ export const OP_SPECS: Record<OpKind, { label: string; desc: string; fields: [st
   flatten: { label: 'Flatten', desc: 'Levels an area to one elevation (for a city, plain or dam).', fields: [['at', 'at', true, 'centre'], ['radius', 'num', true, 'km'], ['height', 'num', true, 'target elevation, m']], example: { kind: 'flatten', at: [38, 18], radius: 8, height: 200 } },
   land: { label: 'Land', desc: 'Raises a polygon above sea: new peninsulas, islands or land bridges.', fields: [['area', 'area', true, '>=3 points, in order around the outline'], ['height', 'num', false, 'typical elevation, m (default 250)'], ['edge', 'num', false, 'coast softness, km (default 40)']], example: { kind: 'land', name: 'Hook Peninsula', area: [[20, 0], [24, 6], [18, 9], [15, 3]] } },
   sea: { label: 'Sea', desc: 'Drowns a polygon: bays, straits, inland seas.', fields: [['area', 'area', true, '>=3 points around the outline'], ['height', 'num', false, 'depth, m (default 1500)'], ['edge', 'num', false, 'coast softness, km (default 40)']], example: { kind: 'sea', name: 'Gulf of Teeth', area: [[5, 40], [9, 46], [3, 50], [0, 44]] } },
-  terrain: { label: 'Terrain patch', desc: 'Paints a ground type (forest, dunes, crystal, lava... see the terrain list) on a circle. Dunes, badlands, crystal and lava also reshape the ground.', fields: [['terrain', 'str', true, 'a terrain id from the terrain list'], ['at', 'at', true, 'centre'], ['radius', 'num', true, 'km'], ['edge', 'num', false, 'how soft the rim is, 0.05-1 of the radius (default 0.3)']], example: { kind: 'terrain', terrain: 'crystal', name: 'Glasswood', at: [24, 30], radius: 120 } },
+  terrain: { label: 'Terrain patch', desc: 'Paints a ground type (forest, dunes, crystal, lava... see the terrain list) on a circle. Dunes, badlands, crystal and lava also reshape the ground.', fields: [['terrain', 'str', true, 'a terrain id from the terrain list'], ['at', 'at', true, 'centre'], ['radius', 'num', true, 'km (the geometric mean of the two axes)'], ['edge', 'num', false, 'how soft the rim is, 0.05-1 of the radius (default 0.3)'], ['aspect', 'num', false, 'stretch 1-4 along `angle`; default 1.25-2 chosen from the id, so patches are never round'], ['angle', 'num', false, 'direction of the long axis, degrees clockwise from north; default from the id. Align it with the coast, a valley or a range']], example: { kind: 'terrain', terrain: 'crystal', name: 'Glasswood', at: [24, 30], radius: 120, aspect: 1.8, angle: 40 } },
   zone: { label: 'Terrain zone', desc: 'Paints a ground type on a polygon (a forest, a desert, a blighted region...).', fields: [['terrain', 'str', true, 'a terrain id from the terrain list'], ['area', 'area', true, '>=3 points around the outline'], ['edge', 'num', false, 'rim softness, km (default 25)']], example: { kind: 'zone', terrain: 'redwood', name: 'The Elderwood', area: [[30, 10], [34, 16], [28, 20], [25, 12]] } },
   spires: { label: 'Spires', desc: 'A cluster of narrow stone pillars and towers (karst, hoodoos, shattered peaks), deterministic per op id.', fields: [['at', 'at', true, 'centre'], ['radius', 'num', true, 'km spread'], ['count', 'num', true, 'pillars (1-80)'], ['height', 'num', true, 'tallest pillar above the ground, m'], ['width', 'num', false, 'pillar base width, km (default 4)']], example: { kind: 'spires', name: 'The Needles', at: [35, 40], radius: 60, count: 24, height: 2400 } },
 }
@@ -233,17 +233,25 @@ export function compileOps(ops: Op[], radiusKm: number, n: Noise3, ground: (p: V
         break
       }
       case 'terrain': {
-        const edge = Math.max(0.05, Math.min(1, op.edge ?? 0.3))
-        const sh = TERRAINS[op.terrain]?.shape
-        out.push({ op, stage: 'paint', cap: capOf([point!], rad(op.radius * 1.4)), apply: (h) => h, terrain: op.terrain, shape: sh && shapeOf(sh, salt, N),
-          paint: (p) => 1 - smooth(1 - edge, 1, u(p, op.radius) * (1 + 0.2 * N(p, 45, salt))) })
+        // never a circle: an ellipse (stretched along `angle`), wobbled at three scales relative to its own size (lobes, bays, ragged rim)
+        const edge = Math.max(0.05, Math.min(1, op.edge ?? 0.3)), sh = TERRAINS[op.terrain]?.shape, hs = hash(op.id)
+        const asp = Math.max(1, Math.min(4, op.aspect ?? 1.25 + 0.75 * ((hs >>> 3) % 100) / 100)), sa = Math.sqrt(asp)
+        const ang = (op.angle ?? (hs >>> 7) % 180) * Math.PI / 180, ca = Math.cos(ang), sn = Math.sin(ang)
+        const E0 = norm(cross([0, 1, 0], point!)), N0 = cross(point!, E0), fr = radiusKm / op.radius
+        const dist = (p: Vec) => {
+          if (dot(p, point!) <= 0) return Infinity
+          const e = dot(p, E0), nn = dot(p, N0), along = nn * ca + e * sn, across = e * ca - nn * sn
+          return km(Math.hypot(along / sa, across * sa)) / op.radius
+        }
+        out.push({ op, stage: 'paint', cap: capOf([point!], rad(op.radius * 1.5 * sa)), apply: (h) => h, terrain: op.terrain, shape: sh && shapeOf(sh, salt, N),
+          paint: (p) => 1 - smooth(1 - edge, 1, dist(p) * (1 + 0.28 * N(p, 1.1 * fr, salt) + 0.16 * N(p, 2.9 * fr, salt + 5) + 0.07 * N(p, 8.5 * fr, salt + 9))) })
         break
       }
       case 'zone': {
         const poly = op.area.map(dirOf), ring = makePath([...op.area, op.area[0]]), edge = op.edge ?? 25
         const sh = TERRAINS[op.terrain]?.shape
         out.push({ op, stage: 'paint', cap: capOf(poly, rad(edge * 2.5)), apply: (h) => h, terrain: op.terrain, shape: sh && shapeOf(sh, salt, N),
-          paint: (p) => smooth(-edge, edge, (inPolygon(p, poly) ? 1 : -1) * km(pathDist(p, ring).d) + edge * (0.5 * N(p, 40, salt) + 0.8 * N(p, 14, salt + 3))) }) // two noise scales: a ragged rim up close, a wandering outline from orbit
+          paint: (p) => smooth(-edge, edge, (inPolygon(p, poly) ? 1 : -1) * km(pathDist(p, ring).d) + edge * (0.5 * N(p, 40, salt) + 0.8 * N(p, 14, salt + 3) + 0.4 * N(p, 110, salt + 7))) }) // three noise scales: a ragged rim up close, a wandering outline from orbit
         break
       }
       case 'spires': {

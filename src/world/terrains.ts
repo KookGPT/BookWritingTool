@@ -21,6 +21,10 @@ export interface Terrain {
   glyph: Glyph; glyphDensity: number // flat map symbol and how often it is drawn (0..1)
   shape?: Shape
   paint?: boolean // only reachable through ops, never by climate
+  /** The terrain a painted patch fades through on its outer band (forest -> woodland -> grass), so edges are never abrupt. */
+  fringe?: string
+  /** Where it occurs naturally; `validate` warns when a patch sits in a climate outside this (ignored for fantasy terrain). */
+  habitat?: { temp?: [number, number]; moist?: [number, number]; why: string }
 }
 
 const d = (kind: DecorKind, density: number, lo: number, hi: number, ...colors: Vec[]): Decor => ({ kind, density, size: [lo, hi], colors })
@@ -50,33 +54,33 @@ export const TERRAINS: Record<string, Terrain> = {
   meadow: { label: 'Flower meadow', ground: [120, 184, 84], ground2: [214, 190, 110], decor: [d('tuft', 0.95, 2.5, 5, [236, 120, 160], [244, 214, 92], [250, 250, 246], [150, 130, 230], ...G.grass)], glyph: 'grass', glyphDensity: 0.3 },
   forest: { label: 'Forest', ground: [62, 96, 46], ground2: [78, 108, 52], decor: [d('oak', 0.62, 34, 62, ...G.oak, ...G.oak, ...G.autumn), d('conifer', 0.14, 40, 70, ...G.pine), d('boulder', 0.01, 5, 14, ...G.rock)], glyph: 'tree', glyphDensity: 0.9 },
   deep_forest: { label: 'Deep forest', ground: [38, 78, 48], ground2: [48, 90, 52], decor: [d('giant', 0.2, 110, 190, [46, 106, 58], [38, 92, 54]), d('oak', 0.55, 40, 70, ...G.oak), d('conifer', 0.1, 50, 80, ...G.pine)], glyph: 'tree', glyphDensity: 1 },
-  redwood: { label: 'Redwood forest', ground: [58, 84, 44], ground2: [50, 72, 40], decor: [d('giant', 0.5, 130, 230, [48, 104, 58], [40, 90, 52], [66, 112, 50]), d('conifer', 0.3, 50, 90, ...G.pine)], glyph: 'pine', glyphDensity: 1, paint: true },
+  redwood: { label: 'Redwood forest', ground: [58, 84, 44], ground2: [50, 72, 40], decor: [d('giant', 0.5, 130, 230, [48, 104, 58], [40, 90, 52], [66, 112, 50]), d('conifer', 0.3, 50, 90, ...G.pine)], glyph: 'pine', glyphDensity: 1, paint: true, fringe: 'forest', habitat: { temp: [6, 22], moist: [0.55, 1], why: 'giant forests need mild temperatures and plenty of rain' } },
   // ----- warm & dry -----
   desert: { label: 'Desert', ground: [214, 184, 130], ground2: [198, 166, 112], decor: [d('cactus', 0.05, 14, 28, [78, 140, 74], [96, 150, 80]), d('boulder', 0.04, 6, 22, [168, 140, 108], [150, 124, 98])], glyph: 'dune', glyphDensity: 0.3 },
-  dunes: { label: 'Dune sea', ground: [234, 202, 140], ground2: [222, 178, 112], decor: [d('boulder', 0.01, 5, 14, [170, 140, 100])], glyph: 'dune', glyphDensity: 0.55, shape: 'ripple' },
+  dunes: { label: 'Dune sea', ground: [234, 202, 140], ground2: [222, 178, 112], decor: [d('boulder', 0.01, 5, 14, [170, 140, 100])], glyph: 'dune', glyphDensity: 0.55, shape: 'ripple', fringe: 'desert', habitat: { temp: [12, 60], moist: [0, 0.4], why: 'dune seas form in hot, dry land' } },
   scrub: { label: 'Scrubland', ground: [168, 152, 88], ground2: [146, 138, 78], decor: [d('bush', 0.3, 8, 18, [104, 118, 60], [128, 128, 66]), d('tuft', 0.6, 3, 5, ...G.dry)], glyph: 'grass', glyphDensity: 0.25 },
-  badlands: { label: 'Badlands', ground: [190, 108, 66], ground2: [226, 172, 112], decor: [d('boulder', 0.06, 10, 40, [176, 96, 60], [206, 140, 92], [150, 84, 56])], glyph: 'hill', glyphDensity: 0.6, shape: 'terrace', paint: true },
-  salt_flat: { label: 'Salt flat', ground: [242, 242, 238], ground2: [220, 230, 232], decor: [], glyph: 'salt', glyphDensity: 0.3, paint: true },
+  badlands: { label: 'Badlands', ground: [190, 108, 66], ground2: [226, 172, 112], decor: [d('boulder', 0.06, 10, 40, [176, 96, 60], [206, 140, 92], [150, 84, 56])], glyph: 'hill', glyphDensity: 0.6, shape: 'terrace', paint: true, fringe: 'scrub', habitat: { moist: [0, 0.5], why: 'badlands are eroded dry country' } },
+  salt_flat: { label: 'Salt flat', ground: [242, 242, 238], ground2: [220, 230, 232], decor: [], glyph: 'salt', glyphDensity: 0.3, paint: true, fringe: 'scrub', habitat: { moist: [0, 0.35], why: 'salt pans are the dry floor of a vanished lake' } },
   // ----- warm & wet -----
   savanna: { label: 'Savanna', ground: [196, 172, 84], ground2: [176, 164, 78], decor: [d('tuft', 0.9, 3, 6, ...G.dry), d('acacia', 0.05, 26, 44, [96, 128, 56], [120, 140, 60])], glyph: 'tree', glyphDensity: 0.12 },
   woodland: { label: 'Woodland', ground: [92, 128, 58], ground2: [112, 140, 62], decor: [d('oak', 0.32, 34, 58, ...G.oak), d('tuft', 0.6, 2.5, 5, ...G.grass)], glyph: 'tree', glyphDensity: 0.5 },
   dry_forest: { label: 'Dry forest', ground: [118, 126, 56], ground2: [132, 120, 54], decor: [d('acacia', 0.22, 28, 46, [100, 126, 54], [136, 134, 60]), d('oak', 0.25, 30, 50, [110, 130, 50], [160, 140, 56])], glyph: 'tree', glyphDensity: 0.65 },
   subtropical_forest: { label: 'Subtropical forest', ground: [52, 98, 46], ground2: [64, 108, 50], decor: [d('oak', 0.5, 36, 64, ...G.oak), d('palm', 0.14, 30, 50, ...G.jungle)], glyph: 'tree', glyphDensity: 0.85 },
-  jungle: { label: 'Jungle', ground: [24, 90, 44], ground2: [32, 104, 50], decor: [d('giant', 0.22, 100, 170, [20, 100, 50], [14, 86, 52]), d('palm', 0.34, 34, 60, ...G.jungle), d('oak', 0.34, 40, 64, ...G.jungle)], glyph: 'palm', glyphDensity: 1 },
-  swamp: { label: 'Swamp', ground: [60, 82, 52], ground2: [46, 70, 60], decor: [d('reed', 0.5, 7, 14, [120, 124, 60], [90, 110, 58]), d('dead', 0.08, 24, 42, ...G.deadwood), d('oak', 0.12, 28, 44, [58, 92, 52], [48, 80, 56])], glyph: 'reed', glyphDensity: 0.7 },
+  jungle: { label: 'Jungle', ground: [24, 90, 44], ground2: [32, 104, 50], decor: [d('giant', 0.22, 100, 170, [20, 100, 50], [14, 86, 52]), d('palm', 0.34, 34, 60, ...G.jungle), d('oak', 0.34, 40, 64, ...G.jungle)], glyph: 'palm', glyphDensity: 1, fringe: 'subtropical_forest', habitat: { temp: [20, 60], moist: [0.6, 1], why: 'jungle needs heat and rain' } },
+  swamp: { label: 'Swamp', ground: [60, 82, 52], ground2: [46, 70, 60], decor: [d('reed', 0.5, 7, 14, [120, 124, 60], [90, 110, 58]), d('dead', 0.08, 24, 42, ...G.deadwood), d('oak', 0.12, 28, 44, [58, 92, 52], [48, 80, 56])], glyph: 'reed', glyphDensity: 0.7, fringe: 'woodland', habitat: { temp: [6, 60], moist: [0.5, 1], why: 'swamps are wet, low and mild' } },
   beach: { label: 'Beach', ground: [228, 212, 164], ground2: [214, 198, 150], decor: [d('palm', 0.03, 26, 40, ...G.jungle)], glyph: 'none', glyphDensity: 0 },
   // ----- high ground -----
   alpine: { label: 'Alpine meadow', ground: [118, 150, 94], ground2: [150, 150, 108], decor: [d('tuft', 0.8, 2.5, 4, [132, 168, 96], [160, 160, 100]), d('boulder', 0.07, 6, 22, ...G.rock)], glyph: 'grass', glyphDensity: 0.15 },
   rock: { label: 'Barren rock', ground: [124, 114, 106], ground2: [98, 92, 90], decor: [d('boulder', 0.1, 8, 34, ...G.rock)], glyph: 'none', glyphDensity: 0 },
   snow: { label: 'Snowfield', ground: [244, 247, 252], ground2: [220, 232, 246], decor: [], glyph: 'ice', glyphDensity: 0.2 },
-  moor: { label: 'Moorland', ground: [120, 104, 122], ground2: [136, 112, 96], decor: [d('tuft', 0.85, 2.5, 5, [150, 110, 150], [126, 112, 98], [140, 128, 96]), d('boulder', 0.07, 6, 24, ...G.rock)], glyph: 'grass', glyphDensity: 0.2, paint: true },
+  moor: { label: 'Moorland', ground: [120, 104, 122], ground2: [136, 112, 96], decor: [d('tuft', 0.85, 2.5, 5, [150, 110, 150], [126, 112, 98], [140, 128, 96]), d('boulder', 0.07, 6, 24, ...G.rock)], glyph: 'grass', glyphDensity: 0.2, paint: true, fringe: 'grassland', habitat: { temp: [-4, 14], moist: [0.4, 1], why: 'moorland is cool, wet upland' } },
   // ----- fantasy: only painted -----
-  ashland: { label: 'Ashland', ground: [66, 62, 62], ground2: [96, 90, 86], decor: [d('dead', 0.14, 26, 50, [40, 36, 36], [56, 50, 48]), d('boulder', 0.05, 8, 26, [50, 46, 46], [74, 70, 66])], glyph: 'ash', glyphDensity: 0.45, paint: true },
-  lava: { label: 'Lava field', ground: [40, 22, 20], ground2: [230, 84, 22], decor: [d('boulder', 0.1, 8, 30, [28, 22, 22], [44, 30, 28])], glyph: 'lava', glyphDensity: 0.5, shape: 'jag', paint: true },
-  crystal: { label: 'Crystal forest', ground: [150, 168, 204], ground2: [192, 150, 224], decor: [d('crystal', 0.4, 40, 150, [110, 230, 240], [190, 140, 255], [255, 150, 220], [150, 255, 210])], glyph: 'crystal', glyphDensity: 0.9, shape: 'jag', paint: true },
-  fungal: { label: 'Fungal forest', ground: [88, 54, 104], ground2: [50, 98, 108], decor: [d('mushroom', 0.5, 40, 110, [230, 70, 130], [60, 200, 190], [250, 160, 50], [150, 90, 220])], glyph: 'mushroom', glyphDensity: 0.9, paint: true },
-  blight: { label: 'Blighted land', ground: [82, 76, 50], ground2: [98, 90, 44], decor: [d('dead', 0.28, 22, 44, [70, 74, 52], [92, 88, 60]), d('tuft', 0.4, 2.5, 4, [110, 100, 50])], glyph: 'dead', glyphDensity: 0.7, paint: true },
-  bonewood: { label: 'Bonewood', ground: [206, 196, 176], ground2: [186, 174, 150], decor: [d('dead', 0.32, 30, 58, [232, 226, 210], [212, 204, 186], [190, 182, 164])], glyph: 'dead', glyphDensity: 0.8, paint: true },
+  ashland: { label: 'Ashland', ground: [66, 62, 62], ground2: [96, 90, 86], decor: [d('dead', 0.14, 26, 50, [40, 36, 36], [56, 50, 48]), d('boulder', 0.05, 8, 26, [50, 46, 46], [74, 70, 66])], glyph: 'ash', glyphDensity: 0.45, paint: true, fringe: 'scrub' },
+  lava: { label: 'Lava field', ground: [40, 22, 20], ground2: [230, 84, 22], decor: [d('boulder', 0.1, 8, 30, [28, 22, 22], [44, 30, 28])], glyph: 'lava', glyphDensity: 0.5, shape: 'jag', paint: true, fringe: 'ashland' },
+  crystal: { label: 'Crystal forest', ground: [150, 168, 204], ground2: [192, 150, 224], decor: [d('crystal', 0.4, 40, 150, [110, 230, 240], [190, 140, 255], [255, 150, 220], [150, 255, 210])], glyph: 'crystal', glyphDensity: 0.9, shape: 'jag', paint: true, fringe: 'woodland' },
+  fungal: { label: 'Fungal forest', ground: [88, 54, 104], ground2: [50, 98, 108], decor: [d('mushroom', 0.5, 40, 110, [230, 70, 130], [60, 200, 190], [250, 160, 50], [150, 90, 220])], glyph: 'mushroom', glyphDensity: 0.9, paint: true, fringe: 'forest' },
+  blight: { label: 'Blighted land', ground: [82, 76, 50], ground2: [98, 90, 44], decor: [d('dead', 0.28, 22, 44, [70, 74, 52], [92, 88, 60]), d('tuft', 0.4, 2.5, 4, [110, 100, 50])], glyph: 'dead', glyphDensity: 0.7, paint: true, fringe: 'scrub' },
+  bonewood: { label: 'Bonewood', ground: [206, 196, 176], ground2: [186, 174, 150], decor: [d('dead', 0.32, 30, 58, [232, 226, 210], [212, 204, 186], [190, 182, 164])], glyph: 'dead', glyphDensity: 0.8, paint: true, fringe: 'woodland' },
 }
 
 export const TERRAIN_IDS = Object.keys(TERRAINS)

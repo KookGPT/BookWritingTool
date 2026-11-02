@@ -3,7 +3,9 @@ import type { MapStyle, Proj } from './flat.ts'
 import type { LatLon } from './geo.ts'
 import { drawGlyphs } from './glyphs.ts'
 import { collectLabels, placeLabels } from './labels.ts'
-import { layerColor, pointSize } from './layers.ts'
+import { DERIVED_LAYERS, layerColor, pointSize } from './layers.ts'
+import { markerPx } from './sites.ts'
+import { drawSite } from './siteGlyphs.ts'
 import type { Planet, World } from './terrain.ts'
 
 // straight lat/lon steps of at most 1 degree, so lines bend with the projection
@@ -53,8 +55,10 @@ export function drawOverlays(ctx: CanvasRenderingContext2D, planet: Planet, worl
         ctx.globalAlpha = a; ctx.lineWidth = 1.8 * k; ctx.setLineDash(l.kind === 'borders' ? [6 * k, 4 * k] : []); ctx.stroke(); ctx.setLineDash([])
       } else if (it.at) {
         const [x, y] = p.fwd(it.at[0], it.at[1]), r = pointSize(it) * k / 2
+        ctx.globalAlpha = a
+        if (!DERIVED_LAYERS.has(l.id) && drawSite(ctx, it, x, y, markerPx(it) * 1.45 * k, col, '#1a1410')) { ctx.globalAlpha = 1; continue }
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2)
-        ctx.globalAlpha = a; ctx.fill(); ctx.lineWidth = 1.5 * k; ctx.strokeStyle = '#1a1410'; ctx.stroke()
+        ctx.fill(); ctx.lineWidth = 1.5 * k; ctx.strokeStyle = '#1a1410'; ctx.stroke()
       }
       ctx.globalAlpha = 1
     }
@@ -63,7 +67,7 @@ export function drawOverlays(ctx: CanvasRenderingContext2D, planet: Planet, worl
 
   ctx.textAlign = 'center'; ctx.lineJoin = 'round'
   const font = (l: { size: number; italic: boolean }) => `${l.italic ? 'italic ' : ''}${l.size * k}px ${theme.serif ? 'Georgia, serif' : 'system-ui, sans-serif'}`
-  const placed = placeLabels(collectLabels(world), (l) => { const [x, y] = p.fwd(l.at[0], l.at[1]); return [x, y] }, (l) => { ctx.font = font(l); return ctx.measureText(l.text).width }, W, H, k)
+  const placed = placeLabels(collectLabels(world).map((l) => l.dot ? { ...l, dot: l.dot * 2.1 } : l),(l) => { const [x, y] = p.fwd(l.at[0], l.at[1]); return [x, y] }, (l) => { ctx.font = font(l); return ctx.measureText(l.text).width }, W, H, k)
   for (const { label, x, y } of placed) {
     ctx.font = font(label); ctx.lineWidth = 3 * k
     ctx.strokeStyle = theme.halo; ctx.strokeText(label.text, x, y)

@@ -33,6 +33,12 @@ Goal: a 3D, high-def, zoomable globe that is the book's world map, built and edi
   - Labels: `labels.ts` (pure: collect names, greedy non-overlapping placement) is shared by the flat map and a 2D canvas overlay on the 3D globe ("Names on the map" toggles both). Flat-map terrain symbols come from `glyphs.ts` (map-anchored jittered grid, cached per planet).
   - Demo world: `examples/terrain-showcase.json` (import via Globe panel > Import JSON). Add a showcase region when adding a terrain.
   - Exaggeration: `exag = (2 + 22 * zt ** 2.5) * relief`, so height pops from orbit and fades to true scale at the ground.
+- Done, settlements and structures + natural placement:
+  - A layer item with `props.type` in `SITE_TYPES` (`sites.ts`) is a real place: hamlet..megacity (by `props.population`, footprint radius = 0.12 km * sqrt(pop/500), capped 6 km), port, farm, manor, castle, fort, tower, temple, monastery, mine, windmill, lighthouse, ruins, camp, bridge. Layer kind `structures` (any geometry) plus the old `cities`. Building style follows the terrain (`styleFor` + palettes; cold climates override timber/tropical; `props.style` forces one).
+  - Pure pipeline, all in `src/world/`: `layout.ts` (`layoutSite`: seeded streets, walls, fields, harbour, landmarks in local metres; bridges chain units across the river) -> `buildings.ts` (40 low-poly unit meshes, `fix` 0 wall tint / 2 roof tint / 1 fixed) -> `settle.ts` (`buildSite`: ground probe `groundAt`, instance buffers of 16 floats, terrain-coloured decal grid, bridge snapped to the nearest river via `riverNear`). The worker answers `{item}` messages with `buildSite`; `globe.ts` (`syncSites`/`updateSites`/`receiveSite`) builds a site within 36 footprint radii of the camera, drops it past 60, hides its map marker (`hide` attribute) within 20, and `settleMat` boosts size with distance so houses stay visible. Tiles take a `clear` list so no trees grow inside a settlement (changing a site's place redoes the tiles). Derived layers (`DERIVED_LAYERS`) never become settlements.
+  - Flat map: `siteGlyphs.ts` draws one icon per type (settlements grow with tier) in `flatDraw.ts`.
+  - Natural placement is enforced, not just advised: `terrain` ops are ellipses (`aspect`, `angle`, defaults from the id) with three-scale wobble; `zone` outlines get a third noise scale; painted rims break into patches and fade through the terrain's `fringe` (`terrain.ts`); `habitat` on a terrain lists the climate it needs. `fit.ts`: `terrainIssues` (wrong climate, painted over sea), `siteIssues` (needs: coast/river/water/flat/arable/highland, big cities need the sea or a 6+ km river), `snapToCoast`, `fitTerrain`, `fitSite`. `validate` warns for all of it; CLI `fit <file> terrain|site <id>` and `sites <file>`; `brief` explains the rules. Close-up relief is damped on lowlands (`fine` in `relief`) so plains are flat at village scale.
+  - When building or editing a world: find spots with `fit`, then `validate` and `sites` until there are no warnings (except deliberate magic).
 - Ideas beyond the plan: CLI command to add layer items, scene location pins, antimeridian-safe polygon fills, more terrain types as the user describes them (add to `terrains.ts` plus a showcase region).
 
 Gotchas:
@@ -41,6 +47,7 @@ Gotchas:
 - In dev, `window.globe` is the live `Globe` instance (set after `setWorld`). Fly with `globe.flyTo(lat, lon, dist)`, where dist is in planet radii (3 = orbit, 0.004 = near the ground).
 - Keep `src/world/*.ts` pure (no DOM, `.ts` import extensions) so node tests and the CLI can run them.
 - `setWorld` ignores name/note/wikiId changes, so renames don't rebuild tiles. Keep it that way for layer item labels too.
+- Settlement shaders read the same `iPos/iUp/iA` frame as props (yaw measured against the shader's own tangent frame, fixed up in `buildSite`); changing a prop attribute layout means changing `settleMat` too. Decals sit 3.5 m above the ground and instances stand on `g.h`; the log depth buffer ignores polygonOffset, so lift geometry instead.
 
 ## Checks
 `npx tsc -b`, `npm test`, `npm run build`.

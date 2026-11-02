@@ -1,10 +1,13 @@
 // 3D globe renderer: cube-sphere quadtree LOD, tiles built in workers, custom orbit/ground camera.
 import * as THREE from 'three'
 import { groundSpec, makePlanet, toDir, toLatLon, type Planet, type World } from './terrain.ts'
-import { layerColor, outline, pickFeature, pointSize, refKey, type Feature } from './layers.ts'
+import { DERIVED_LAYERS, layerColor, outline, pickFeature, pointSize, refKey, type Feature, type LayerItem } from './layers.ts'
 import type { LatLon } from './geo.ts'
 import { collectLabels, placeLabels, type Label } from './labels.ts'
-import { PROP_STRIDE, tileAngle, tileCenter, tileIndex, type TileData } from './tile.ts'
+import { PROP_STRIDE, tileAngle, tileCenter, tileIndex, type Clearing, type TileData } from './tile.ts'
+import { buildMesh, type BuildKind } from './buildings.ts'
+import { riverNear, SETTLE_STRIDE, type SettleData } from './settle.ts'
+import { footprintKm, siteOf } from './sites.ts'
 import { propMesh as unitProp } from './props.ts'
 import type { DecorKind } from './terrains.ts'
 
@@ -17,6 +20,9 @@ const DEG = Math.PI / 180
 const MAX_TILT = 85 * DEG
 
 interface Tile { key: string; face: number; level: number; x: number; y: number; center: THREE.Vector3; mesh?: THREE.Mesh; props?: THREE.Mesh[]; pending: boolean; used: number }
+/** A settlement or structure on the globe: built (decal + instanced buildings) when the camera is close, dropped when far. */
+interface SiteEntry { item: LayerItem; spec: string; d: THREE.Vector3; fp: number; pending: boolean; meshes?: THREE.Mesh[] }
+const SITE_BUILD = 36, SITE_DROP = 60, SITE_MARK = 20 // in footprint radii from the camera
 interface View { lat: number; lon: number; dist: number; heading: number; tilt: number }
 export interface Hover { lat: number; lon: number; elevation: number; biome: string; feature?: Feature }
 export interface ViewInfo { altitudeKm: number; lat: number; lon: number }
@@ -29,7 +35,7 @@ const wrap = (d: number) => ((d + 540) % 360) - 180
 const drapeMat = (color: string | number, alpha: number, round = false) => new THREE.ShaderMaterial({
   depthTest: false, depthWrite: false, transparent: true,
   uniforms: { exag: { value: 1 }, color: { value: new THREE.Color(color) }, alpha: { value: alpha } },
-  vertexShader: 'attribute float h; attribute float size; uniform float exag; varying float vis; void main(){ vec3 w = position * (1. + h * exag); vis = dot(normalize(position), normalize(cameraPosition - w)); gl_PointSize = size; gl_Position = projectionMatrix * viewMatrix * vec4(w, 1.); }',
+  vertexShader: 'attribute float h; attribute float size; attribute float hide; uniform float exag; varying float vis; void main(){ vec3 w = position * (1. + h * exag); vis = dot(normalize(position), normalize(cameraPosition - w)); gl_PointSize = size; gl_Position = hide > .5 ? vec4(2., 2., 2., 1.) : projectionMatrix * viewMatrix * vec4(w, 1.); }',
   fragmentShader: `uniform vec3 color; uniform float alpha; varying float vis; void main(){ if (vis < 0.02) discard; vec3 c = color;${round ? ' float r = length(gl_PointCoord - .5); if (r > .5) discard; if (r > .36) c = vec3(.06);' : ''} gl_FragColor = vec4(c, alpha); }`,
 })
 
@@ -83,6 +89,12 @@ export class Globe {
   /** Draw the names of features and layer items over the globe. */
   setLabels(on: boolean) { this.labelsOn = on; this.dirty = true }
   private propMat: THREE.MeshStandardMaterial
+  private settleMat: THREE.MeshStandardMaterial
+  private sites = new Map<string, SiteEntry>()
+  private siteQueue: string[] = []
+  private markers = new Map<string, { attr: THREE.BufferAttribute; i: number }>()
+  private clear: Clearing[] = []
+  private clearKey = '[]'
   private relief = 1
   private index = new THREE.BufferAttribute(tileIndex(), 1)
   private tiles = new Map<string, Tile>()
@@ -144,6 +156,22 @@ export class Globe {
         vec3 lp = position * iA.y;
         vec3 transformed = iPos + iUp * (iA.x * exag - iA.y * 0.05) + t1 * (cy * lp.x - sy * lp.z) + t2 * (sy * lp.x + cy * lp.z) + iUp * lp.y;
         vColor = (fix > 0.5 ? color : color * iCol) * mix(0.5, 1.25, clamp(position.y, 0., 1.));`)
+    }
+    // buildings: like props, but with two tints (walls and roofs), 16 floats per instance, and a size boost with distance so
+    // houses stay visible from further out (landmarks boost most).
+    this.settleMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, flatShading: true, side: THREE.DoubleSide })
+    this.settleMat.onBeforeCompile = (s) => {
+      s.uniforms.exag = this.exag
+      s.vertexShader = 'attribute vec3 iPos;\nattribute vec3 iUp;\nattribute vec3 iA;\nattribute float iP;\nattribute vec3 iCol;\nattribute vec3 iCol2;\nattribute float fix;\nuniform float exag;\n' + s.vertexShader.replace('#include <begin_vertex>', `
+        vec3 rf = abs(iUp.y) < 0.95 ? vec3(0., 1., 0.) : vec3(1., 0., 0.);
+        vec3 t1 = normalize(cross(rf, iUp)), t2 = cross(iUp, t1);
+        float cy = cos(iA.z), sy = sin(iA.z);
+        float cd = distance(cameraPosition, (modelMatrix * vec4(iPos, 1.)).xyz);
+        float bs = iA.y * clamp(0.0016 * cd / iA.y, 1., mix(2.4, 6., iP));
+        vec3 lp = position * bs;
+        vec3 transformed = iPos + iUp * (iA.x * exag - iA.y * 0.05) + t1 * (cy * lp.x - sy * lp.z) + t2 * (sy * lp.x + cy * lp.z) + iUp * lp.y;
+        vec3 tint = fix > 1.5 ? iCol2 : iCol;
+        vColor = (fix > 0.5 && fix < 1.5 ? color : color * tint) * mix(0.55, 1.2, clamp(position.y, 0., 1.));`)
     }
     this.scene.add(new THREE.HemisphereLight(0xc8d8ff, 0x1a2420, 0.9))
     this.scene.add(this.sun, this.sun.target)
@@ -207,13 +235,96 @@ export class Globe {
     this.spec = spec; this.layersSpec = layers
     this.planet = makePlanet(world)
     this.labelPos.clear()
-    this.gen++
-    for (const t of this.tiles.values()) this.drop(t)
-    this.tiles.clear(); this.queue = []
+    for (const e of this.sites.values()) this.dropSite(e)
+    this.sites.clear()
+    this.resetTiles()
     this.buildOverlays()
   }
   private world?: World
   private layersSpec = ''
+  /** Forget every tile (and what is in flight), e.g. when the ground or the cleared areas under sites change. */
+  private resetTiles() {
+    this.gen++
+    for (const t of this.tiles.values()) this.drop(t)
+    this.tiles.clear(); this.queue = []; this.siteQueue = []
+    for (const e of this.sites.values()) e.pending = false
+  }
+
+  // ---------- settlements and structures ----------
+  /** Match the site entries to the layer items; sites whose place or props changed are rebuilt, tiles are redone when the cleared discs change. */
+  private syncSites() {
+    const seen = new Set<string>(), clear: Clearing[] = [], R = this.planet!.radiusM
+    for (const l of this.world!.layers ?? []) {
+      if (l.hidden || DERIVED_LAYERS.has(l.id)) continue
+      for (const it of l.items) {
+        const s = siteOf(it), at = it.at ?? it.path?.[0]
+        if (!s || !at) continue
+        const id = `${l.id}/${it.id}`, d = toDir(at[0], at[1]), spec = JSON.stringify([it.at, it.path, it.props])
+        let km = footprintKm(it)
+        if (s.def.cls === 'bridge') { const rv = riverNear(this.planet!, d); km = Math.max(km, (rv && rv.d < rv.widthKm * 1.2 ? rv.widthKm * 1.15 : Number(it.props?.length ?? 0.3)) / 2) } // spans the river, so it is as big as the river is wide
+        const fp = km * 1000 / R
+        let e = this.sites.get(id)
+        if (e && e.spec !== spec) { this.dropSite(e); e = undefined }
+        if (!e) this.sites.set(id, e = { item: it, spec, d: new THREE.Vector3(...d), fp, pending: false })
+        else e.item = it
+        seen.add(id)
+        if (s.def.cls !== 'bridge') clear.push({ d, cos: Math.cos(fp * 1.15) })
+      }
+    }
+    for (const [id, e] of this.sites) if (!seen.has(id)) { this.dropSite(e); this.sites.delete(id) }
+    this.clear = clear
+    const key = JSON.stringify(clear)
+    if (key !== this.clearKey) { this.clearKey = key; this.resetTiles() }
+  }
+  private dropSite(e: SiteEntry) {
+    for (const m of e.meshes ?? []) this.scene.remove(m), m.geometry.dispose()
+    e.meshes = undefined; e.pending = false
+  }
+  private receiveSite(m: { key: string; gen: number; site?: SettleData }) {
+    const e = this.sites.get(m.key.slice(5))
+    if (m.gen !== this.gen || !e) return
+    e.pending = false
+    const site = m.site, R = this.planet!.radiusM, meshes: THREE.Mesh[] = []
+    e.meshes = meshes
+    this.dirty = true
+    if (!site) return
+    const c = new THREE.Vector3(...site.center), bound = site.extentM / R * 1.3 + 0.012
+    e.fp = Math.max(e.fp, site.extentM / R)
+    const place = (mesh: THREE.Mesh, g: THREE.BufferGeometry) => {
+      g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), bound)
+      mesh.position.copy(c); mesh.matrixAutoUpdate = false; mesh.updateMatrix()
+      this.scene.add(mesh); meshes.push(mesh)
+    }
+    const dc = site.decal
+    if (dc) {
+      const g = new THREE.BufferGeometry()
+      g.setAttribute('position', new THREE.BufferAttribute(dc.pos, 3)); g.setAttribute('up', new THREE.BufferAttribute(dc.up, 3))
+      g.setAttribute('h', new THREE.BufferAttribute(dc.h, 1)); g.setAttribute('grad', new THREE.BufferAttribute(dc.grad, 3)); g.setAttribute('color', new THREE.BufferAttribute(dc.col, 3))
+      g.setIndex(new THREE.BufferAttribute(dc.index, 1))
+      place(new THREE.Mesh(g, this.material), g)
+    }
+    for (const { kind, data } of site.sets) {
+      const u = buildMesh(kind as BuildKind), g = new THREE.InstancedBufferGeometry(), buf = new THREE.InstancedInterleavedBuffer(data, SETTLE_STRIDE)
+      g.setAttribute('position', new THREE.BufferAttribute(u.pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(u.col, 3)); g.setAttribute('fix', new THREE.BufferAttribute(u.fix, 1))
+      g.setIndex(new THREE.BufferAttribute(u.idx, 1))
+      g.setAttribute('iPos', new THREE.InterleavedBufferAttribute(buf, 3, 0)); g.setAttribute('iUp', new THREE.InterleavedBufferAttribute(buf, 3, 3))
+      g.setAttribute('iA', new THREE.InterleavedBufferAttribute(buf, 3, 6)); g.setAttribute('iP', new THREE.InterleavedBufferAttribute(buf, 1, 9))
+      g.setAttribute('iCol', new THREE.InterleavedBufferAttribute(buf, 3, 10)); g.setAttribute('iCol2', new THREE.InterleavedBufferAttribute(buf, 3, 13))
+      g.instanceCount = data.length / SETTLE_STRIDE
+      place(new THREE.Mesh(g, this.settleMat), g)
+    }
+  }
+  /** Build sites the camera is near, drop far ones, and hide a site's map marker while its buildings are showing. */
+  private updateSites() {
+    const cam = this.camera.position
+    for (const [id, e] of this.sites) {
+      const dist = cam.distanceTo(e.d) / Math.max(e.fp, 1e-7)
+      if (!e.meshes && !e.pending && dist < SITE_BUILD) { e.pending = true; this.siteQueue.push(id) }
+      else if (e.meshes && dist > SITE_DROP) { this.dropSite(e); this.dirty = true }
+      const m = this.markers.get(id), hide = e.meshes?.length && dist < SITE_MARK ? 1 : 0
+      if (m && m.attr.array[m.i] !== hide) { m.attr.array[m.i] = hide; m.attr.needsUpdate = true }
+    }
+  }
 
   // Rivers and layers as draped lines/points/fills, so they read from orbit where carved channels are sub-pixel.
   private overlays: THREE.Object3D[] = []
@@ -263,7 +374,7 @@ export class Globe {
     for (const o of list.splice(0) as THREE.Mesh[]) { this.scene.remove(o); o.geometry.dispose(); (o.material as THREE.Material).dispose() }
   }
   private buildOverlays() {
-    this.clearOverlays(this.overlays)
+    this.clearOverlays(this.overlays); this.markers.clear()
     this.hiKey = ''; this.clearOverlays(this.hi)
     const p = this.planet!, w = this.world!, add = this.addOverlay.bind(this, this.overlays)
     const wide = (w.ops ?? []).flatMap((op) => {
@@ -286,8 +397,14 @@ export class Globe {
       const lines = l.items.flatMap((it) => (it.path ? [it.path] : it.area ? [[...it.area, it.area[0]]] : []))
       if (lines.length) add(this.ribbon(lines, col, a * 0.9, 2.4), 3)
       const pts = l.items.filter((it) => it.at)
-      if (pts.length) add(new THREE.Points(this.drapeGeom(pts.map((it) => it.at!), pts.map(pointSize)), drapeMat(col, a, true)), 5)
+      if (pts.length) {
+        const g = this.drapeGeom(pts.map((it) => it.at!), pts.map(pointSize)), hide = new THREE.Float32BufferAttribute(new Float32Array(pts.length), 1)
+        g.setAttribute('hide', hide)
+        pts.forEach((it, i) => this.markers.set(`${l.id}/${it.id}`, { attr: hide, i }))
+        add(new THREE.Points(g, drapeMat(col, a, true)), 5)
+      }
     }
+    this.syncSites()
     this.dirty = true
   }
 
@@ -334,7 +451,8 @@ export class Globe {
     c.removeEventListener('dblclick', this.dbl); c.removeEventListener('contextmenu', this.noMenu); c.removeEventListener('keydown', this.key)
     this.clearOverlays(this.overlays); this.clearOverlays(this.hi)
     this.labelCv.remove()
-    this.material.dispose(); this.propMat.dispose(); this.renderer.dispose()
+    for (const e of this.sites.values()) this.dropSite(e)
+    this.material.dispose(); this.propMat.dispose(); this.settleMat.dispose(); this.renderer.dispose()
   }
 
   // ---------- tiles ----------
@@ -363,7 +481,8 @@ export class Globe {
     t.pending = true
     this.queue.push(t)
   }
-  private receive(m: { key: string; gen: number; t: TileData }) {
+  private receive(m: { key: string; gen: number; t: TileData; site?: SettleData }) {
+    if (m.key.startsWith('site:')) return this.receiveSite(m)
     const t = this.tiles.get(m.key)
     if (m.gen !== this.gen || !t) return
     t.pending = false
@@ -435,16 +554,21 @@ export class Globe {
     // dispatch: coarse and near first; forget requests nobody needs any more
     this.queue = this.queue.filter((t) => { if (t.used >= this.frame - 1) return true; t.pending = false; return false })
     this.queue.sort((a, b) => a.level - b.level || cam.distanceTo(a.center) - cam.distanceTo(b.center))
+    this.updateSites()
+    while (this.idle.length && this.siteQueue.length) {
+      const id = this.siteQueue.shift()!, e = this.sites.get(id)
+      if (e) this.idle.pop()!.postMessage({ world: this.spec, item: JSON.parse(JSON.stringify(e.item)), key: `site:${id}`, gen: this.gen })
+    }
     while (this.idle.length && this.queue.length) {
       const t = this.queue.shift()!
-      this.idle.pop()!.postMessage({ world: this.spec, face: t.face, level: t.level, x: t.x, y: t.y, key: t.key, gen: this.gen, light: this.light })
+      this.idle.pop()!.postMessage({ world: this.spec, face: t.face, level: t.level, x: t.x, y: t.y, key: t.key, gen: this.gen, light: this.light, clear: this.clear })
     }
     // evict least recently used meshes beyond the cap; level 0 stays
     if (this.tiles.size > this.maxTiles) {
       const old = [...this.tiles.values()].filter((t) => t.level > 0 && t.used < this.frame - 2 && !t.pending).sort((a, b) => a.used - b.used)
       for (const t of old.slice(0, this.tiles.size - this.maxTiles)) { this.drop(t); this.tiles.delete(t.key) }
     }
-    if (this.queue.length || this.idle.length < this.workers.length) this.dirty = true
+    if (this.queue.length || this.siteQueue.length || this.idle.length < this.workers.length) this.dirty = true
   }
 
   // ---------- camera ----------

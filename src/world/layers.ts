@@ -4,6 +4,7 @@ import { angle, areaKm2, dirOf, inPolygon, makePath, pathDist, type LatLon } fro
 import type { Calendar } from '../calendar.ts'
 import { dayOf, type TDate } from '../timelineScale.ts'
 import { OP_SPECS, type Op } from './ops.ts'
+import { footprintKm, markerPx, siteOf, SITE_IDS } from './sites.ts'
 
 export interface LayerItem {
   id: string; name?: string; note?: string; wikiId?: string
@@ -15,6 +16,7 @@ export interface Layer { id: string; name: string; kind: LayerKind; color?: stri
 
 export const LAYER_KINDS = {
   cities: { label: 'Cities & towns', geom: 'at', color: '#ffd166', example: { id: 'c1', name: 'Port Varra', at: [37.2, 12.5], props: { type: 'capital', population: 80000 } } },
+  structures: { label: 'Structures & sites', geom: 'any', color: '#f2cc8f', example: { id: 's1', name: 'Hollow Farm', at: [36.1, 14.2], props: { type: 'farm' } } },
   regions: { label: 'Regions & nations', geom: 'area', color: '#e07a5f', example: { id: 'r1', name: 'Kingdom of Ash', area: [[42, 8], [42, 20], [34, 22], [33, 9]] } },
   borders: { label: 'Borders', geom: 'path', color: '#f4f1de', example: { id: 'b1', name: 'Ash-Varra border', path: [[40, 14], [36, 16]] } },
   religions: { label: 'Religions', geom: 'area', color: '#9b5de5', example: { id: 'g1', name: 'Faith of the Ember', area: [[40, 10], [40, 25], [30, 25], [30, 10]] } },
@@ -22,9 +24,11 @@ export const LAYER_KINDS = {
   custom: { label: 'Custom', geom: 'any', color: '#4cc9f0', example: { id: 'x1', name: 'Battle of the Ford', at: [36, 15] } },
 } as const
 export type LayerKind = keyof typeof LAYER_KINDS
+/** Layers the globe page builds on the fly from the story (places, route, party, ruler); never saved, and never drawn as settlements. */
+export const DERIVED_LAYERS = new Set(['story', 'route', 'party', 'measure'])
 export const layerColor = (l: Layer) => l.color ?? LAYER_KINDS[l.kind]?.color ?? '#ffffff'
-/** Point marker size in px from props.type. */
-export const pointSize = (it: LayerItem) => ({ capital: 10, city: 8, town: 6, village: 5 } as Record<string, number>)[String(it.props?.type ?? '')] ?? 7
+/** Point marker size in px: settlements grow with population, other sites by type. */
+export const pointSize = (it: LayerItem) => Math.round(markerPx(it) * 0.65) || 7
 
 const isLL = (v: unknown): v is LatLon => Array.isArray(v) && v.length === 2 && v.every((n) => typeof n === 'number' && Number.isFinite(n)) && Math.abs(v[0]) <= 90 && Math.abs(v[1]) <= 180
 const ITEM_KEYS = new Set(['id', 'name', 'note', 'wikiId', 'at', 'path', 'area', 'props', 'from', 'to'])
@@ -67,6 +71,8 @@ export function validateLayers(layers: unknown, ids: Set<string>, errors: string
       for (const k of ['from', 'to'] as const) if (it[k] !== undefined && !isTDate(it[k])) errors.push(`${iat}: ${k} must be a date like { "y": 412, "m": 3, "d": 9 } (m, d optional)`)
       if (spec && spec.geom !== 'any' && spec.geom !== g) warnings.push(`${iat}: ${l.kind} layers usually use ${spec.geom}, not ${g}`)
       if (!it.name) warnings.push(`${iat}: has no name`)
+      const ty = it.props?.type
+      if ((l.kind === 'cities' || l.kind === 'structures') && !siteOf(it)) warnings.push(`${iat}: props.type ${ty === undefined ? 'is missing' : `"${ty}" is not a known site type`} (use ${SITE_IDS.join(', ')}); it will show as a plain marker`)
     })
   })
 }
@@ -92,7 +98,7 @@ export function features(world: { ops?: Op[]; layers?: Layer[] }): Feature[] {
   }
   for (const layer of world.layers ?? []) {
     if (layer.hidden) continue
-    for (const item of layer.items) out.push({ ref: { layerId: layer.id, itemId: item.id }, name: item.name, note: item.note, wikiId: item.wikiId, type: layer.name || LAYER_KINDS[layer.kind]?.label, at: item.at, path: item.path, area: item.area, layer, item })
+    for (const item of layer.items) out.push({ ref: { layerId: layer.id, itemId: item.id }, name: item.name, note: item.note, wikiId: item.wikiId, type: layer.name || LAYER_KINDS[layer.kind]?.label, at: item.at, path: item.path, area: item.area, radius: item.at && siteOf(item) ? footprintKm(item) : undefined, layer, item })
   }
   return out
 }
@@ -131,7 +137,7 @@ export function outline(f: Feature, radiusKm: number, ptKm: number, course?: (op
   if (f.op?.kind === 'river' && course) return [course(f.op)]
   if (f.path) return [f.path]
   if (f.area) return [[...f.area, f.area[0]]]
-  return [circle(f.at!, f.radius ?? ptKm, radiusKm)]
+  return [circle(f.at!, Math.max(f.radius ?? 0, ptKm), radiusKm)]
 }
 
 /** Short facts for the popup: size plus the feature's numbers. */

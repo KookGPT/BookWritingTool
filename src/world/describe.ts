@@ -3,6 +3,8 @@
 import { angle, dirOf, inPolygon, makePath, pathDist, toDir, type LatLon } from './geo.ts'
 import { OP_KINDS, OP_SPECS, opCenter, type Op } from './ops.ts'
 import { TERRAINS, TERRAIN_IDS } from './terrains.ts'
+import { siteIssues, terrainIssues } from './fit.ts'
+import { SITE_TYPES } from './sites.ts'
 import { LAYER_KINDS, validateLayers } from './layers.ts'
 import { DEFAULT_PARAMS, makePlanet, type Planet, type World } from './terrain.ts'
 
@@ -164,6 +166,9 @@ export function validate(world: World): Problems {
 
   // geography: rivers should start high, follow low ground (not carve huge gorges) and end at water
   const planet = makePlanet(world), km = P.radiusKm
+  // natural placement: terrain where its climate allows, settlements on sensible ground (see `fit` and `sites` in the CLI)
+  for (const op of ops) for (const w of terrainIssues(planet, op)) warnings.push(`${op.kind} "${op.name ?? op.id}": ${w}`)
+  for (const l of world.layers ?? []) for (const it of l.items) for (const w of siteIssues(planet, it)) warnings.push(`${l.name} / "${it.name ?? it.id}" (${it.props?.type}): ${w}`)
   for (const op of ops) {
     if (op.kind !== 'river') continue
     const name = `river "${op.name ?? op.id}"`
@@ -212,7 +217,7 @@ You are editing a fantasy planet for a novel. The planet is generated from \`see
 ${ops}
 
 ## Terrain
-The ground type decides colour, trees and other props on the 3D globe and the symbols on the flat map. Climate picks one automatically (forest, grassland, desert, taiga, jungle, tundra...); paint any of them anywhere with \`terrain\` (circle) or \`zone\` (polygon) ops, which win over climate. Painted dunes, badlands, crystal and lava also reshape the ground.
+The ground type decides colour, trees and other props on the 3D globe and the symbols on the flat map. Climate picks one automatically (forest, grassland, desert, taiga, jungle, tundra...); paint any of them anywhere with \`terrain\` (an irregular ellipse; set \`aspect\`/\`angle\` to stretch it along a coast, valley or range) or \`zone\` (polygon) ops, which win over climate. Painted patches fade through their \`fringe\` terrain (forest, then woodland, then grass), never a hard line. Painted dunes, badlands, crystal and lava also reshape the ground.
 ${TERRAIN_IDS.map((id) => `\`${id}\` ${TERRAINS[id].label}${TERRAINS[id].shape ? ` (${TERRAINS[id].shape})` : ''}${TERRAINS[id].paint ? ' [paint only]' : ''}`).join(', ')}.
 - Exaggerate on purpose: the world is a demonstration, not to scale. Ranges of 8000-14000 m, rivers 5-15 km wide, and spires/terrain patches make features pop.
 
@@ -225,6 +230,21 @@ Overlays that never change the ground: \`layers: [{ id, name, kind, color?, opac
 - e.g. ${Object.entries(LAYER_KINDS).slice(0, 3).map(([k, s]) => `\`${JSON.stringify({ id: k, name: s.label, kind: k, items: [s.example] })}\``).join(' ')}
 - Put cities on coasts, rivers and passes; draw borders along ranges and rivers; roads link cities through low ground.
 
+## Settlements and structures (3D buildings, flat-map icons)
+Items in a \`cities\` or \`structures\` layer with \`props.type\` become real places: streets, walls, fields and buildings are generated on the globe when you zoom in, in a style that follows the terrain (timber, adobe, northern, tropical stilts, stone, marsh, crystal, ash, bone, fungal; override with \`props.style\`). \`props.population\` sets a settlement's size (footprint grows with its square root), so one \`at\` point can be a hamlet or a megacity.
+${Object.entries(SITE_TYPES).map(([id, t]) => `- \`${id}\`${t.cls === 'settlement' ? ` (default pop ${t.pop})` : ''}: ${t.desc}${t.needs.length ? ` Needs: ${t.needs.join(', ')}.` : ''}`).join('\n')}
+- tiers by population: hamlet < 150, village < 1,500, town < 12,000, city < 120,000, metropolis < 1.2 M, megacity above. Metropolises and megacities need the sea or a great river (6+ km wide) beside them.
+- \`props.walled\`: 0/1 to force walls off/on; \`props.style\`: building style; bridges: \`props.style\` stone | wood | rope | aqueduct | draw, \`at\` on the river (it snaps to the course and spans it at right angles) or a \`path\` from bank to bank.
+- \`props\` can add facts (\`ruler\`, \`founded\`...) freely; only \`type\`, \`population\`, \`style\`, \`walled\`, \`length\` change how it looks.
+
+## Natural placement (the world must make geographic sense)
+Never drop a feature somewhere arbitrary. \`validate\` warns about all of these; fix every warning unless it is deliberate magic.
+- Terrain follows climate: dune seas in hot dry land (moisture under 0.4), jungle where it is hot and wet, redwood forest in mild rainy lowlands, moors in cool wet uplands, salt flats in dry basins, badlands in rain shadows, swamps in low wet ground and river deltas. Check with \`query\`; find fitting spots with \`fit <world.json> terrain <id>\`.
+- Fantasy terrain needs a reason: lava and ash around a volcano (ash drifts downwind: stretch it with \`aspect\`/\`angle\`), crystal or fungal woods in a valley or basin, a blight spreading from a source. Ring it with its fringe terrain; never leave a lone patch in unrelated ground.
+- Shapes are never circles: elongate patches along coasts, valleys, ranges and wind; use \`zone\` with 6+ uneven vertices for forests and deserts. Edges blend, they don't cut.
+- Settlements go where people would live: towns and cities by water (river, lake or coast) on flat land; ports exactly on the shore; villages near water on gentle ground; farms and windmills on open fertile land; mines in hills; castles and forts on high ground, passes or river crossings; lighthouses on headlands; bridges where a road meets a river. Use \`fit <world.json> site <type>\` to find valid spots and \`sites <world.json>\` to check what you have.
+- Keep scale honest: big cities on great rivers and coasts, hamlets everywhere, a handful of cities per continent.
+
 ## Doing it well
 - Look before you build: \`describe\` the world and \`query\` points to find coasts, highlands and climate.
 - Make geography plausible: ranges along coasts or between landmasses, rivers from highlands to the sea along low ground, lakes in basins, deserts around 15–35° latitude or in rain shadows, archipelagos off coasts.
@@ -236,6 +256,8 @@ Overlays that never change the ground: \`layers: [{ id, name, kind, color?, opac
 - \`node scripts/world.ts query <world.json> <lat> <lon>\` elevation, biome, climate, nearby features
 - \`node scripts/world.ts validate <world.json>\` schema + geography checks
 - \`node scripts/world.ts preview <world.json> [out.png] [--region N,S,W,E]\` map render with features marked; zoom in with --region
+- \`node scripts/world.ts fit <world.json> terrain|site <id> [--region N,S,W,E] [--step 4]\` where a terrain or site type makes sense
+- \`node scripts/world.ts sites <world.json>\` every settlement and structure with its size and any siting problems
 - \`node scripts/world.ts add <world.json> '<op json>'\` append an op (id generated if missing)
 
 ## Where the file lives

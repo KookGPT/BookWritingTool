@@ -175,3 +175,66 @@ console.log('world: all checks passed')
   const demo = JSON.parse(readFileSync(new URL('../examples/terrain-showcase.json', import.meta.url), 'utf8')) as World
   assert.deepEqual(validate(demo).errors, [])
 }
+
+// ---------- settlements, structures and natural placement ----------
+{
+  const { layoutSite } = await import('../src/world/layout.ts')
+  const { buildSite } = await import('../src/world/settle.ts')
+  const { PALETTES, SITE_TYPES, footprintKm, siteOf, tierOf } = await import('../src/world/sites.ts')
+  const { BUILD_KINDS } = await import('../src/world/buildings.ts')
+  const { siteIssues, terrainIssues, snapToCoast } = await import('../src/world/fit.ts')
+  const { readFileSync } = await import('node:fs')
+
+  // a settlement is deterministic, grows with population, stays dry and on its footprint
+  const flat = { h: () => 10, wet: (x: number) => x > 400, slope: () => 0.02, arable: () => true }
+  const spec = (type: string, pop: number) => ({ id: `s-${type}`, type, cls: 'settlement' as const, pop, style: 'timber' as const, r: footprintKm({ props: { type, population: pop } }) * 1000 })
+  const sizes = [60, 500, 5000, 40000, 300000].map((pop) => layoutSite(spec('town', pop), flat).blds.length)
+  assert.deepEqual(sizes, [...sizes].sort((p, q) => p - q), `more people, more buildings (${sizes})`)
+  assert.ok(sizes[4] > sizes[0] * 20, 'a metropolis dwarfs a hamlet')
+  const L1 = layoutSite(spec('city', 40000), flat), L2 = layoutSite(spec('city', 40000), flat)
+  assert.deepEqual(L1.blds.slice(0, 50), L2.blds.slice(0, 50), 'same item, same ground, same city')
+  assert.ok(L1.blds.every((b) => b.x <= 400 || b.k === 'dock' || b.k === 'ship'), 'nothing is built on the water')
+  assert.ok(L1.blds.every((b) => BUILD_KINDS.includes(b.k as never) || ['oak', 'bush', 'boulder'].includes(b.k)), 'every building has a model')
+  assert.equal(tierOf(60) < tierOf(3_000_000), true)
+  assert.ok(Object.keys(PALETTES).length >= 10 && Object.keys(SITE_TYPES).length >= 21)
+
+  // bridges: units chain across the whole span and keep one deck height
+  const br = layoutSite({ id: 'b', type: 'bridge', cls: 'bridge', pop: 0, style: 'timber', r: 100, bridge: { len: 900, dir: 0.5, kind: 'stone' } }, { ...flat, wet: () => true })
+  const span = br.blds.reduce((s, b) => s + b.s, 0)
+  assert.ok(Math.abs(span - 900) < 5, `arches add up to the span (${span})`)
+  assert.equal(new Set(br.blds.map((b) => b.h)).size, 1, 'one deck height')
+
+  // on a real planet: a site's instances are well formed, dry and deterministic
+  const demo = JSON.parse(readFileSync(new URL('../examples/terrain-showcase.json', import.meta.url), 'utf8')) as World
+  const dp = makePlanet(demo)
+  const items = demo.layers!.flatMap((l) => l.items).filter((it) => siteOf(it))
+  assert.ok(items.length >= 25, 'the demo world has settlements and structures')
+  assert.ok(new Set(items.map((it) => siteOf(it)!.id)).size >= 14, 'in a wide variety')
+  for (const id of ['c-bone', 'c-highwater', 's-castle', 's-hollow', 'b-aldur2']) {
+    const it = items.find((i) => i.id === id)!, s1 = buildSite(dp, it)!, s2 = buildSite(dp, it)!
+    assert.ok(s1.count > 3 && s1.sets.length > 0, `${id} has buildings`)
+    assert.deepEqual(Array.from(s1.sets[0].data.slice(0, 32)), Array.from(s2.sets[0].data.slice(0, 32)), `${id} is deterministic`)
+    assert.ok(s1.sets.every((s) => s.data.length % 16 === 0 && s.data.every((v) => Number.isFinite(v))), `${id} instance data is finite`)
+  }
+
+  // natural placement: the demo world sits where its climate and ground allow, and the checks catch the opposite
+  assert.deepEqual(items.flatMap((it) => siteIssues(dp, it)), [], 'no demo site is badly placed')
+  assert.deepEqual(demo.ops!.flatMap((op) => terrainIssues(dp, op)), [], 'no demo terrain sits in the wrong climate')
+  const inland = demo.layers!.flatMap((l) => l.items).find((i) => i.id === 'c-highwater')!
+  assert.ok(siteIssues(dp, { ...inland, props: { type: 'port' } }).some((m) => m.includes('coast')), 'an inland port is flagged')
+  const wet = demo.ops!.find((o) => o.id === 't-jungle') as Extract<NonNullable<World['ops']>[number], { kind: 'terrain' }>
+  const dry: World = { ...demo, ops: [...demo.ops!, { ...wet, id: 'x-dunes', terrain: 'dunes', name: 'Wet Dunes' }] }
+  assert.ok(terrainIssues(makePlanet(dry), dry.ops!.at(-1)!).some((m) => m.includes('wetter')), 'dunes in the jungle are flagged')
+  const shore = snapToCoast(dp, items.find((i) => i.id === 'c-aldur')!.at!, 120)
+  assert.ok(shore && !siteIssues(dp, { id: 'p', at: shore, props: { type: 'port' } }).some((m) => m.includes('coast')), 'a port snapped to the coast is on the coast')
+
+  // terrain patches are never circles: the radius to the edge varies a lot around the rim
+  const pp = makePlanet({ ...w('natural'), ops: [{ id: 'blob', kind: 'terrain', terrain: 'dunes', at: [10, 10], radius: 300 }] })
+  const radii = Array.from({ length: 24 }, (_, i) => {
+    const a = i / 24 * Math.PI * 2
+    let r = 20
+    for (; r < 900; r += 10) { const [x, y, z] = toDir(10 + Math.cos(a) * r / 111.2, 10 + Math.sin(a) * r / 111.2 / Math.cos(10 * Math.PI / 180)); if (pp.ops.find((c) => c.paint)!.paint!([x, y, z]) < 0.5) break }
+    return r
+  })
+  assert.ok(Math.max(...radii) / Math.min(...radii) > 1.5, `a terrain patch is not round (${Math.min(...radii)}..${Math.max(...radii)} km)`)
+}

@@ -9,8 +9,9 @@ import { arc, legs as routeLegs, partyAt, type Stop } from './story'
 import { Globe, type Hover } from './globe'
 import { brief, fmtLL, validate } from './describe'
 import { distKm } from './geo'
-import { activeAt, findFeature, type Feature, LAYER_KINDS, layerColor, refKey, stats, type FeatureRef, type Layer, type LayerKind } from './layers'
+import { activeAt, DERIVED_LAYERS, findFeature, type Feature, LAYER_KINDS, layerColor, refKey, stats, type FeatureRef, type Layer, type LayerKind } from './layers'
 import { OP_SPECS, opCenter, type Op } from './ops'
+import { siteOf } from './sites'
 import { DEFAULT_PARAMS, type World, type WorldParams } from './terrain'
 import { MAP_STYLES, PROJECTIONS, type MapStyle, type ProjName } from './flat'
 import FlatMap, { type FlatApi } from './FlatMap'
@@ -25,7 +26,7 @@ const SLIDERS: [keyof WorldParams, string, number, number, number, (v: number) =
 ]
 
 const STORY = 'story' // id of the derived layer of placed wiki entries
-const DERIVED = new Set([STORY, 'route', 'party', 'measure']) // layers built on the fly from the story; never saved
+const DERIVED = DERIVED_LAYERS // layers built on the fly from the story; never saved
 const newSeed = () => Math.random().toString(36).slice(2, 8)
 const fmtLat = (v: number) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? 'N' : 'S'}`
 const fmtLon = (v: number) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? 'E' : 'W'}`
@@ -176,7 +177,8 @@ export default function WorldPage() {
     const pts = f.at ? [f.at] : f.path ?? f.area ?? []
     const c: [number, number] = f.at ?? (f.op ? opCenter(f.op) : f.area ? [f.area.reduce((a, q) => a + q[0], 0) / f.area.length, f.area.reduce((a, q) => a + q[1], 0) / f.area.length] : pts[Math.floor(pts.length / 2)])
     const ext = Math.max(f.radius ?? 0, ...pts.map((q) => distKm(q, c, p.radiusKm)))
-    globe.current?.flyTo(c[0], c[1], Math.min(1.2, Math.max(0.02, ext * 2.8 / p.radiusKm)), 55 * Math.PI / 180)
+    const site = !!f.item && !!siteOf(f.item) // settlements and structures are small: come close enough to see their buildings
+    globe.current?.flyTo(c[0], c[1], Math.min(1.2, Math.max(site ? 0.00003 : 0.02, ext * (site ? 2.2 : 2.8) / p.radiusKm)), (site ? 62 : 55) * Math.PI / 180)
   }
   const slug = (world?.name ?? '').replace(/[^\w-]+/g, '-').toLowerCase() || 'world'
   const download = (name: string, text: string, type: string) => {
