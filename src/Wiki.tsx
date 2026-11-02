@@ -6,6 +6,7 @@ import LinkedText, { hasLinks } from './LinkedText'
 import { allTypes, mentionsEntry, namesOf, plain, uid, useBook, type WikiEntry } from './store'
 
 const MiniGlobe = lazy(() => import('./world/MiniGlobe'))
+const GLOBE = false // the Globe page is hidden on request; set true to bring back 'Place it on the globe'
 
 function Entry({ entry }: { entry: WikiEntry }) {
   const { book, update } = useBook()
@@ -89,7 +90,7 @@ function Entry({ entry }: { entry: WikiEntry }) {
           <input aria-label="New alias" placeholder="Add alias, Enter" value={alias} onChange={(e) => setAlias(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addAlias()} />
         </div>
       </div>
-      {entry.type === 'location' && (
+      {GLOBE && entry.type === 'location' && (
         <div>
           <small className="muted">ON THE GLOBE</small>
           <div className="row" style={{ alignItems: 'center' }}>

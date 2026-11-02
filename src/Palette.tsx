@@ -27,7 +27,6 @@ export default function Palette({ onClose }: { onClose: () => void }) {
     ...book.wiki.map((w) => ({ label: `${w.type}: ${w.name}`, run: () => nav(`/wiki/${w.id}`) })),
     ...book.scenes.map((s) => ({ label: `Scene: ${s.title}`, run: () => nav('/scenes') })),
     ...book.events.map((e) => ({ label: `Event: ${e.title}`, run: () => nav(`/timeline?e=${e.id}`) })),
-    ...book.maps.map((m) => ({ label: `Map: ${m.name}`, run: () => nav('/map') })),
   ]
   const words = q.toLowerCase().split(/\s+/).filter(Boolean)
   const shown = items.filter((i) => words.every((w) => i.label.toLowerCase().includes(w))).slice(0, 12)

@@ -4,7 +4,6 @@ import CalendarPage from './CalendarPage'
 import Icon, { type IconName } from './Icon'
 import Ideas from './Ideas'
 import Insights from './Insights'
-import MapView from './MapView'
 import Palette from './Palette'
 import Manuscript from './Manuscript'
 import Search from './Search'
@@ -17,13 +16,13 @@ import Write from './Write'
 import { useBook } from './store'
 import { loadSettings, runSync, useSyncStatus } from './sync'
 
-const WorldPage = lazy(() => import('./world/WorldPage')) // three.js stays out of the main bundle
+// The Globe (src/world/) and the old image maps (MapView.tsx) are hidden on request; their code is kept. Their addresses open the map.
 const MapTestPage = lazy(() => import('./flatworld/MapTestPage'))
 
 const NAV: { label: string; items: [path: string, name: string, icon: IconName][] }[] = [
   { label: 'Write', items: [['write', 'Write', 'pen'], ['manuscript', 'Manuscript', 'book']] },
   { label: 'Plan', items: [['timeline', 'Timeline', 'timeline'], ['scenes', 'Scenes', 'list'], ['calendar', 'Calendar', 'calendar'], ['ideas', 'Ideas', 'idea']] },
-  { label: 'World', items: [['wiki', 'Wiki', 'wiki'], ['globe', 'Globe', 'globe'], ['map-test', 'New Map Test', 'mountain'], ['map', 'Maps', 'map']] },
+  { label: 'World', items: [['wiki', 'Wiki', 'wiki'], ['map-test', 'New Map Test', 'mountain']] },
   { label: 'Review', items: [['insights', 'Insights', 'insights'], ['search', 'Search', 'search']] },
 ]
 
@@ -129,9 +128,9 @@ export default function App() {
           <Route path="/ideas" element={<Ideas />} />
           <Route path="/timeline" element={<TimelinePage />} />
           <Route path="/scenes" element={<Scenes />} />
-          <Route path="/globe" element={<Suspense fallback={null}><WorldPage /></Suspense>} />
+          <Route path="/globe" element={<Navigate to="/map-test" replace />} />
           <Route path="/map-test" element={<Suspense fallback={null}><MapTestPage /></Suspense>} />
-          <Route path="/map" element={<MapView />} />
+          <Route path="/map" element={<Navigate to="/map-test" replace />} />
           <Route path="/insights" element={<Insights />} />
           <Route path="/search" element={<Search />} />
           <Route path="/trash" element={<Trash />} />
