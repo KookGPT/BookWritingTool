@@ -8,6 +8,8 @@ import { tileAngle, tileCenter, tileIndex, type TileData } from './tile.ts'
 const MAX_LEVEL = 15
 const SPLIT = 5 // split a tile when the camera is closer than SPLIT * its angular size (~3px quads at the switch)
 const MAX_TILES = 900
+/** Phones and the mini-globe: fewer tiles and workers, coarser detail, lower pixel ratio. */
+export const lightMode = () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse), (max-width: 700px)').matches
 const DEG = Math.PI / 180
 
 interface Tile { key: string; face: number; level: number; x: number; y: number; center: THREE.Vector3; mesh?: THREE.Mesh; pending: boolean; used: number }
@@ -70,10 +72,15 @@ export class Globe {
   private ro: ResizeObserver
   private canvas: HTMLCanvasElement
 
-  constructor(canvas: HTMLCanvasElement) {
+  private maxTiles: number
+  private split: number
+
+  constructor(canvas: HTMLCanvasElement, light = lightMode()) {
     this.canvas = canvas
+    this.maxTiles = light ? MAX_TILES / 3 : MAX_TILES
+    this.split = light ? SPLIT * 0.7 : SPLIT
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true })
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, light ? 1.5 : 2))
     this.scene.background = this.space.clone()
 
     this.material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.93, metalness: 0 })
@@ -109,7 +116,7 @@ export class Globe {
     this.stars.frustumCulled = false
     this.scene.add(this.stars)
 
-    const n = clamp((navigator.hardwareConcurrency || 4) - 1, 1, 4)
+    const n = clamp((navigator.hardwareConcurrency || 4) - 1, 1, light ? 2 : 4)
     for (let i = 0; i < n; i++) {
       const w = new Worker(new URL('./terrain.worker.ts', import.meta.url), { type: 'module' })
       w.onmessage = (e) => { this.idle.push(w); this.receive(e.data) }
@@ -305,7 +312,7 @@ export class Globe {
       t.used = this.frame
       if (this.hidden(t, v)) return
       if (!t.mesh) { this.want(t); return }
-      if (t.level < MAX_LEVEL && cam.distanceTo(t.center) < tileAngle(t.level) * SPLIT) {
+      if (t.level < MAX_LEVEL && cam.distanceTo(t.center) < tileAngle(t.level) * this.split) {
         const kids = this.kids(t)
         if (kids.every((k) => k.mesh || this.hidden(k, v))) { kids.forEach(visit); return }
         for (const k of kids) { k.used = this.frame; if (!this.hidden(k, v)) this.want(k) }
@@ -323,9 +330,9 @@ export class Globe {
       this.idle.pop()!.postMessage({ world: this.spec, face: t.face, level: t.level, x: t.x, y: t.y, key: t.key, gen: this.gen })
     }
     // evict least recently used meshes beyond the cap; level 0 stays
-    if (this.tiles.size > MAX_TILES) {
+    if (this.tiles.size > this.maxTiles) {
       const old = [...this.tiles.values()].filter((t) => t.level > 0 && t.used < this.frame - 2 && !t.pending).sort((a, b) => a.used - b.used)
-      for (const t of old.slice(0, this.tiles.size - MAX_TILES)) { this.drop(t); this.tiles.delete(t.key) }
+      for (const t of old.slice(0, this.tiles.size - this.maxTiles)) { this.drop(t); this.tiles.delete(t.key) }
     }
     if (this.queue.length || this.idle.length < this.workers.length) this.dirty = true
   }

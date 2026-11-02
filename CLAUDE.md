@@ -12,7 +12,7 @@ The user wants worlds built and edited mostly by Claude. A world is `seed + para
 - Always `node scripts/world.ts validate <file>` and fix errors; read warnings; preview the area you changed.
 - `node scripts/world.ts brief <file>` prints the full op reference.
 
-## Globe roadmap (approved plan; phases 1-5 done)
+## Globe roadmap (approved plan; all 6 phases done)
 
 Goal: a 3D, high-def, zoomable globe that is the book's world map, built and edited mostly by Claude (the user is not artsy, but names features), tied into wiki, timeline and scenes.
 
@@ -23,7 +23,8 @@ Goal: a 3D, high-def, zoomable globe that is the book's world map, built and edi
 - Done, Phase 5: `WikiEntry.place {worldId,lat,lon}`; wiki location pages have "Place it on the globe" (opens `/globe?pick=<id>`, next click sets the place) and a "Show on globe" chip (`/globe?w=&lat=&lon=`). Placed entries appear on the globe as a derived read-only "Story places" layer (id `story`, built in `WorldPage`, never saved), whose popup lists the timeline events and scenes set there. Creating a wiki page from a feature popup sets its place.
   Also: `story.ts` (pure: `arc`, `legs` with travel time at a km/day speed, `partyAt`). Globe page "Story" section: party route (great-circle legs between party events whose location entry is placed; legs needing more travel days than the story gives are flagged) and a time slider (item `from`/`to` dates on layers, `activeAt`; the party marker moves along the route by date). Ruler button measures distance (km and days at the chosen speed). Derived layers (`story`, `route`, `party`, `measure`, set `DERIVED` in `WorldPage`) are built per render and never saved. Wiki location pages show a lazy `MiniGlobe`.
   Not yet: scene locations as their own pins (they show in the Story places popup), mini-globe scroll-zoom steals page scroll, measure along terrain (it is great-circle only).
-- Phase 6: polish: keep or convert old image maps (`MapView.tsx`), per-op/per-item merge in `merge.ts` (worlds currently merge whole-file), mobile performance caps.
+- Done, Phase 6: `mergeWorld` in `merge.ts` three-way merges `worlds/*.json` per op, layer and layer item (fields I changed win, edits beat deletes, base fetched by sha, falls back to two-way). `lightMode()` in `globe.ts` (coarse pointer or narrow screen, and the mini-globe) caps tiles at a third, 2 workers, pixel ratio 1.5, coarser LOD; the flat map renders at 900 px instead of 1400. The old image maps (`MapView.tsx`) are kept on purpose: they are for hand-drawn or pasted images with pins, which the procedural globe doesn't replace; there is no converter.
+- Ideas beyond the plan: text labels on the globe, CLI command to add layer items, pan/zoom on the flat map, scene location pins, antimeridian-safe polygon fills.
 
 Gotchas:
 - The preview pane runs requestAnimationFrame only while visible; when hidden, frames advance only on screenshots, so take a few screenshots before judging tile loading.

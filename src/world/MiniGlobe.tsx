@@ -6,7 +6,7 @@ import type { World } from './terrain'
 export default function MiniGlobe({ world, lat, lon }: { world: World; lat: number; lon: number }) {
   const canvas = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
-    const g = new Globe(canvas.current!)
+    const g = new Globe(canvas.current!, true)
     g.setWorld({ ...world, layers: [...(world.layers ?? []), { id: 'story', name: '', kind: 'custom', color: '#ff6b9d', items: [{ id: 'here', at: [lat, lon] }] }] })
     g.flyTo(lat, lon, 0.4)
     return () => g.dispose()

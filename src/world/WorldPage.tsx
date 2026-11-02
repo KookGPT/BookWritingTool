@@ -6,7 +6,7 @@ import { calendarOf, uid, useBook } from '../store'
 import { fmt, fromOrdinal } from '../calendar'
 import { dayOf } from '../timelineScale'
 import { arc, legs as routeLegs, partyAt, type Stop } from './story'
-import { Globe, type Hover } from './globe'
+import { Globe, lightMode, type Hover } from './globe'
 import { brief, fmtLL, validate } from './describe'
 import { distKm } from './geo'
 import { activeAt, findFeature, LAYER_KINDS, layerColor, refKey, stats, type FeatureRef, type Layer, type LayerKind } from './layers'
@@ -136,7 +136,7 @@ export default function WorldPage() {
     const t = setTimeout(() => {
       const key = `${proj}|${groundSpec(world)}`
       let c = flatCache.current
-      if (c?.key !== key) { const planet = makePlanet(world), p = makeProj(proj, 1400); c = { key, planet, p, s: sampleFlat(planet, p) }; flatCache.current = c }
+      if (c?.key !== key) { const planet = makePlanet(world), p = makeProj(proj, lightMode() ? 900 : 1400); c = { key, planet, p, s: sampleFlat(planet, p) }; flatCache.current = c }
       const cv = flat.current!, ctx = cv.getContext('2d')!
       cv.width = c.p.w; cv.height = c.p.h
       const img = ctx.createImageData(c.p.w, c.p.h)
