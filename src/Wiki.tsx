@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { trashIt } from './history'
 import { shrink } from './image'
 import LinkedText, { hasLinks } from './LinkedText'
 import { allTypes, mentionsEntry, namesOf, plain, uid, useBook, type WikiEntry } from './store'
+
+const MiniGlobe = lazy(() => import('./world/MiniGlobe'))
 
 function Entry({ entry }: { entry: WikiEntry }) {
   const { book, update } = useBook()
@@ -18,6 +20,7 @@ function Entry({ entry }: { entry: WikiEntry }) {
   const inChapters = book.chapters.filter((c) => mentionsEntry(plain(c.body), entry))
   const inWiki = book.wiki.filter((w) => w.id !== entry.id && mentionsEntry(`${w.notes} ${Object.values(w.fields).join(' ')}`, entry))
   const onTimeline = book.events.filter((e) => e.wikiId === entry.id || e.locationId === entry.id)
+  const placeWorld = entry.place && book.worlds.find((w) => w.id === entry.place!.worldId)
   const links = entry.links ?? []
   const incoming = book.wiki.flatMap((w) => (w.links ?? []).filter((l) => l.to === entry.id).map((l) => ({ from: w, label: l.label })))
   const [target, setTarget] = useState('')
@@ -100,6 +103,7 @@ function Entry({ entry }: { entry: WikiEntry }) {
               ? <Link className="chip" to={`/globe?pick=${entry.id}&w=${entry.place?.worldId ?? book.worlds[0].id}`}>{entry.place ? 'Move it' : 'Place it on the globe'}</Link>
               : <small className="muted">Generate a world on the Globe page first.</small>}
           </div>
+          {placeWorld && <Suspense fallback={null}><MiniGlobe world={placeWorld} lat={entry.place!.lat} lon={entry.place!.lon} /></Suspense>}
         </div>
       )}
       {keys.map((k) => (

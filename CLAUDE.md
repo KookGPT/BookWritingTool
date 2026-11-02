@@ -12,7 +12,7 @@ The user wants worlds built and edited mostly by Claude. A world is `seed + para
 - Always `node scripts/world.ts validate <file>` and fix errors; read warnings; preview the area you changed.
 - `node scripts/world.ts brief <file>` prints the full op reference.
 
-## Globe roadmap (approved plan; phases 1-4 done)
+## Globe roadmap (approved plan; phases 1-5 done)
 
 Goal: a 3D, high-def, zoomable globe that is the book's world map, built and edited mostly by Claude (the user is not artsy, but names features), tied into wiki, timeline and scenes.
 
@@ -20,8 +20,9 @@ Goal: a 3D, high-def, zoomable globe that is the book's world map, built and edi
 - Done, Phase 2 (`9359f2f`): op language (`ops.ts`, `geo.ts`), describe/query/validate/brief (`describe.ts`), CLI `scripts/world.ts`, rivers drawn as lines, panel feature list + import/export + Copy AI brief.
 - Done, Phase 3: layers (`layers.ts`: `world.layers[]` of `{id,name,kind,color?,opacity?,hidden?,items}`, items have one of `at`/`path`/`area` plus `props`, `note`, `wikiId`; validated in `validate`, listed in `describe`/`brief`, drawn by CLI `preview`). Globe draws them as draped points/lines/fills (`buildOverlays`), hover highlights the nearest feature (`pickFeature`), click opens a popup (rename, note, stats, wiki link/create). Panel has layer eye/colour/opacity. Not yet: text labels on the globe, CLI command to add layer items (edit the JSON).
 - Done, Phase 4: flat map view (`flat.ts` pure projections equirect/Mercator/Robinson + atlas/terrain raster painter + contours, `flatDraw.ts` canvas overlays for rivers/layers/labels, Globe page "Flat map" toggle with PNG export). Sampling is cached per terrain+projection (`groundSpec`), so style/contour/label changes repaint fast. Not yet: pan/zoom on the flat map, CLI `--proj`, antimeridian-straddling polygon fills.
-- Phase 5, partly done: `WikiEntry.place {worldId,lat,lon}`; wiki location pages have "Place it on the globe" (opens `/globe?pick=<id>`, next click sets the place) and a "Show on globe" chip (`/globe?w=&lat=&lon=`). Placed entries appear on the globe as a derived read-only "Story places" layer (id `story`, built in `WorldPage`, never saved), whose popup lists the timeline events and scenes set there. Creating a wiki page from a feature popup sets its place.
-  Still to do: pins for timeline events/scenes on their own (they use their location entry's place today), mini-globe inset on wiki pages, time scrubber (reuse `timelineScale.ts`/`calendar.ts`), party route as a great-circle path with travel time, time-aware region layers, measure tool.
+- Done, Phase 5: `WikiEntry.place {worldId,lat,lon}`; wiki location pages have "Place it on the globe" (opens `/globe?pick=<id>`, next click sets the place) and a "Show on globe" chip (`/globe?w=&lat=&lon=`). Placed entries appear on the globe as a derived read-only "Story places" layer (id `story`, built in `WorldPage`, never saved), whose popup lists the timeline events and scenes set there. Creating a wiki page from a feature popup sets its place.
+  Also: `story.ts` (pure: `arc`, `legs` with travel time at a km/day speed, `partyAt`). Globe page "Story" section: party route (great-circle legs between party events whose location entry is placed; legs needing more travel days than the story gives are flagged) and a time slider (item `from`/`to` dates on layers, `activeAt`; the party marker moves along the route by date). Ruler button measures distance (km and days at the chosen speed). Derived layers (`story`, `route`, `party`, `measure`, set `DERIVED` in `WorldPage`) are built per render and never saved. Wiki location pages show a lazy `MiniGlobe`.
+  Not yet: scene locations as their own pins (they show in the Story places popup), mini-globe scroll-zoom steals page scroll, measure along terrain (it is great-circle only).
 - Phase 6: polish: keep or convert old image maps (`MapView.tsx`), per-op/per-item merge in `merge.ts` (worlds currently merge whole-file), mobile performance caps.
 
 Gotchas:

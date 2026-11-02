@@ -2,11 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../Icon'
 import { trashIt } from '../history'
-import { uid, useBook } from '../store'
+import { calendarOf, uid, useBook } from '../store'
+import { fmt, fromOrdinal } from '../calendar'
+import { dayOf } from '../timelineScale'
+import { arc, legs as routeLegs, partyAt, type Stop } from './story'
 import { Globe, type Hover } from './globe'
 import { brief, fmtLL, validate } from './describe'
 import { distKm } from './geo'
-import { findFeature, LAYER_KINDS, layerColor, refKey, stats, type FeatureRef, type Layer, type LayerKind } from './layers'
+import { activeAt, findFeature, LAYER_KINDS, layerColor, refKey, stats, type FeatureRef, type Layer, type LayerKind } from './layers'
 import { OP_SPECS, opCenter, type Op } from './ops'
 import { DEFAULT_PARAMS, groundSpec, makePlanet, type Planet, type World, type WorldParams } from './terrain'
 import { makeProj, paintFlat, PROJECTIONS, sampleFlat, type MapStyle, type Proj, type ProjName, type Samples } from './flat'
@@ -22,6 +25,7 @@ const SLIDERS: [keyof WorldParams, string, number, number, number, (v: number) =
 ]
 
 const STORY = 'story' // id of the derived layer of placed wiki entries
+const DERIVED = new Set([STORY, 'route', 'party', 'measure']) // layers built on the fly from the story; never saved
 const newSeed = () => Math.random().toString(36).slice(2, 8)
 const fmtLat = (v: number) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? 'N' : 'S'}`
 const fmtLon = (v: number) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? 'E' : 'W'}`
@@ -43,6 +47,13 @@ export default function WorldPage() {
   const pickRef = useRef(pick)
   pickRef.current = pick
   const [showStory, setShowStory] = useState(true)
+  const [route, setRoute] = useState(false)
+  const [kmPerDay, setKmPerDay] = useState(30)
+  const [timeOn, setTimeOn] = useState(false)
+  const [day, setDay] = useState<number>()
+  const [measure, setMeasure] = useState<[number, number][] | undefined>() // points while the ruler is active
+  const measureRef = useRef(measure)
+  measureRef.current = measure
   const [view, setView] = useState<'globe' | 'map'>('globe')
   const [proj, setProj] = useState<ProjName>('robinson')
   const [style, setStyle] = useState<MapStyle>('atlas')
@@ -52,12 +63,34 @@ export default function WorldPage() {
   const flat = useRef<HTMLCanvasElement>(null)
   const flatCache = useRef<{ key: string; planet: Planet; p: Proj; s: Samples }>(null)
   const placeEntry = useRef<(id: string, at: [number, number]) => void>(() => {})
-  // wiki entries placed on this world show up as a derived, read-only layer
+  // Derived, read-only layers: wiki places, the party's route, the party on the scrubbed day, the ruler.
+  const cal = calendarOf(book)
+  const radius = { ...DEFAULT_PARAMS, ...world?.params }.radiusKm
+  const stops = useMemo<Stop[]>(() => book.events.flatMap((e) => {
+    const at = e.kind === 'party' && e.locationId ? book.wiki.find((w) => w.id === e.locationId)?.place : undefined
+    return at && at.worldId === world?.id ? [{ id: e.id, title: e.title, at: [at.lat, at.lon] as [number, number], day: dayOf(cal, e.date) }] : []
+  }).sort((x, y) => x.day - y.day), [book.events, book.wiki, world?.id, cal])
+  const legList = useMemo(() => routeLegs(stops, radius, kmPerDay), [stops, radius, kmPerDay])
+  const range = useMemo<[number, number] | undefined>(() => {
+    const days = [...book.events.map((e) => dayOf(cal, e.date)), ...(world?.layers ?? []).flatMap((l) => l.items.flatMap((it) => [it.from, it.to].flatMap((t) => (t ? [dayOf(cal, t)] : []))))]
+    return days.length ? [Math.min(...days), Math.max(...days)] : undefined
+  }, [book.events, world?.layers, cal])
+  const now = timeOn && range ? Math.min(range[1], Math.max(range[0], day ?? range[0])) : undefined
   const gworld = useMemo(() => {
     if (!world) return undefined
-    const items = book.wiki.filter((w) => w.place?.worldId === world.id).map((w) => ({ id: w.id, name: w.name, at: [w.place!.lat, w.place!.lon] as [number, number], wikiId: w.id, props: { type: w.type } }))
-    return items.length ? { ...world, layers: [...(world.layers ?? []), { id: STORY, name: 'Story places', kind: 'custom' as const, color: '#ff6b9d', hidden: !showStory, items }] } : world
-  }, [world, book.wiki, showStory])
+    const placed = book.wiki.filter((w) => w.place?.worldId === world.id).map((w) => ({ id: w.id, name: w.name, at: [w.place!.lat, w.place!.lon] as [number, number], wikiId: w.id, props: { type: w.type } }))
+    const derived: Layer[] = []
+    if (placed.length) derived.push({ id: STORY, name: 'Story places', kind: 'custom', color: '#ff6b9d', hidden: !showStory, items: placed })
+    if (route && legList.length) derived.push({ id: 'route', name: 'Party route', kind: 'roads', color: '#ff9f1c', items: legList.map((l) => ({ id: `${l.from.id}>${l.to.id}`, name: `${l.from.title} → ${l.to.title}`, path: arc(l.from.at, l.to.at), props: { km: Math.round(l.km), days: Math.round(l.travelDays) } })) })
+    const here = now !== undefined ? partyAt(stops, now) : undefined
+    if (here) derived.push({ id: 'party', name: 'The party', kind: 'cities', color: '#00e5ff', items: [{ id: 'party', name: 'The party', at: here, props: { type: 'capital' } }] })
+    if (measure?.length) derived.push({ id: 'measure', name: 'Measure', kind: 'custom', color: '#ffffff', items: [
+      ...measure.slice(1).map((q, i) => ({ id: `m${i}`, path: arc(measure[i], q) })), ...measure.map((q, i) => ({ id: `p${i}`, at: q })),
+    ] })
+    const layers = [...activeAt(world.layers ?? [], now, cal), ...derived]
+    return layers.length ? { ...world, layers } : world
+  }, [world, book.wiki, showStory, route, legList, stops, now, measure, cal])
+  const measureKm = (measure ?? []).slice(1).reduce((s, q, i) => s + distKm(measure![i], q, radius), 0)
   const lat = params.get('lat'), lon = params.get('lon')
   useEffect(() => {
     if (lat == null || lon == null) return
@@ -73,6 +106,7 @@ export default function WorldPage() {
     const g = new Globe(canvas.current)
     g.onHover = setHover
     g.onClick = (f, x, y, at) => {
+      if (measureRef.current && at) { setMeasure((m) => [...(m ?? []), at]); return }
       const id = pickRef.current
       if (id && at) { // placing a wiki entry: this click is its position
         placeEntry.current(id, at)
@@ -138,7 +172,7 @@ export default function WorldPage() {
   const patchLayer = (id: string, p: Partial<Layer>) => setLayers((ls) => ls.map((l) => (l.id === id ? { ...l, ...p } : l)))
   const addLayer = (kind: LayerKind) => setLayers((ls) => [...ls, { id: uid(), name: LAYER_KINDS[kind].label, kind, items: [] }])
   // name / note / wikiId edits on an op or a layer item, plus wiki page creation in the same update
-  const patchFeature = (ref: FeatureRef, p: { name?: string; note?: string; wikiId?: string }, entry?: { id: string; type: string; name: string; place?: { worldId: string; lat: number; lon: number } }) => !('opId' in ref) && ref.layerId === STORY ? undefined : update((b) => ({
+  const patchFeature = (ref: FeatureRef, p: { name?: string; note?: string; wikiId?: string }, entry?: { id: string; type: string; name: string; place?: { worldId: string; lat: number; lon: number } }) => !('opId' in ref) && DERIVED.has(ref.layerId) ? undefined : update((b) => ({
     ...b,
     wiki: entry ? [...b.wiki, { ...entry, fields: {}, notes: p.note ?? '' }] : b.wiki,
     worlds: b.worlds.map((w) => w.id !== world!.id ? w : 'opId' in ref
@@ -201,7 +235,7 @@ export default function WorldPage() {
   const ops = world.ops ?? [], layers = world.layers ?? []
   const placed = gworld?.layers?.find((l) => l.id === STORY)?.items.length ?? 0
   const pf = popup && gworld && findFeature(gworld, popup.ref)
-  const readonly = !!pf && 'layerId' in pf.ref && pf.ref.layerId === STORY
+  const readonly = !!pf && 'layerId' in pf.ref && DERIVED.has(pf.ref.layerId)
   const here = pf?.wikiId ? { events: book.events.filter((e) => e.locationId === pf.wikiId), scenes: book.scenes.filter((s) => s.location === pf.wikiId) } : undefined
   const linked = pf?.wikiId ? book.wiki.find((w) => w.id === pf.wikiId) : undefined
   return (
@@ -273,6 +307,31 @@ export default function WorldPage() {
               ))}
             </ul>
           </details>
+          <details className="globe-sec" open={route || timeOn}>
+            <summary>Story <span className="muted">{stops.length} stops</span></summary>
+            <label className="small" style={{ display: 'flex', gap: '.4rem', alignItems: 'center' }}>
+              <input type="checkbox" checked={route} disabled={!legList.length} onChange={(e) => setRoute(e.target.checked)} /> Party route
+            </label>
+            {!legList.length && <p className="muted small">Set a location (placed on the globe) on party events in the timeline to draw the route.</p>}
+            <label className="globe-slider">
+              <span>Travel speed</span><output>{kmPerDay} km/day</output>
+              <input type="range" min={5} max={200} step={5} value={kmPerDay} onChange={(e) => setKmPerDay(Number(e.target.value))} />
+            </label>
+            {route && <ul className="small muted" style={{ margin: 0, paddingLeft: '1rem' }}>
+              {legList.map((l) => <li key={`${l.from.id}>${l.to.id}`} style={l.tight ? { color: 'var(--danger, #e07a5f)' } : undefined}>
+                {l.from.title} → {l.to.title}: {Math.round(l.km).toLocaleString()} km, {Math.max(1, Math.round(l.travelDays))} days ({l.gapDays} in the story){l.tight ? ' – too fast?' : ''}
+              </li>)}
+            </ul>}
+            {range && <>
+              <label className="small" style={{ display: 'flex', gap: '.4rem', alignItems: 'center' }}>
+                <input type="checkbox" checked={timeOn} onChange={(e) => setTimeOn(e.target.checked)} /> Time slider
+              </label>
+              {timeOn && now !== undefined && <label className="globe-slider">
+                <span>{fmt(cal, fromOrdinal(cal, now))}</span><output>{partyAt(stops, now) ? 'party shown' : ''}</output>
+                <input type="range" min={range[0]} max={range[1]} step={1} value={now} aria-label="Date" onChange={(e) => setDay(Number(e.target.value))} />
+              </label>}
+            </>}
+          </details>
           <details className="globe-sec" open={layers.length > 0}>
             <summary>Layers <span className="muted">{layers.length}</span></summary>
             {!layers.length && <p className="muted small">Cities, regions, borders, religions, roads. Ask Claude to fill them in, or add an empty one.</p>}
@@ -312,7 +371,14 @@ export default function WorldPage() {
           <button className="ghost danger" style={{ alignSelf: 'flex-start' }} onClick={remove}>Delete world</button>
         </>}
       </div>
-      {pick && view === 'globe' && (
+      {measure && view === 'globe' && (
+        <div className="globe-banner glass" role="status">
+          {measure.length < 2 ? 'Click points on the globe to measure' : <>{Math.round(measureKm).toLocaleString()} km · {Math.round(measureKm / kmPerDay)} days at {kmPerDay} km/day</>}
+          <button className="alt" onClick={() => setMeasure((m) => m?.slice(0, -1))} disabled={!measure.length}>Undo</button>
+          <button className="alt" onClick={() => setMeasure(undefined)}>Done</button>
+        </div>
+      )}
+      {pick && !measure && view === 'globe' && (
         <div className="globe-banner glass" role="status">
           Click the globe to place “{book.wiki.find((w) => w.id === pick)?.name ?? 'entry'}”
           <button className="alt" onClick={() => nav(`/wiki/${pick}`)}>Cancel</button>
@@ -351,6 +417,7 @@ export default function WorldPage() {
         </div>
       )}
       <div className="globe-zoom" hidden={view === 'map'}>
+        <button className="glass icon" aria-pressed={!!measure} onClick={() => setMeasure(measure ? undefined : [])} aria-label="Measure distance" title="Measure distance"><Icon name="ruler" /></button>
         <button className="glass icon" onClick={() => globe.current?.zoomBy(0.6)} aria-label="Zoom in"><Icon name="plus" /></button>
         <button className="glass icon" onClick={() => globe.current?.zoomBy(1 / 0.6)} aria-label="Zoom out"><span aria-hidden style={{ fontSize: '1.2rem', lineHeight: 1 }}>−</span></button>
       </div>

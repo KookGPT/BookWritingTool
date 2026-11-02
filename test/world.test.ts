@@ -109,3 +109,22 @@ console.log('world: all checks passed')
   const pl = makePlanet(w('flat')), p = makeProj('equirect', 90), s = sampleFlat(pl, p), out = new Uint8ClampedArray(p.w * p.h * 4)
   for (const style of ['atlas', 'terrain'] as const) { out.fill(0); paintFlat(pl, p, s, { style, contour: 500 }, out); assert.ok(out.every((v, i) => i % 4 !== 3 || v === 255), style) }
 }
+
+// story: arcs, route legs, party position, time-aware layer items, calendar inverse
+{
+  const { arc, legs, partyAt } = await import('../src/world/story.ts')
+  const { activeAt } = await import('../src/world/layers.ts')
+  const { DEFAULT_CAL, fromOrdinal, ordinal } = await import('../src/calendar.ts')
+  const a = arc([0, 0], [0, 90]); assert.equal(a.length, 46); assert.ok(a.every((p) => Math.abs(p[0]) < 1e-6))
+  const stops = [{ id: 'a', title: 'A', at: [0, 0] as [number, number], day: 0 }, { id: 'b', title: 'B', at: [0, 90] as [number, number], day: 10 }, { id: 'c', title: 'C', at: [0, 90] as [number, number], day: 12 }]
+  const L = legs(stops, 6000, 30)
+  assert.equal(L.length, 1) // B -> C is the same place
+  assert.ok(Math.abs(L[0].km - 6000 * Math.PI / 2) < 1 && L[0].tight && L[0].travelDays > 300)
+  assert.equal(partyAt(stops, -1), undefined)
+  assert.ok(Math.abs(partyAt(stops, 5)![1] - 45) < 1e-6 && partyAt(stops, 99)![1] === 90)
+  for (const d of [0, 29, 30, 359, 360, 12345]) assert.equal(ordinal(DEFAULT_CAL, fromOrdinal(DEFAULT_CAL, d)), d)
+  const layer = { id: 'L', name: 'N', kind: 'regions' as const, items: [{ id: 'x', name: 'Old', area: [[0, 0], [0, 1], [1, 1]] as [number, number][], to: { y: 5 } }, { id: 'y', name: 'New', at: [0, 0] as [number, number], from: { y: 5, m: 2 } }] }
+  const at = (y: number) => activeAt([layer], y * 360, DEFAULT_CAL)[0].items.map((i) => i.id).join()
+  assert.equal(at(3), 'x'); assert.equal(at(5), 'x'); assert.equal(at(6), 'y'); assert.equal(activeAt([layer], undefined, DEFAULT_CAL)[0].items.length, 2)
+  assert.ok(validate({ ...w('t'), layers: [{ ...layer, items: [{ ...layer.items[1], from: { y: 'x' } as never }] }] }).errors.some((e) => e.includes('from must be a date')))
+}

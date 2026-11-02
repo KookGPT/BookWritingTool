@@ -212,6 +212,7 @@ ${ops}
 Overlays that never change the ground: \`layers: [{ id, name, kind, color?, opacity?, hidden?, items: [...] }]\`.
 - kinds: ${Object.entries(LAYER_KINDS).map(([k, s]) => `\`${k}\` (${s.label}, items use \`${s.geom === 'any' ? 'at/path/area' : s.geom}\`)`).join(', ')}.
 - item: \`{ id, name, at | path | area, props?, note?, wikiId? }\` with exactly one of \`at\` [lat, lon], \`path\` (line, >=2 points) or \`area\` (polygon, >=3 points). \`props\` holds free facts as strings/numbers; for cities \`props.type\` = capital | city | town | village sets the marker size.
+- optional \`from\` / \`to\` on an item: \`{ "y": 412, "m": 3, "d": 9 }\` dates on the book's calendar (m, d optional). The item only shows while the app's time slider is within them; use it for borders and cities that change over the story.
 - ids are unique across ops, layers and items. color is "#rrggbb", opacity 0..1.
 - e.g. ${Object.entries(LAYER_KINDS).slice(0, 3).map(([k, s]) => `\`${JSON.stringify({ id: k, name: s.label, kind: k, items: [s.example] })}\``).join(' ')}
 - Put cities on coasts, rivers and passes; draw borders along ranges and rivers; roads link cities through low ground.

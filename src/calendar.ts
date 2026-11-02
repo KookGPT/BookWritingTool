@@ -10,6 +10,14 @@ export const yearLen = (c: Calendar) => c.months.reduce((n, m) => n + m.days, 0)
 export const ordinal = (c: Calendar, s: SDate) =>
   s.y * yearLen(c) + c.months.slice(0, s.m - 1).reduce((n, m) => n + m.days, 0) + (s.d - 1)
 
+/** Inverse of ordinal: the calendar date of a day number. */
+export function fromOrdinal(c: Calendar, day: number): SDate {
+  const yl = yearLen(c), y = Math.floor(day / yl)
+  let rem = day - y * yl, m = 0
+  while (m < c.months.length - 1 && rem >= c.months[m].days) rem -= c.months[m++].days
+  return { y, m: m + 1, d: rem + 1 }
+}
+
 export const fmt = (c: Calendar, s: SDate) =>
   `${s.d} ${c.months[s.m - 1]?.name ?? `month ${s.m}`}, ${s.y}${c.era ? ` ${c.era}` : ''}`
 
