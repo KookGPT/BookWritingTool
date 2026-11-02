@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import Icon from '../Icon'
 import { trashIt } from '../history'
 import { uid, useBook } from '../store'
@@ -21,6 +21,7 @@ const SLIDERS: [keyof WorldParams, string, number, number, number, (v: number) =
   ['radiusKm', 'Radius', 1000, 15000, 100, (v) => `${v.toLocaleString()} km`],
 ]
 
+const STORY = 'story' // id of the derived layer of placed wiki entries
 const newSeed = () => Math.random().toString(36).slice(2, 8)
 const fmtLat = (v: number) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? 'N' : 'S'}`
 const fmtLon = (v: number) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? 'E' : 'W'}`
@@ -28,7 +29,7 @@ const fmtAlt = (km: number) => (km >= 100 ? `${Math.round(km).toLocaleString()} 
 
 export default function WorldPage() {
   const { book, update } = useBook()
-  const [sel, setSel] = useState(() => { try { return localStorage.getItem('world-sel') ?? '' } catch { return '' } })
+  const [sel, setSel] = useState(() => { try { return new URLSearchParams(location.hash.split('?')[1]).get('w') ?? localStorage.getItem('world-sel') ?? '' } catch { return '' } })
   const world = book.worlds.find((w) => w.id === sel) ?? book.worlds[0]
   const canvas = useRef<HTMLCanvasElement>(null)
   const globe = useRef<Globe>(null)
@@ -36,6 +37,12 @@ export default function WorldPage() {
   const [alt, setAlt] = useState('')
   const [relief, setRelief] = useState(1)
   const [panel, setPanel] = useState(() => innerWidth > 700)
+  const [params] = useSearchParams()
+  const nav = useNavigate()
+  const pick = params.get('pick') // wiki entry waiting to be placed by a click on the globe
+  const pickRef = useRef(pick)
+  pickRef.current = pick
+  const [showStory, setShowStory] = useState(true)
   const [view, setView] = useState<'globe' | 'map'>('globe')
   const [proj, setProj] = useState<ProjName>('robinson')
   const [style, setStyle] = useState<MapStyle>('atlas')
@@ -44,6 +51,19 @@ export default function WorldPage() {
   const [busy, setBusy] = useState(false)
   const flat = useRef<HTMLCanvasElement>(null)
   const flatCache = useRef<{ key: string; planet: Planet; p: Proj; s: Samples }>(null)
+  const placeEntry = useRef<(id: string, at: [number, number]) => void>(() => {})
+  // wiki entries placed on this world show up as a derived, read-only layer
+  const gworld = useMemo(() => {
+    if (!world) return undefined
+    const items = book.wiki.filter((w) => w.place?.worldId === world.id).map((w) => ({ id: w.id, name: w.name, at: [w.place!.lat, w.place!.lon] as [number, number], wikiId: w.id, props: { type: w.type } }))
+    return items.length ? { ...world, layers: [...(world.layers ?? []), { id: STORY, name: 'Story places', kind: 'custom' as const, color: '#ff6b9d', hidden: !showStory, items }] } : world
+  }, [world, book.wiki, showStory])
+  const lat = params.get('lat'), lon = params.get('lon')
+  useEffect(() => {
+    if (lat == null || lon == null) return
+    const t = setTimeout(() => globe.current?.flyTo(Number(lat), Number(lon), 0.15), 400)
+    return () => clearTimeout(t)
+  }, [lat, lon])
   const [popup, setPopup] = useState<{ ref: FeatureRef; x: number; y: number } | undefined>()
 
   useEffect(() => { try { if (world) localStorage.setItem('world-sel', world.id) } catch { /* private mode */ } }, [world])
@@ -52,7 +72,12 @@ export default function WorldPage() {
     if (!hasWorld || !canvas.current) return
     const g = new Globe(canvas.current)
     g.onHover = setHover
-    g.onClick = (f, x, y) => {
+    g.onClick = (f, x, y, at) => {
+      const id = pickRef.current
+      if (id && at) { // placing a wiki entry: this click is its position
+        placeEntry.current(id, at)
+        return
+      }
       const r = canvas.current!.getBoundingClientRect()
       setPopup(f && { ref: f.ref, x: x - r.left, y: y - r.top })
     }
@@ -64,11 +89,11 @@ export default function WorldPage() {
   useEffect(() => {
     if (!world) return
     const t = setTimeout(() => {
-      globe.current?.setWorld(world)
+      globe.current?.setWorld(gworld!)
       if (import.meta.env.DEV) Object.assign(window, { globe: globe.current }) // for poking at it from devtools
     }, 150)
     return () => clearTimeout(t)
-  }, [world])
+  }, [gworld])
   useEffect(() => globe.current?.setRelief(relief), [relief])
   // flat map: sampling is slow so it's cached per terrain + projection; style, contours and labels just repaint
   useEffect(() => {
@@ -102,6 +127,10 @@ export default function WorldPage() {
   }
   const patch = (p: Partial<World>) => update((b) => ({ ...b, worlds: b.worlds.map((w) => (w.id === world!.id ? { ...w, ...p } : w)) }))
   const setParam = (k: keyof WorldParams, v: number) => patch({ params: { ...DEFAULT_PARAMS, ...world!.params, [k]: v } })
+  placeEntry.current = (id, at) => {
+    update((b) => ({ ...b, wiki: b.wiki.map((w) => (w.id === id ? { ...w, place: { worldId: world!.id, lat: +at[0].toFixed(3), lon: +at[1].toFixed(3) } } : w)) }))
+    nav(`/wiki/${id}`)
+  }
   const [msg, setMsg] = useState('')
   const file = useRef<HTMLInputElement>(null)
   const setOps = (f: (ops: Op[]) => Op[]) => patch({ ops: f(world!.ops ?? []) })
@@ -109,7 +138,7 @@ export default function WorldPage() {
   const patchLayer = (id: string, p: Partial<Layer>) => setLayers((ls) => ls.map((l) => (l.id === id ? { ...l, ...p } : l)))
   const addLayer = (kind: LayerKind) => setLayers((ls) => [...ls, { id: uid(), name: LAYER_KINDS[kind].label, kind, items: [] }])
   // name / note / wikiId edits on an op or a layer item, plus wiki page creation in the same update
-  const patchFeature = (ref: FeatureRef, p: { name?: string; note?: string; wikiId?: string }, entry?: { id: string; type: string; name: string }) => update((b) => ({
+  const patchFeature = (ref: FeatureRef, p: { name?: string; note?: string; wikiId?: string }, entry?: { id: string; type: string; name: string; place?: { worldId: string; lat: number; lon: number } }) => !('opId' in ref) && ref.layerId === STORY ? undefined : update((b) => ({
     ...b,
     wiki: entry ? [...b.wiki, { ...entry, fields: {}, notes: p.note ?? '' }] : b.wiki,
     worlds: b.worlds.map((w) => w.id !== world!.id ? w : 'opId' in ref
@@ -170,7 +199,10 @@ export default function WorldPage() {
   }
 
   const ops = world.ops ?? [], layers = world.layers ?? []
-  const pf = popup && findFeature(world, popup.ref)
+  const placed = gworld?.layers?.find((l) => l.id === STORY)?.items.length ?? 0
+  const pf = popup && gworld && findFeature(gworld, popup.ref)
+  const readonly = !!pf && 'layerId' in pf.ref && pf.ref.layerId === STORY
+  const here = pf?.wikiId ? { events: book.events.filter((e) => e.locationId === pf.wikiId), scenes: book.scenes.filter((s) => s.location === pf.wikiId) } : undefined
   const linked = pf?.wikiId ? book.wiki.find((w) => w.id === pf.wikiId) : undefined
   return (
     <div className="globe-page">
@@ -258,6 +290,9 @@ export default function WorldPage() {
                 </li>
               ))}
             </ul>
+            {placed > 0 && <label className="small" style={{ display: 'flex', gap: '.4rem', alignItems: 'center' }}>
+              <input type="checkbox" checked={showStory} onChange={(e) => setShowStory(e.target.checked)} /> Story places ({placed} wiki entries)
+            </label>}
             <select value="" aria-label="Add layer" onChange={(e) => e.target.value && addLayer(e.target.value as LayerKind)}>
               <option value="">Add layer…</option>
               {Object.entries(LAYER_KINDS).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
@@ -277,6 +312,12 @@ export default function WorldPage() {
           <button className="ghost danger" style={{ alignSelf: 'flex-start' }} onClick={remove}>Delete world</button>
         </>}
       </div>
+      {pick && view === 'globe' && (
+        <div className="globe-banner glass" role="status">
+          Click the globe to place “{book.wiki.find((w) => w.id === pick)?.name ?? 'entry'}”
+          <button className="alt" onClick={() => nav(`/wiki/${pick}`)}>Cancel</button>
+        </div>
+      )}
       {pf && popup && view === 'globe' && (
         <div className="globe-popup glass" role="dialog" aria-label={pf.name || pf.type} key={refKey(pf.ref)}
           style={{ left: Math.min(popup.x + 12, innerWidth - 300), top: Math.min(popup.y + 12, innerHeight - 320) }}>
@@ -284,23 +325,28 @@ export default function WorldPage() {
             <small className="muted">{pf.type}</small>
             <button className="ghost icon" onClick={() => setPopup(undefined)} aria-label="Close"><Icon name="x" size={15} /></button>
           </div>
-          <input value={pf.name ?? ''} placeholder="Name" aria-label="Name" onChange={(e) => patchFeature(pf.ref, { name: e.target.value })} />
+          <input value={pf.name ?? ''} placeholder="Name" aria-label="Name" readOnly={readonly} onChange={(e) => patchFeature(pf.ref, { name: e.target.value })} />
           <ul className="small muted">
             <li>{pf.at ? 'At' : 'Around'} {fmtLL(pf.at ?? (pf.path ?? pf.area)![Math.floor((pf.path ?? pf.area)!.length / 2)])}</li>
             {stats(pf, p.radiusKm).map((s) => <li key={s}>{s}</li>)}
           </ul>
-          <textarea value={pf.note ?? ''} placeholder="Note" aria-label="Note" rows={3} onChange={(e) => patchFeature(pf.ref, { note: e.target.value })} />
+          {!readonly && <textarea value={pf.note ?? ''} placeholder="Note" aria-label="Note" rows={3} onChange={(e) => patchFeature(pf.ref, { note: e.target.value })} />}
+          {!!(here?.events.length || here?.scenes.length) && <div className="row" style={{ flexWrap: 'wrap' }}>
+            {here!.events.map((e) => <Link key={e.id} to={`/timeline?e=${e.id}`} className="chip">{e.title}</Link>)}
+            {here!.scenes.map((s) => <Link key={s.id} to={`/scenes?s=${s.id}`} className="chip">{s.title}</Link>)}
+          </div>}
           <div className="row">
-            {linked
+            {readonly ? (linked && <Link to={`/wiki/${linked.id}`} className="chip">Open “{linked.name}”</Link>) : linked
               ? <Link to={`/wiki/${linked.id}`} className="chip">Open “{linked.name}”</Link>
               : <button className="alt" disabled={!pf.name} title={pf.name ? '' : 'Name it first'} onClick={() => {
                   const id = uid()
-                  patchFeature(pf.ref, { wikiId: id }, { id, type: pf.layer?.kind === 'religions' ? 'religion' : 'location', name: pf.name! })
+                  const [la, lo] = pf.at ?? opCenter(pf.op ?? { id: '', kind: 'raise', at: pf.path?.[0] ?? pf.area![0], radius: 1, amount: 0 })
+                  patchFeature(pf.ref, { wikiId: id }, { id, type: pf.layer?.kind === 'religions' ? 'religion' : 'location', name: pf.name!, place: { worldId: world.id, lat: la, lon: lo } })
                 }}>Create wiki page</button>}
-            <select value={pf.wikiId ?? ''} aria-label="Linked wiki entry" style={{ flex: 1, minWidth: 0 }} onChange={(e) => patchFeature(pf.ref, { wikiId: e.target.value || undefined })}>
+            {!readonly && <select value={pf.wikiId ?? ''} aria-label="Linked wiki entry" style={{ flex: 1, minWidth: 0 }} onChange={(e) => patchFeature(pf.ref, { wikiId: e.target.value || undefined })}>
               <option value="">{linked ? 'Unlink' : 'Link to entry…'}</option>
               {book.wiki.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
-            </select>
+            </select>}
           </div>
         </div>
       )}

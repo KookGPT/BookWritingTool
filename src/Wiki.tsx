@@ -86,6 +86,22 @@ function Entry({ entry }: { entry: WikiEntry }) {
           <input aria-label="New alias" placeholder="Add alias, Enter" value={alias} onChange={(e) => setAlias(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addAlias()} />
         </div>
       </div>
+      {entry.type === 'location' && (
+        <div>
+          <small className="muted">ON THE GLOBE</small>
+          <div className="row" style={{ alignItems: 'center' }}>
+            {entry.place && book.worlds.some((w) => w.id === entry.place!.worldId) && <>
+              <Link className="chip" to={`/globe?w=${entry.place.worldId}&lat=${entry.place.lat}&lon=${entry.place.lon}`}>
+                {book.worlds.find((w) => w.id === entry.place!.worldId)!.name} · {entry.place.lat.toFixed(1)}°, {entry.place.lon.toFixed(1)}°
+              </Link>
+              <button className="ghost" onClick={() => patch({ place: undefined })}>Remove</button>
+            </>}
+            {book.worlds.length > 0
+              ? <Link className="chip" to={`/globe?pick=${entry.id}&w=${entry.place?.worldId ?? book.worlds[0].id}`}>{entry.place ? 'Move it' : 'Place it on the globe'}</Link>
+              : <small className="muted">Generate a world on the Globe page first.</small>}
+          </div>
+        </div>
+      )}
       {keys.map((k) => (
         <div key={k} className="field">
           <label>{k}

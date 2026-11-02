@@ -39,7 +39,7 @@ const splitTri = (a: LatLon, b: LatLon, c: LatLon, out: LatLon[], depth = 0) => 
 export class Globe {
   onHover?: (h: Hover | null) => void
   onView?: (v: ViewInfo) => void
-  onClick?: (f: Feature | undefined, x: number, y: number) => void
+  onClick?: (f: Feature | undefined, x: number, y: number, at?: LatLon) => void
   private renderer: THREE.WebGLRenderer
   private scene = new THREE.Scene()
   private camera = new THREE.PerspectiveCamera(40, 1, 1e-6, 100)
@@ -479,7 +479,7 @@ export class Globe {
     const click = e.type === 'pointerup' && this.drag?.button === 0 && this.drag.moved < 5 && this.pointers.size === 1
     this.pointers.delete(e.pointerId); this.drag = undefined
     const d = click && this.planet ? this.pick(e.clientX, e.clientY) : undefined
-    if (click) this.onClick?.(d && this.featureAt(d).f, e.clientX, e.clientY)
+    if (click) this.onClick?.(d && this.featureAt(d).f, e.clientX, e.clientY, d && (({ lat, lon }) => [lat, lon] as LatLon)(toLatLon(d.x, d.y, d.z)))
   }
   private leave = () => { this.mouse = undefined; this.highlight(undefined, 0); this.onHover?.(null) }
   private wheel = (e: WheelEvent) => { e.preventDefault(); this.zoomBy(Math.exp(e.deltaY * 0.0015)) }

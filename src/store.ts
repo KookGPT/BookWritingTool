@@ -10,6 +10,7 @@ export interface WikiEntry {
   hiddenFields?: string[] // starter fields of its type that this entry has removed
   aliases?: string[] // other names this entry goes by; they link and match exactly like the name
   links?: { to: string; label: string }[] // relationships to other wiki entries (to = wiki id)
+  place?: { worldId: string; lat: number; lon: number } // where it sits on a globe
 }
 
 // Built-in entry types with their starter fields; the user's own types live in book.config.types.
