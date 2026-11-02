@@ -22,7 +22,7 @@ const MapTestPage = lazy(() => import('./flatworld/MapTestPage'))
 const NAV: { label: string; items: [path: string, name: string, icon: IconName][] }[] = [
   { label: 'Write', items: [['write', 'Write', 'pen'], ['manuscript', 'Manuscript', 'book']] },
   { label: 'Plan', items: [['timeline', 'Timeline', 'timeline'], ['scenes', 'Scenes', 'list'], ['calendar', 'Calendar', 'calendar'], ['ideas', 'Ideas', 'idea']] },
-  { label: 'World', items: [['wiki', 'Wiki', 'wiki'], ['map-test', 'New Map Test', 'mountain']] },
+  { label: 'World', items: [['wiki', 'Wiki', 'wiki'], ['map-test', 'Map', 'mountain']] },
   { label: 'Review', items: [['insights', 'Insights', 'insights'], ['search', 'Search', 'search']] },
 ]
 

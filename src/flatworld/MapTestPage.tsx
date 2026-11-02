@@ -441,7 +441,7 @@ export default function MapTestPage() {
       <canvas ref={hudCanvas} className="maptest-hud" aria-hidden="true" />
 
       <div className="maptest-bar glass">
-        <strong><Icon name="mountain" /> New Map Test</strong>
+        <strong><Icon name="mountain" /> Map</strong>
         {worlds.length > 0 && <select value={world?.id} onChange={(e) => { setSelWorld(e.target.value); setSel(undefined); setPopup(undefined) }} aria-label="Map">
           {worlds.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
         </select>}
