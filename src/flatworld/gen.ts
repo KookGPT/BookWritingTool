@@ -110,6 +110,7 @@ export const BIOMES: Record<string, { color: RGB; tree?: TreeKind; trees?: numbe
   travertine: { color: [238, 238, 230], paint: true, label: 'Travertine terraces (white mineral steps holding turquoise pools, like Pamukkale)' },
   geothermal: { color: [204, 176, 120], paint: true, label: 'Geothermal field (hot springs, steam, geysers)', fx: 'shimmer', shape: 'flat' },
   lavafield: { color: [54, 52, 54], tree: 'pine', trees: 0.01, paint: true, label: 'Lava field (black basalt with moss)' },
+  farmland: { color: [150, 170, 84], tree: 'broad', trees: 0.05, paint: true, label: 'Farmland (a flat patchwork of fields with hedgerows; paint it on river plains and around lakes)', shape: 'smooth' },
   floodplain: { color: [104, 158, 66], tree: 'broad', trees: 0.12, paint: true, label: 'Floodplain (wide flat river plain with wet meadows; paint it along a big river)', shape: 'smooth' },
   meadow: { color: [146, 186, 88] },
   beach: { color: [236, 216, 162] },
@@ -538,7 +539,7 @@ export function generate(fw: FlatWorld, long = 1536): Gen {
 
   // 7. Ground shaped by its biome: dunes, layered badland mesas, salt pans, thick ice, lava cracks.
   const duneF = coarse((x, y) => fbm(nE, x / 70, y / 70, 3.7, 2))
-  const plainF = feats.some((f) => f.kind === 'floodplain') ? boxBlur(ht, w, h, Math.max(3, Math.round(60 / cell))) : undefined
+  const plainF = feats.some((f) => f.kind === 'floodplain' || f.kind === 'farmland') ? boxBlur(ht, w, h, Math.max(3, Math.round(60 / cell))) : undefined
   for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
     const k = j * w + i
     if (ht[k] <= 2) continue
@@ -789,6 +790,11 @@ export function generate(fw: FlatWorld, long = 1536): Gen {
           const v = ridged(nE, x / 7, y / 7, 6.6, 2)
           paint(col, [226, 206, 96], smooth(0.2, 0.5, n2) * 0.6 * wgt)
           paint(col, [214, 110, 48], smooth(0.8, 0.86, v) * wgt); paint(col, [60, 160, 190], smooth(0.9, 0.95, v) * wgt)
+        }
+        if (painted === 'farmland') { // fields on a slightly turned grid, each its own crop
+          const u = Math.floor((x * 0.96 + y * 0.28) / 16), v = Math.floor((y * 0.96 - x * 0.28) / 11), f = hash4(u, v, s0 & 0xffff, 31)
+          const crops: RGB[] = [[218, 192, 104], [128, 176, 72], [96, 146, 62], [160, 124, 82], [186, 196, 98], [232, 210, 120]]
+          paint(col, crops[Math.floor(f * crops.length)], 0.8 * wgt)
         }
         if (painted === 'floodplain') { paint(col, [72, 128, 64], smooth(0.78, 0.9, ridged(nC, x / 14, y / 30, 7.2, 2)) * 0.7 * wgt); paint(col, [176, 182, 96], smooth(0.25, 0.55, n2) * 0.35 * wgt) } // old channels, dry fields
         if (painted === 'rainbow') { const bands: RGB[] = [[200, 70, 60], [232, 170, 70], [92, 160, 150], [150, 96, 150], [236, 210, 150]], q = (z / 70 + n2 * 0.6) % 5, n = Math.floor(q < 0 ? q + 5 : q); paint(col, bands[n], 0.85 * wgt) }
