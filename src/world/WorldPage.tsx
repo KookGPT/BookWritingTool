@@ -6,14 +6,14 @@ import { calendarOf, uid, useBook } from '../store'
 import { fmt, fromOrdinal } from '../calendar'
 import { dayOf } from '../timelineScale'
 import { arc, legs as routeLegs, partyAt, type Stop } from './story'
-import { Globe, lightMode, type Hover } from './globe'
+import { Globe, type Hover } from './globe'
 import { brief, fmtLL, validate } from './describe'
 import { distKm } from './geo'
-import { activeAt, findFeature, LAYER_KINDS, layerColor, refKey, stats, type FeatureRef, type Layer, type LayerKind } from './layers'
+import { activeAt, findFeature, type Feature, LAYER_KINDS, layerColor, refKey, stats, type FeatureRef, type Layer, type LayerKind } from './layers'
 import { OP_SPECS, opCenter, type Op } from './ops'
-import { DEFAULT_PARAMS, groundSpec, makePlanet, type Planet, type World, type WorldParams } from './terrain'
-import { makeProj, paintFlat, PROJECTIONS, sampleFlat, type MapStyle, type Proj, type ProjName, type Samples } from './flat'
-import { drawOverlays } from './flatDraw'
+import { DEFAULT_PARAMS, type World, type WorldParams } from './terrain'
+import { MAP_STYLES, PROJECTIONS, type MapStyle, type ProjName } from './flat'
+import FlatMap, { type FlatApi } from './FlatMap'
 
 const SLIDERS: [keyof WorldParams, string, number, number, number, (v: number) => string][] = [
   ['oceanPct', 'Ocean', 5, 95, 1, (v) => `${v}%`],
@@ -47,6 +47,7 @@ export default function WorldPage() {
   const pickRef = useRef(pick)
   pickRef.current = pick
   const [showStory, setShowStory] = useState(true)
+  const [orbit, setOrbit] = useState(false)
   const [route, setRoute] = useState(false)
   const [kmPerDay, setKmPerDay] = useState(30)
   const [timeOn, setTimeOn] = useState(false)
@@ -60,8 +61,8 @@ export default function WorldPage() {
   const [contour, setContour] = useState(0)
   const [labels, setLabels] = useState(true)
   const [busy, setBusy] = useState(false)
-  const flat = useRef<HTMLCanvasElement>(null)
-  const flatCache = useRef<{ key: string; planet: Planet; p: Proj; s: Samples }>(null)
+  const flatApi = useRef<FlatApi>(null)
+  const [mapOpened, setMapOpened] = useState(false) // the flat map stays mounted once opened, so coming back is instant
   const placeEntry = useRef<(id: string, at: [number, number]) => void>(() => {})
   // Derived, read-only layers: wiki places, the party's route, the party on the scrubbed day, the ruler.
   const cal = calendarOf(book)
@@ -129,25 +130,8 @@ export default function WorldPage() {
     return () => clearTimeout(t)
   }, [gworld])
   useEffect(() => globe.current?.setRelief(relief), [relief])
-  // flat map: sampling is slow so it's cached per terrain + projection; style, contours and labels just repaint
-  useEffect(() => {
-    if (view !== 'map' || !world || !flat.current) return
-    setBusy(true)
-    const t = setTimeout(() => {
-      const key = `${proj}|${groundSpec(world)}`
-      let c = flatCache.current
-      if (c?.key !== key) { const planet = makePlanet(world), p = makeProj(proj, lightMode() ? 900 : 1400); c = { key, planet, p, s: sampleFlat(planet, p) }; flatCache.current = c }
-      const cv = flat.current!, ctx = cv.getContext('2d')!
-      cv.width = c.p.w; cv.height = c.p.h
-      const img = ctx.createImageData(c.p.w, c.p.h)
-      paintFlat(c.planet, c.p, c.s, { style, contour }, img.data)
-      ctx.putImageData(img, 0, 0)
-      drawOverlays(ctx, c.planet, world, c.p, style, labels)
-      setBusy(false)
-    }, 30)
-    return () => clearTimeout(t)
-  }, [view, world, proj, style, contour, labels])
-  const exportPng = () => flat.current?.toBlob((b) => {
+  useEffect(() => { if (globe.current) globe.current.orbit = orbit }, [orbit, hasWorld])
+  const exportPng = () => flatApi.current?.toBlob((b) => {
     if (!b) return
     const a = document.createElement('a')
     a.href = URL.createObjectURL(b); a.download = `${slug}.${proj}.png`; a.click()
@@ -185,7 +169,14 @@ export default function WorldPage() {
     const pts = 'path' in op ? op.path : op.area
     return Math.max(50, ...pts.map((q) => distKm(q, opCenter(op), p.radiusKm) * 2))
   }
-  const flyToOp = (op: Op) => { const [lat, lon] = opCenter(op); globe.current?.flyTo(lat, lon, Math.min(1.2, Math.max(0.01, sizeKm(op) * 2.2 / p.radiusKm))) }
+  const flyToOp = (op: Op) => { const [lat, lon] = opCenter(op); globe.current?.flyTo(lat, lon, Math.min(1.2, Math.max(0.01, sizeKm(op) * 2.2 / p.radiusKm)), 55 * Math.PI / 180) }
+  // frame any feature (terrain or layer item) and pitch the camera so it can be orbited
+  const zoomTo = (f: Feature) => {
+    const pts = f.at ? [f.at] : f.path ?? f.area ?? []
+    const c: [number, number] = f.at ?? (f.op ? opCenter(f.op) : f.area ? [f.area.reduce((a, q) => a + q[0], 0) / f.area.length, f.area.reduce((a, q) => a + q[1], 0) / f.area.length] : pts[Math.floor(pts.length / 2)])
+    const ext = Math.max(f.radius ?? 0, ...pts.map((q) => distKm(q, c, p.radiusKm)))
+    globe.current?.flyTo(c[0], c[1], Math.min(1.2, Math.max(0.02, ext * 2.8 / p.radiusKm)), 55 * Math.PI / 180)
+  }
   const slug = (world?.name ?? '').replace(/[^\w-]+/g, '-').toLowerCase() || 'world'
   const download = (name: string, text: string, type: string) => {
     const a = document.createElement('a')
@@ -240,7 +231,9 @@ export default function WorldPage() {
   const linked = pf?.wikiId ? book.wiki.find((w) => w.id === pf.wikiId) : undefined
   return (
     <div className="globe-page">
-      <canvas ref={flat} className="flatmap" style={{ display: view === 'map' ? 'block' : 'none' }} role="img" aria-label={`Flat map of ${world.name}`} />
+      {mapOpened && <div className="flatpane" style={{ display: view === 'map' ? 'block' : 'none' }}>
+        <FlatMap world={gworld ?? world} proj={proj} style={style} contour={contour} labels={labels} apiRef={flatApi} onBusy={setBusy} />
+      </div>}
       <canvas ref={canvas} style={{ display: view === 'map' ? 'none' : 'block' }} tabIndex={0} aria-label={`Globe of ${world.name}. Drag to pan, scroll or plus and minus to zoom, right-drag to tilt and turn, arrow keys to move.`} />
       <div className={`globe-panel glass ${panel ? '' : 'closed'}`}>
         <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -257,17 +250,20 @@ export default function WorldPage() {
             <button className="alt icon" onClick={create} title="New world" aria-label="New world"><Icon name="plus" /></button>
           </div>
           <div className="row" role="group" aria-label="View">
-            {(['globe', 'map'] as const).map((v) => <button key={v} className={view === v ? '' : 'alt'} aria-pressed={view === v} style={{ flex: 1 }} onClick={() => setView(v)}>{v === 'globe' ? 'Globe' : 'Flat map'}</button>)}
+            {(['globe', 'map'] as const).map((v) => <button key={v} className={view === v ? '' : 'alt'} aria-pressed={view === v} style={{ flex: 1 }} onClick={() => { setView(v); if (v === 'map') setMapOpened(true) }}>{v === 'globe' ? 'Globe' : 'Flat map'}</button>)}
           </div>
           {view === 'map' && <div className="globe-sec" style={{ borderTop: 0, paddingTop: 0 }}>
             <label className="globe-field">Projection<select value={proj} onChange={(e) => setProj(e.target.value as ProjName)}>
               {Object.entries(PROJECTIONS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
-            <label className="globe-field">Style<select value={style} onChange={(e) => setStyle(e.target.value as MapStyle)}>
-              <option value="atlas">Atlas (parchment)</option><option value="terrain">Terrain colours</option></select></label>
+            <label className="globe-field">Basemap<select value={style} onChange={(e) => setStyle(e.target.value as MapStyle)}>
+              {Object.entries(MAP_STYLES).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
             <label className="globe-field">Contour lines<select value={contour} onChange={(e) => setContour(Number(e.target.value))}>
               <option value={0}>Off</option><option value={250}>Every 250 m</option><option value={500}>Every 500 m</option><option value={1000}>Every 1000 m</option></select></label>
-            <label className="small" style={{ display: "flex", gap: ".4rem", alignItems: "center" }}><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Names on the map</label>
-            <button className="alt" onClick={exportPng} disabled={busy}>{busy ? 'Rendering…' : 'Export PNG'}</button>
+            <label className="small" style={{ display: "flex", flexDirection: "row", gap: ".4rem", alignItems: "center" }}><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Names on the map</label>
+            <div className="row">
+              <button className="alt" style={{ flex: 1 }} onClick={() => flatApi.current?.reset()}>Reset view</button>
+              <button className="alt" style={{ flex: 1 }} onClick={exportPng} disabled={busy}>{busy ? 'Rendering…' : 'Export PNG'}</button>
+            </div>
           </div>}
           <label className="globe-field">Name<input value={world.name} onChange={(e) => patch({ name: e.target.value })} /></label>
           <details className="globe-sec" open>
@@ -389,7 +385,10 @@ export default function WorldPage() {
           style={{ left: Math.min(popup.x + 12, innerWidth - 300), top: Math.min(popup.y + 12, innerHeight - 320) }}>
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <small className="muted">{pf.type}</small>
-            <button className="ghost icon" onClick={() => setPopup(undefined)} aria-label="Close"><Icon name="x" size={15} /></button>
+            <span>
+              <button className="ghost" onClick={() => zoomTo(pf)} aria-label={`Zoom to ${pf.name || pf.type}`} title="Zoom the camera to this feature"><Icon name="focus" size={15} /> Zoom to</button>
+              <button className="ghost icon" onClick={() => setPopup(undefined)} aria-label="Close"><Icon name="x" size={15} /></button>
+            </span>
           </div>
           <input value={pf.name ?? ''} placeholder="Name" aria-label="Name" readOnly={readonly} onChange={(e) => patchFeature(pf.ref, { name: e.target.value })} />
           <ul className="small muted">
@@ -416,15 +415,16 @@ export default function WorldPage() {
           </div>
         </div>
       )}
-      <div className="globe-zoom" hidden={view === 'map'}>
-        <button className="glass icon" aria-pressed={!!measure} onClick={() => setMeasure(measure ? undefined : [])} aria-label="Measure distance" title="Measure distance"><Icon name="ruler" /></button>
-        <button className="glass icon" onClick={() => globe.current?.zoomBy(0.6)} aria-label="Zoom in"><Icon name="plus" /></button>
-        <button className="glass icon" onClick={() => globe.current?.zoomBy(1 / 0.6)} aria-label="Zoom out"><span aria-hidden style={{ fontSize: '1.2rem', lineHeight: 1 }}>−</span></button>
+      <div className="globe-zoom">
+        <button className="glass icon" hidden={view === 'map'} aria-pressed={orbit} onClick={() => setOrbit(!orbit)} aria-label="Orbit mode: drag to rotate around the view centre" title="Orbit: drag to rotate around the centre (or right-drag, or Q/E/W/S)"><Icon name="refresh" /></button>
+        <button className="glass icon" hidden={view === 'map'} aria-pressed={!!measure} onClick={() => setMeasure(measure ? undefined : [])} aria-label="Measure distance" title="Measure distance"><Icon name="ruler" /></button>
+        <button className="glass icon" onClick={() => (view === 'map' ? flatApi.current : globe.current)?.zoomBy(0.6)} aria-label="Zoom in"><Icon name="plus" /></button>
+        <button className="glass icon" onClick={() => (view === 'map' ? flatApi.current : globe.current)?.zoomBy(1 / 0.6)} aria-label="Zoom out"><span aria-hidden style={{ fontSize: '1.2rem', lineHeight: 1 }}>−</span></button>
       </div>
       <div className="globe-readout glass" aria-live="off" hidden={view === 'map'}>
         {hover
           ? <>{hover.feature && <strong>{hover.feature.name || hover.feature.type} · </strong>}{fmtLat(hover.lat)} {fmtLon(hover.lon)} · {hover.elevation >= 0 ? `${Math.round(hover.elevation).toLocaleString()} m` : `${Math.round(-hover.elevation).toLocaleString()} m deep`} · {hover.biome}</>
-          : <span className="muted">Drag to pan · scroll to zoom · right-drag to tilt</span>}
+          : <span className="muted">Drag to pan · scroll or double-click to zoom · right-drag or ⟳ to orbit</span>}
         <span className="muted"> · alt {alt}</span>
       </div>
     </div>

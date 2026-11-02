@@ -107,7 +107,14 @@ console.log('world: all checks passed')
     }
   }
   const pl = makePlanet(w('flat')), p = makeProj('equirect', 90), s = sampleFlat(pl, p), out = new Uint8ClampedArray(p.w * p.h * 4)
-  for (const style of ['atlas', 'terrain'] as const) { out.fill(0); paintFlat(pl, p, s, { style, contour: 500 }, out); assert.ok(out.every((v, i) => i % 4 !== 3 || v === 255), style) }
+  // a zoomed view: same lat/lon round trip, and zooming in 4x moves points 4x further from the centre
+  for (const name of ['equirect', 'mercator', 'robinson'] as const) {
+    const fit = makeProj(name, 800, 500), z = makeProj(name, 800, 500, { x: fit.view.x + 0.3, y: fit.view.y + 0.1, s: fit.scale * 4 })
+    const [x, y] = z.fwd(20, 30), back = z.inv(x, y)!
+    assert.ok(Math.abs(back[0] - 20) < 1e-6 && Math.abs(back[1] - 30) < 1e-6, name)
+    assert.equal(fit.inv(-5, -5), undefined) // off the map
+  }
+  for (const style of ['atlas', 'terrain', 'hypso', 'relief', 'dark', 'political'] as const) { out.fill(0); paintFlat(pl, p, s, { style, contour: 500 }, out); assert.ok(out.every((v, i) => i % 4 !== 3 || v === 255), style) }
 }
 
 // story: arcs, route legs, party position, time-aware layer items, calendar inverse

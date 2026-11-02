@@ -11,6 +11,7 @@ const MAX_TILES = 900
 /** Phones and the mini-globe: fewer tiles and workers, coarser detail, lower pixel ratio. */
 export const lightMode = () => typeof matchMedia === 'function' && matchMedia('(pointer: coarse), (max-width: 700px)').matches
 const DEG = Math.PI / 180
+const MAX_TILT = 85 * DEG
 
 interface Tile { key: string; face: number; level: number; x: number; y: number; center: THREE.Vector3; mesh?: THREE.Mesh; pending: boolean; used: number }
 interface View { lat: number; lon: number; dist: number; heading: number; tilt: number }
@@ -129,6 +130,7 @@ export class Globe {
     canvas.addEventListener('pointercancel', this.up)
     canvas.addEventListener('pointerleave', this.leave)
     canvas.addEventListener('wheel', this.wheel, { passive: false })
+    canvas.addEventListener('dblclick', this.dbl)
     canvas.addEventListener('contextmenu', this.noMenu)
     canvas.addEventListener('keydown', this.key)
     this.ro = new ResizeObserver(() => this.resize())
@@ -224,11 +226,16 @@ export class Globe {
 
   setRelief(m: number) { this.relief = m; this.dirty = true }
 
-  flyTo(lat: number, lon: number, dist?: number) {
+  /** Move the focus point; `tilt` (radians from straight down) also pitches the camera, e.g. to look at a feature from the side. */
+  flyTo(lat: number, lon: number, dist?: number, tilt?: number) {
     this.goal.lat = clamp(lat, -89, 89); this.goal.lon = wrap(lon)
-    if (dist) this.goal.dist = dist
+    if (dist) this.goal.dist = Math.max(dist, this.minDist())
+    if (tilt !== undefined) this.goal.tilt = clamp(tilt, 0, MAX_TILT)
     this.dirty = true
   }
+
+  /** In orbit mode a plain drag turns the camera around the focus point instead of panning (the same as right-drag). */
+  orbit = false
 
   zoomBy(f: number) { this.goal.dist = clamp(this.goal.dist * f, this.minDist(), 6); this.dirty = true }
 
@@ -241,7 +248,7 @@ export class Globe {
     c.removeEventListener('pointerdown', this.down); c.removeEventListener('pointermove', this.move)
     c.removeEventListener('pointerup', this.up); c.removeEventListener('pointercancel', this.up)
     c.removeEventListener('pointerleave', this.leave); c.removeEventListener('wheel', this.wheel)
-    c.removeEventListener('contextmenu', this.noMenu); c.removeEventListener('keydown', this.key)
+    c.removeEventListener('dblclick', this.dbl); c.removeEventListener('contextmenu', this.noMenu); c.removeEventListener('keydown', this.key)
     this.clearOverlays(this.overlays); this.clearOverlays(this.hi)
     this.material.dispose(); this.renderer.dispose()
   }
@@ -366,7 +373,7 @@ export class Globe {
     E.normalize()
     const N = U.clone().cross(E)
     const F = N.clone().multiplyScalar(Math.cos(c.heading)).addScaledVector(E, Math.sin(c.heading))
-    const tiltMax = clamp((Math.log10(0.8) - Math.log10(c.dist)) / (Math.log10(0.8) - Math.log10(0.003)), 0, 1) * 78 * DEG
+    const tiltMax = clamp((Math.log10(1.5) - Math.log10(c.dist)) / (Math.log10(1.5) - Math.log10(0.15)), 0, 1) * 80 * DEG // full pitch from ~0.15 radii out
     const t = Math.min(c.tilt, tiltMax)
     const C = T.clone().addScaledVector(U, c.dist * Math.cos(t)).addScaledVector(F, -c.dist * Math.sin(t))
     const floor = 1 + this.ground(C.clone().normalize()) + this.minDist() * 0.5
@@ -470,9 +477,9 @@ export class Globe {
     const dx = e.clientX - this.drag.x, dy = e.clientY - this.drag.y
     this.drag.x = e.clientX; this.drag.y = e.clientY; this.drag.moved += Math.abs(dx) + Math.abs(dy)
     const g = this.goal
-    if (this.drag.button === 2) {
+    if (this.drag.button === 2 || this.orbit) {
       g.heading -= dx * 0.005
-      g.tilt = clamp(g.tilt - dy * 0.005, 0, 80 * DEG)
+      g.tilt = clamp(g.tilt - dy * 0.005, 0, MAX_TILT)
     } else {
       const k = (this.cur.dist * 2 * Math.tan(this.camera.fov * DEG / 2)) / this.canvas.clientHeight / DEG // degrees per pixel
       const dn = (Math.cos(g.heading) * dy + Math.sin(g.heading) * dx) * k
@@ -488,6 +495,13 @@ export class Globe {
     const d = click && this.planet ? this.pick(e.clientX, e.clientY) : undefined
     if (click) this.onClick?.(d && this.featureAt(d).f, e.clientX, e.clientY, d && (({ lat, lon }) => [lat, lon] as LatLon)(toLatLon(d.x, d.y, d.z)))
   }
+  // double-click: fly in on the spot, a good deal closer each time
+  private dbl = (e: MouseEvent) => {
+    const d = this.pick(e.clientX, e.clientY)
+    if (!d) return
+    const { lat, lon } = toLatLon(d.x, d.y, d.z)
+    this.flyTo(lat, lon, Math.max(this.minDist(), this.goal.dist * 0.35))
+  }
   private leave = () => { this.mouse = undefined; this.highlight(undefined, 0); this.onHover?.(null) }
   private wheel = (e: WheelEvent) => { e.preventDefault(); this.zoomBy(Math.exp(e.deltaY * 0.0015)) }
   private noMenu = (e: Event) => e.preventDefault()
@@ -500,6 +514,8 @@ export class Globe {
     else if (k === 'ArrowRight') g.lon = wrap(g.lon + step)
     else if (k === '+' || k === '=') this.zoomBy(0.7)
     else if (k === '-' || k === '_') this.zoomBy(1 / 0.7)
+    else if (k === 'w') g.tilt = clamp(g.tilt + 0.1, 0, MAX_TILT)
+    else if (k === 's') g.tilt = clamp(g.tilt - 0.1, 0, MAX_TILT)
     else if (k === 'q') g.heading += 0.1
     else if (k === 'e') g.heading -= 0.1
     else return
