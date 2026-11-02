@@ -35,6 +35,9 @@ const itemOf = (w: FlatWorld | undefined, r?: Ref) => r && 'id' in r ? w?.layers
 const layerOf = (w: FlatWorld | undefined, r?: Ref) => r && 'id' in r ? w?.layers?.find((l) => l.id === r.layer) : undefined
 const typing = (e: Event) => { const t = e.target as HTMLElement; return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable }
 
+// Built worlds outlive the page, so coming back to the Map tab skips the rebuild (last two, by spec).
+const builtCache = new Map<string, Built>()
+
 export default function MapTestPage() {
   const { book, update } = useBook()
   const worlds = book.flatWorlds
@@ -87,8 +90,14 @@ export default function MapTestPage() {
   const spec = world && JSON.stringify({ ...world, name: '', note: '', layers: undefined, features: world.features.map(({ name: _n, note: _o, ...f }) => f) })
   useEffect(() => {
     if (!spec) return
+    const hit = builtCache.get(spec)
+    if (hit) { scene.current?.setWorld(hit); setGen(hit.gen); setShown(spec); return }
     const w = new Worker(new URL('./gen.worker.ts', import.meta.url), { type: 'module' })
-    w.onmessage = (e: MessageEvent<{ built: Built }>) => { scene.current?.setWorld(e.data.built); setGen(e.data.built.gen); setShown(spec); w.terminate() }
+    w.onmessage = (e: MessageEvent<{ built: Built }>) => {
+      builtCache.delete(spec); builtCache.set(spec, e.data.built)
+      if (builtCache.size > 2) builtCache.delete(builtCache.keys().next().value!)
+      scene.current?.setWorld(e.data.built); setGen(e.data.built.gen); setShown(spec); w.terminate()
+    }
     w.onerror = (e) => { setMsg(`Build failed: ${e.message}`); setShown(spec) }
     w.postMessage({ fw: JSON.parse(spec), res: RES, job: 0 })
     return () => w.terminate()
