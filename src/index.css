@@ -374,3 +374,5 @@ button.ghost.on { background: var(--accent-soft); color: var(--fg) }
 .globe-popup { position: absolute; width: 280px; padding: .7rem .8rem; border-radius: var(--r-lg); display: flex; flex-direction: column; gap: .45rem; z-index: 2 }
 .globe-popup ul { margin: 0; padding-left: 1rem }
 .globe-popup input, .globe-popup textarea { width: 100%; font-size: .85rem }
+.globe-page canvas.flatmap { cursor: default; object-fit: contain; background: #0b1114 }
+.globe-zoom[hidden], .globe-readout[hidden] { display: none }

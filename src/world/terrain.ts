@@ -17,6 +17,9 @@ export interface WorldParams {
 }
 export interface World { id: string; name: string; generatorVersion: 1; seed: string; params: WorldParams; ops?: Op[]; layers?: Layer[] }
 
+/** The world as the generator sees it: names, notes and layers never change the ground. */
+export const groundSpec = (world: World) => JSON.stringify({ ...world, name: '', layers: undefined, ops: (world.ops ?? []).map(({ name: _n, note: _o, wikiId: _w, ...op }) => op) })
+
 export const DEFAULT_PARAMS: WorldParams = { oceanPct: 64, plates: 14, ruggedness: 1, aridity: 0.5, tilt: 23, radiusKm: 6000 }
 
 

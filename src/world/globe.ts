@@ -1,6 +1,6 @@
 // 3D globe renderer: cube-sphere quadtree LOD, tiles built in workers, custom orbit/ground camera.
 import * as THREE from 'three'
-import { makePlanet, toDir, toLatLon, type Planet, type World } from './terrain.ts'
+import { groundSpec, makePlanet, toDir, toLatLon, type Planet, type World } from './terrain.ts'
 import { layerColor, outline, pickFeature, pointSize, refKey, type Feature } from './layers.ts'
 import type { LatLon } from './geo.ts'
 import { tileAngle, tileCenter, tileIndex, type TileData } from './tile.ts'
@@ -133,7 +133,7 @@ export class Globe {
 
   setWorld(world: World) {
     // names, notes and layers don't change the ground, so editing them doesn't rebuild the planet
-    const spec = JSON.stringify({ ...world, name: '', layers: undefined, ops: (world.ops ?? []).map(({ name: _n, note: _o, wikiId: _w, ...op }) => op) })
+    const spec = groundSpec(world)
     const layers = JSON.stringify(world.layers ?? [])
     this.world = world
     if (spec === this.spec) {

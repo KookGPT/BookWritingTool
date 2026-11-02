@@ -95,3 +95,17 @@ console.log('world: all checks passed')
   const a = areaKm2([[0, 0], [0, 1], [1, 1], [1, 0]], R), want = (2 * Math.PI * R / 360) ** 2
   assert.ok(Math.abs(a / want - 1) < 0.01, `${a} vs ${want}`)
 }
+
+// flat maps: every projection round-trips pixel <-> lat/lon, and painting fills the buffer
+{
+  const { makeProj, paintFlat, sampleFlat } = await import('../src/world/flat.ts')
+  for (const name of ['equirect', 'mercator', 'robinson'] as const) {
+    const p = makeProj(name, 400)
+    for (const [lat, lon] of [[0, 0], [40, -120], [-55, 75], [70, 170]]) {
+      const [x, y] = p.fwd(lat, lon), back = p.inv(x, y)!
+      assert.ok(Math.abs(back[0] - lat) < 1e-6 && Math.abs(back[1] - lon) < 1e-6, `${name} ${lat},${lon} -> ${back}`)
+    }
+  }
+  const pl = makePlanet(w('flat')), p = makeProj('equirect', 90), s = sampleFlat(pl, p), out = new Uint8ClampedArray(p.w * p.h * 4)
+  for (const style of ['atlas', 'terrain'] as const) { out.fill(0); paintFlat(pl, p, s, { style, contour: 500 }, out); assert.ok(out.every((v, i) => i % 4 !== 3 || v === 255), style) }
+}

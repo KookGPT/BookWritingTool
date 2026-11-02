@@ -8,7 +8,9 @@ import { brief, fmtLL, validate } from './describe'
 import { distKm } from './geo'
 import { findFeature, LAYER_KINDS, layerColor, refKey, stats, type FeatureRef, type Layer, type LayerKind } from './layers'
 import { OP_SPECS, opCenter, type Op } from './ops'
-import { DEFAULT_PARAMS, type World, type WorldParams } from './terrain'
+import { DEFAULT_PARAMS, groundSpec, makePlanet, type Planet, type World, type WorldParams } from './terrain'
+import { makeProj, paintFlat, PROJECTIONS, sampleFlat, type MapStyle, type Proj, type ProjName, type Samples } from './flat'
+import { drawOverlays } from './flatDraw'
 
 const SLIDERS: [keyof WorldParams, string, number, number, number, (v: number) => string][] = [
   ['oceanPct', 'Ocean', 5, 95, 1, (v) => `${v}%`],
@@ -34,6 +36,14 @@ export default function WorldPage() {
   const [alt, setAlt] = useState('')
   const [relief, setRelief] = useState(1)
   const [panel, setPanel] = useState(() => innerWidth > 700)
+  const [view, setView] = useState<'globe' | 'map'>('globe')
+  const [proj, setProj] = useState<ProjName>('robinson')
+  const [style, setStyle] = useState<MapStyle>('atlas')
+  const [contour, setContour] = useState(0)
+  const [labels, setLabels] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const flat = useRef<HTMLCanvasElement>(null)
+  const flatCache = useRef<{ key: string; planet: Planet; p: Proj; s: Samples }>(null)
   const [popup, setPopup] = useState<{ ref: FeatureRef; x: number; y: number } | undefined>()
 
   useEffect(() => { try { if (world) localStorage.setItem('world-sel', world.id) } catch { /* private mode */ } }, [world])
@@ -60,6 +70,30 @@ export default function WorldPage() {
     return () => clearTimeout(t)
   }, [world])
   useEffect(() => globe.current?.setRelief(relief), [relief])
+  // flat map: sampling is slow so it's cached per terrain + projection; style, contours and labels just repaint
+  useEffect(() => {
+    if (view !== 'map' || !world || !flat.current) return
+    setBusy(true)
+    const t = setTimeout(() => {
+      const key = `${proj}|${groundSpec(world)}`
+      let c = flatCache.current
+      if (c?.key !== key) { const planet = makePlanet(world), p = makeProj(proj, 1400); c = { key, planet, p, s: sampleFlat(planet, p) }; flatCache.current = c }
+      const cv = flat.current!, ctx = cv.getContext('2d')!
+      cv.width = c.p.w; cv.height = c.p.h
+      const img = ctx.createImageData(c.p.w, c.p.h)
+      paintFlat(c.planet, c.p, c.s, { style, contour }, img.data)
+      ctx.putImageData(img, 0, 0)
+      drawOverlays(ctx, c.planet, world, c.p, style, labels)
+      setBusy(false)
+    }, 30)
+    return () => clearTimeout(t)
+  }, [view, world, proj, style, contour, labels])
+  const exportPng = () => flat.current?.toBlob((b) => {
+    if (!b) return
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(b); a.download = `${slug}.${proj}.png`; a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+  })
 
   const create = () => {
     const w: World = { id: uid(), name: `World ${book.worlds.length + 1}`, generatorVersion: 1, seed: newSeed(), params: { ...DEFAULT_PARAMS } }
@@ -140,7 +174,8 @@ export default function WorldPage() {
   const linked = pf?.wikiId ? book.wiki.find((w) => w.id === pf.wikiId) : undefined
   return (
     <div className="globe-page">
-      <canvas ref={canvas} tabIndex={0} aria-label={`Globe of ${world.name}. Drag to pan, scroll or plus and minus to zoom, right-drag to tilt and turn, arrow keys to move.`} />
+      <canvas ref={flat} className="flatmap" style={{ display: view === 'map' ? 'block' : 'none' }} role="img" aria-label={`Flat map of ${world.name}`} />
+      <canvas ref={canvas} style={{ display: view === 'map' ? 'none' : 'block' }} tabIndex={0} aria-label={`Globe of ${world.name}. Drag to pan, scroll or plus and minus to zoom, right-drag to tilt and turn, arrow keys to move.`} />
       <div className={`globe-panel glass ${panel ? '' : 'closed'}`}>
         <div className="row" style={{ justifyContent: 'space-between' }}>
           <strong><Icon name="globe" /> Globe</strong>
@@ -155,6 +190,19 @@ export default function WorldPage() {
             </select>
             <button className="alt icon" onClick={create} title="New world" aria-label="New world"><Icon name="plus" /></button>
           </div>
+          <div className="row" role="group" aria-label="View">
+            {(['globe', 'map'] as const).map((v) => <button key={v} className={view === v ? '' : 'alt'} aria-pressed={view === v} style={{ flex: 1 }} onClick={() => setView(v)}>{v === 'globe' ? 'Globe' : 'Flat map'}</button>)}
+          </div>
+          {view === 'map' && <div className="globe-sec" style={{ borderTop: 0, paddingTop: 0 }}>
+            <label className="globe-field">Projection<select value={proj} onChange={(e) => setProj(e.target.value as ProjName)}>
+              {Object.entries(PROJECTIONS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+            <label className="globe-field">Style<select value={style} onChange={(e) => setStyle(e.target.value as MapStyle)}>
+              <option value="atlas">Atlas (parchment)</option><option value="terrain">Terrain colours</option></select></label>
+            <label className="globe-field">Contour lines<select value={contour} onChange={(e) => setContour(Number(e.target.value))}>
+              <option value={0}>Off</option><option value={250}>Every 250 m</option><option value={500}>Every 500 m</option><option value={1000}>Every 1000 m</option></select></label>
+            <label className="small" style={{ display: "flex", gap: ".4rem", alignItems: "center" }}><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Names on the map</label>
+            <button className="alt" onClick={exportPng} disabled={busy}>{busy ? 'Rendering…' : 'Export PNG'}</button>
+          </div>}
           <label className="globe-field">Name<input value={world.name} onChange={(e) => patch({ name: e.target.value })} /></label>
           <details className="globe-sec" open>
           <summary>Terrain</summary>
@@ -229,7 +277,7 @@ export default function WorldPage() {
           <button className="ghost danger" style={{ alignSelf: 'flex-start' }} onClick={remove}>Delete world</button>
         </>}
       </div>
-      {pf && popup && (
+      {pf && popup && view === 'globe' && (
         <div className="globe-popup glass" role="dialog" aria-label={pf.name || pf.type} key={refKey(pf.ref)}
           style={{ left: Math.min(popup.x + 12, innerWidth - 300), top: Math.min(popup.y + 12, innerHeight - 320) }}>
           <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -256,11 +304,11 @@ export default function WorldPage() {
           </div>
         </div>
       )}
-      <div className="globe-zoom">
+      <div className="globe-zoom" hidden={view === 'map'}>
         <button className="glass icon" onClick={() => globe.current?.zoomBy(0.6)} aria-label="Zoom in"><Icon name="plus" /></button>
         <button className="glass icon" onClick={() => globe.current?.zoomBy(1 / 0.6)} aria-label="Zoom out"><span aria-hidden style={{ fontSize: '1.2rem', lineHeight: 1 }}>−</span></button>
       </div>
-      <div className="globe-readout glass" aria-live="off">
+      <div className="globe-readout glass" aria-live="off" hidden={view === 'map'}>
         {hover
           ? <>{hover.feature && <strong>{hover.feature.name || hover.feature.type} · </strong>}{fmtLat(hover.lat)} {fmtLon(hover.lon)} · {hover.elevation >= 0 ? `${Math.round(hover.elevation).toLocaleString()} m` : `${Math.round(-hover.elevation).toLocaleString()} m deep`} · {hover.biome}</>
           : <span className="muted">Drag to pan · scroll to zoom · right-drag to tilt</span>}
