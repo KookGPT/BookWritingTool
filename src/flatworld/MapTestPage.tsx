@@ -2,9 +2,6 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEven
 import Icon, { type IconName } from '../Icon'
 import { trashIt } from '../history'
 import { uid, useBook } from '../store'
-import demoRaw from '../../examples/map-test-demo.json?raw'
-import discRaw from '../../examples/map-test-disc.json?raw'
-import erengradRaw from '../../examples/erengrad.json?raw'
 import {
   brief, CITY_SIZES, FEATURE_KINDS, heightAt, inPoly, itemShape, LANDMARKS, LAYER_KINDS, layerColor, pathLen, polyArea, segDist, underFeature, validate,
   type CitySize, type FlatWorld, type Gen, type Landmark, type LayerKind, type MapItem, type MapLayer, type XY,
@@ -452,12 +449,6 @@ export default function MapTestPage() {
             {found.map((p) => <li key={'feature' in p.ref ? p.ref.feature : p.ref.id}><button className="ghost" onClick={() => goTo(p)}>{p.name} <small className="muted">{p.kind}</small></button></li>)}
           </ul>}
         </div>}
-        <select value="" onChange={(e) => { if (e.target.value) load(e.target.value === 'disc' ? discRaw : e.target.value === 'erengrad' ? erengradRaw : demoRaw) }} aria-label="Load a demo map">
-          <option value="">Load demo…</option>
-          <option value="rect">The Sundered Reach</option>
-          <option value="disc">The Drowned Disc</option>
-          <option value="erengrad">The Erengrad Realms (your map)</option>
-        </select>
         <button className="alt" onClick={() => file.current?.click()}>Import</button>
         <input ref={file} type="file" accept=".json,application/json" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (f) load(await f.text()); e.target.value = '' }} />
         {world && <>
@@ -519,7 +510,7 @@ export default function MapTestPage() {
 
       {msg && <div className="maptest-msg glass small" role="status" onClick={() => setMsg('')}>{msg}</div>}
       {!world && <div className="maptest-empty glass">
-        <p>No maps yet. Describe your world to Claude and import the JSON it writes, or load the demo to look around.</p>
+        <p>No maps yet. Describe your world to Claude and import the JSON it writes.</p>
       </div>}
     </div>
   )
