@@ -42,6 +42,7 @@ const P = {
   layers: 'M12 2L2 7l10 5 10-5z M2 17l10 5 10-5 M2 12l10 5 10-5',
   magnet: 'M6 3v8a6 6 0 0 0 12 0V3 M6 7h4 M14 7h4 M10 3v8a2 2 0 0 0 4 0V3',
   copy: 'M9 9h11v11H9z M5 15H4V4h11v1',
+  bucket: 'M19 11l-8-8-8.5 8.5a2.1 2.1 0 0 0 0 3L8 20a2.1 2.1 0 0 0 3 0z M5 2l5 5 M2 13h15 M22 20a2 2 0 1 1-4 0c0-1.6 2-4 2-4s2 2.4 2 4z',
 } as const
 
 export type IconName = keyof typeof P

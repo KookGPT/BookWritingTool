@@ -1,0 +1,38 @@
+{
+  "id": "demo-drowned-disc",
+  "name": "The Drowned Disc (demo)",
+  "note": "Demo disc world: one ring of land around an inland sea, outer islands, and the ocean pouring off the edge of the world.",
+  "shape": "disc",
+  "size": [3000, 3000],
+  "seed": "drowned",
+  "edge": "waterfall",
+  "climate": { "north": "cold", "south": "warm", "wind": "east", "wet": 0.6 },
+  "features": [
+    { "id": "ring", "kind": "land", "name": "The Ringlands", "height": 300, "area": [[-900, 300], [-700, 750], [-250, 950], [300, 920], [750, 650], [950, 150], [880, -400], [500, -850], [-50, -950], [-550, -800], [-880, -350]] },
+    { "id": "heart", "kind": "sea", "name": "The Heartsea", "area": [[-450, 150], [-300, 450], [50, 520], [380, 330], [450, -50], [250, -380], [-120, -430], [-420, -200]] },
+    { "id": "west-isle", "kind": "land", "name": "Gull's Rest", "height": 120, "coast": "beach", "area": [[-1250, -150], [-1120, 40], [-1040, -60], [-1100, -260], [-1230, -280]] },
+    { "id": "south-isle", "kind": "land", "name": "The Cindertooth", "height": 150, "coast": "cliff", "area": [[150, -1170], [330, -1120], [380, -1250], [220, -1320], [110, -1260]] },
+
+    { "id": "crown", "kind": "range", "name": "The Crownwall", "height": 3200, "width": 140, "path": [[-650, 600], [-150, 790], [400, 760], [720, 420]] },
+    { "id": "east-ridge", "kind": "range", "name": "The Ember Ridge", "height": 2600, "width": 110, "path": [[820, 50], [700, -400], [420, -720]] },
+    { "id": "tooth", "kind": "volcano", "name": "Cindertooth", "height": 2400, "radius": 60, "at": [240, -1220] },
+    { "id": "pillar", "kind": "peak", "name": "The Pillar", "height": 3500, "radius": 60, "at": [-680, -380] },
+    { "id": "sky-1", "kind": "floating", "name": "The Driftstone", "height": 2400, "radius": 34, "at": [0, 60] },
+    { "id": "sky-2", "kind": "floating", "name": "Little Driftstone", "height": 1900, "radius": 20, "at": [160, -120] },
+    { "id": "worldtree", "kind": "gianttree", "name": "Yggra, the World Tree", "height": 3400, "radius": 14, "at": [-560, 120] },
+    { "id": "eye", "kind": "whirlpool", "name": "The Eye", "radius": 40, "at": [10, -40] },
+
+    { "id": "longfall", "kind": "river", "name": "The Longfall", "width": 8, "path": [[-100, 720], [-120, 560], [-90, 470]] },
+    { "id": "emberwash", "kind": "river", "name": "Emberwash", "width": 6, "path": [[640, -260], [800, -380], [960, -480]] },
+    { "id": "mirror", "kind": "lake", "name": "Mirrormere", "area": [[480, 520], [600, 560], [640, 470], [540, 420], [460, 450]] },
+
+    { "id": "rootwood", "kind": "forest", "name": "Rootwood", "area": [[-750, 300], [-450, 380], [-380, 80], [-560, -100], [-800, 30]] },
+    { "id": "amberwood", "kind": "autumn", "name": "Amberwood", "area": [[-500, -500], [-200, -560], [-150, -760], [-400, -820], [-560, -680]] },
+    { "id": "glimmer", "kind": "crystal", "name": "The Glimmer", "area": [[600, -50], [760, -20], [780, -180], [650, -260], [560, -160]] },
+    { "id": "glimmer-magic", "kind": "magic", "color": "#4cc9f0", "area": [[600, -50], [760, -20], [780, -180], [650, -260], [560, -160]] },
+    { "id": "ashfield", "kind": "wasteland", "area": [[150, -1170], [330, -1120], [380, -1250], [220, -1320], [110, -1260]] },
+    { "id": "north-ice", "kind": "glacier", "name": "The Whiteback", "area": [[-300, 820], [100, 880], [350, 840], [200, 760], [-200, 760]] },
+    { "id": "gull-reef", "kind": "reef", "area": [[-1300, -100], [-1080, 80], [-990, -60], [-1060, -320], [-1260, -330]] },
+    { "id": "rimstorm", "kind": "storm", "name": "The Rimstorm", "area": [[1050, 400], [1250, 300], [1300, 0], [1150, -150], [1000, 150]] }
+  ]
+}

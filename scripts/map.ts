@@ -7,7 +7,7 @@
 // <map.json> is one flat world, as exported from the New Map Test page (or flatworlds/<id>.json in the data repo).
 import { readFileSync, writeFileSync } from 'node:fs'
 import { png } from './png.ts'
-import { brief, FEATURE_KINDS, generate, heightAt, layerColor, pathLen, polyArea, validate, type FlatWorld, type MapFeature, type MapItem, type XY } from '../src/flatworld/gen.ts'
+import { brief, FEATURE_KINDS, generate, heightAt, itemShape, layerColor, pathLen, polyArea, validate, type FlatWorld, type MapFeature, type MapItem, type XY } from '../src/flatworld/gen.ts'
 
 const args = process.argv.slice(2)
 const flag = (k: string) => { const i = args.indexOf(k); return i < 0 ? undefined : args.splice(i, 2)[1] }
@@ -65,7 +65,7 @@ else if (cmd === 'add') {
       const dx = (g.height[j * g.w + Math.min(g.w - 1, i + 1)] - g.height[j * g.w + Math.max(0, i - 1)]) * e / (2 * g.cell)
       const dy = (g.height[Math.min(g.h - 1, j + 1) * g.w + i] - g.height[Math.max(0, j - 1) * g.w + i]) * e / (2 * g.cell)
       const lit = Math.max(0.35, Math.min(1.25, 0.85 + (-dx * 0.6 - dy * 0.6) * 0.5))
-      const d = g.depth[k] / 255, c = z < 0 ? [70 - 40 * d, 170 - 90 * d, 190 - 60 * d] : [g.rgba[k * 4] * lit, g.rgba[k * 4 + 1] * lit, g.rgba[k * 4 + 2] * lit]
+      const d = g.data[k * 4] / 255, c = z < 0 || (g.data[k * 4 + 1] && d > 0) ? [70 - 40 * d, 170 - 90 * d, 190 - 60 * d] : [g.rgba[k * 4] * lit, g.rgba[k * 4 + 1] * lit, g.rgba[k * 4 + 2] * lit]
       if (g.disc && Math.hypot(i - g.w / 2, j - g.h / 2) > g.w / 2) c.fill(20)
       for (let q = 0; q < 3; q++) rgb[k * 3 + q] = Math.max(0, Math.min(255, c[q]))
     }
@@ -86,7 +86,7 @@ else if (cmd === 'add') {
       const c = layerColor(l), col = [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16))
       for (const it of l.items) {
         if (it.at) { dot(...it.at, [255, 255, 255], 3); dot(...it.at, col, 2) }
-        else trace(it.path ?? it.area!, col, !!it.area)
+        else trace(itemShape(it), col, !!it.area)
       }
     }
     writeFileSync(arg ?? 'map-preview.png', png(g.w, g.h, rgb))

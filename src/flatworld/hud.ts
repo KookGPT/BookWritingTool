@@ -2,7 +2,7 @@
 // icons, labels (curved along rivers and ranges), the ruler and the shape being drawn. Lines and text keep a
 // readable pixel size at every zoom. Also records what was drawn where, for hover and click picking.
 import { placeLabels, type Label, type Rect } from '../world/labels.ts'
-import { LAYER_KINDS, layerColor, pathLen, type CitySize, type FlatWorld, type Gen, type Landmark, type LayerKind, type MapItem, type XY } from './gen.ts'
+import { heightAt, itemShape, LAYER_KINDS, layerColor, pathLen, smoothPath, type CitySize, type FlatWorld, type Gen, type Landmark, type LayerKind, type MapItem, type XY } from './gen.ts'
 
 export type Ref = { layer: string; id: string } | { feature: string }
 
@@ -51,9 +51,10 @@ export interface Hit { ref: Ref; pts?: number[]; x?: number; y?: number; r?: num
 export interface HudState {
   world: FlatWorld; gen: Gen; labels: MapLabel[]; showLabels: boolean
   sel?: Ref; hover?: Ref
-  draft?: { kind: LayerKind; pts: XY[]; cursor?: XY }
+  draft?: { kind: LayerKind; pts: XY[]; clicks: XY[]; curve: boolean }
   ruler?: { pts: XY[]; cursor?: XY; speed: number }
   snap?: XY
+  night?: number // 0..1: cities glow
 }
 export interface HudView { proj: (x: number, y: number) => [number, number] | undefined; k: number; w: number; h: number; kmPerPx: number }
 
@@ -77,9 +78,9 @@ export class Hud {
     ctx.lineJoin = ctx.lineCap = 'round'
     const step = Math.max(st.gen.cell * 2, v.kmPerPx * 6)
     // screen polyline (device px) of a map path; NaN breaks where a point is behind the camera
-    const line = (pts: XY[], closed = false) => {
+    const line = (pts: XY[], closed = false, landOnly = false) => {
       const out: number[] = []
-      for (const [x, y] of dense(pts, step, closed)) { const p = v.proj(x, y); if (p) out.push(p[0] * k, p[1] * k); else out.push(NaN, NaN) }
+      for (const [x, y] of dense(pts, step, closed)) { const p = landOnly && heightAt(st.gen, x, y) < -15 ? undefined : v.proj(x, y); if (p) out.push(p[0] * k, p[1] * k); else out.push(NaN, NaN) }
       return out
     }
     const stroke = (s: number[]) => {
@@ -103,7 +104,7 @@ export class Hud {
       for (const it of l.items) {
         const ref = { layer: l.id, id: it.id }, em = isSel(ref) ? 1.8 : isHov(ref) ? 1.35 : 1
         if (it.at) { points.push({ it, layer: l.id, kind: l.kind, color }); continue }
-        const s = line(it.area ?? it.path!, !!it.area)
+        const s = line(itemShape(it), !!it.area, l.kind === 'regions')
         hits.push({ ref, pts: s })
         ctx.setLineDash([])
         if (l.kind === 'regions') {
@@ -121,14 +122,14 @@ export class Hud {
     ctx.setLineDash([])
 
     // 2. the shape being drawn, and the ruler
-    const drawDraft = (pts: XY[], cursor: XY | undefined, closed: boolean, color: string, dash: number[]) => {
-      const all = cursor ? [...pts, cursor] : pts
+    const drawDraft = (path: XY[], pts: XY[], closed: boolean, color: string, dash: number[]) => {
+      const all = path
       if (all.length > 1) { ctx.setLineDash(dash.map((d) => d * k)); ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 4 * k; stroke(line(all, closed && all.length > 2)); ctx.strokeStyle = color; ctx.lineWidth = 2 * k; stroke(line(all, closed && all.length > 2)); ctx.setLineDash([]) }
       for (const p of pts) { const s = v.proj(...p); if (s) { ctx.fillStyle = '#fff'; ctx.strokeStyle = color; ctx.lineWidth = 1.5 * k; ctx.beginPath(); ctx.arc(s[0] * k, s[1] * k, 4 * k, 0, 7); ctx.fill(); ctx.stroke() } }
     }
-    if (st.draft) drawDraft(st.draft.pts, st.draft.cursor, st.draft.kind === 'regions', LAYER_KINDS[st.draft.kind].color, [6, 4])
+    if (st.draft) drawDraft(st.draft.curve ? smoothPath(st.draft.pts, false) : st.draft.pts, st.draft.clicks, st.draft.kind === 'regions', LAYER_KINDS[st.draft.kind].color, [6, 4])
     if (st.ruler) {
-      drawDraft(st.ruler.pts, st.ruler.cursor, false, '#1a1a2e', [])
+      drawDraft(st.ruler.cursor ? [...st.ruler.pts, st.ruler.cursor] : st.ruler.pts, st.ruler.pts, false, '#1a1a2e', [])
       const all = st.ruler.cursor ? [...st.ruler.pts, st.ruler.cursor] : st.ruler.pts
       if (all.length > 1) {
         const km = pathLen(all), end = v.proj(...all[all.length - 1])
@@ -137,8 +138,16 @@ export class Hud {
     }
     if (st.snap) { const s = v.proj(...st.snap); if (s) { ctx.strokeStyle = '#ffcc33'; ctx.lineWidth = 2 * k; ctx.beginPath(); ctx.arc(s[0] * k, s[1] * k, 7 * k, 0, 7); ctx.stroke() } }
 
-    // 3. point icons
+    // 3. point icons (cities light up at night)
     const taken: Rect[] = []
+    if ((st.night ?? 0) > 0.05) for (const { it, kind } of points) {
+      if (kind !== 'cities') continue
+      const s = v.proj(...it.at!)
+      if (!s) continue
+      const r = (CITY_PX[it.size ?? 'town'] * 4 + 6) * k, gr = ctx.createRadialGradient(s[0] * k, s[1] * k, 0, s[0] * k, s[1] * k, r)
+      gr.addColorStop(0, `rgba(255,200,110,${0.75 * st.night!})`); gr.addColorStop(1, 'rgba(255,170,80,0)')
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(s[0] * k, s[1] * k, r, 0, 7); ctx.fill()
+    }
     for (const { it, layer, kind, color } of points) {
       const s = v.proj(...it.at!)
       if (!s) continue
@@ -185,11 +194,12 @@ export class Hud {
 
     // 5. vertex handles on the selected line or area
     const sel = st.sel && 'id' in st.sel ? st.world.layers?.find((l) => l.id === (st.sel as { layer: string }).layer)?.items.find((i) => i.id === (st.sel as { id: string }).id) : undefined
-    for (const p of sel?.path ?? sel?.area ?? []) {
+    const handles = sel?.path ?? sel?.area ?? [], hs = (handles.length > 40 ? 2.5 : 4) * k
+    for (const p of handles) {
       const s = v.proj(...p)
       if (!s) continue
       ctx.fillStyle = '#fff'; ctx.strokeStyle = '#1a1a2e'; ctx.lineWidth = 1.5 * k
-      ctx.fillRect(s[0] * k - 4 * k, s[1] * k - 4 * k, 8 * k, 8 * k); ctx.strokeRect(s[0] * k - 4 * k, s[1] * k - 4 * k, 8 * k, 8 * k)
+      ctx.fillRect(s[0] * k - hs, s[1] * k - hs, hs * 2, hs * 2); ctx.strokeRect(s[0] * k - hs, s[1] * k - hs, hs * 2, hs * 2)
     }
     this.hits = hits
   }

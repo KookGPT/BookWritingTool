@@ -3,27 +3,31 @@ import Icon, { type IconName } from '../Icon'
 import { trashIt } from '../history'
 import { uid, useBook } from '../store'
 import demoRaw from '../../examples/map-test-demo.json?raw'
+import discRaw from '../../examples/map-test-disc.json?raw'
+import erengradRaw from '../../examples/erengrad.json?raw'
 import {
-  brief, CITY_SIZES, FEATURE_KINDS, heightAt, inPoly, LANDMARKS, LAYER_KINDS, layerColor, pathLen, polyArea, segDist, underFeature, validate,
+  brief, CITY_SIZES, FEATURE_KINDS, heightAt, inPoly, itemShape, LANDMARKS, LAYER_KINDS, layerColor, pathLen, polyArea, segDist, underFeature, validate,
   type CitySize, type FlatWorld, type Gen, type Landmark, type LayerKind, type MapItem, type MapLayer, type XY,
 } from './gen'
 import { centroid, collectLabels, Hud, type Ref } from './hud'
+import { fillRegion, FOLLOW, route, type Follow } from './route'
 import { dressedImage, niceScale } from './dress'
-import { MapScene, type Built } from './scene'
+import { LIGHTS, MapScene, STYLES, type Built, type Light, type Style } from './scene'
 
 const RES = 1536 // samples along the long side; the two target machines are strong, phones would want ~900
 
-type Tool = 'select' | 'city' | 'landmark' | 'regions' | 'borders' | 'roads' | 'ruler'
+type Tool = 'select' | 'city' | 'landmark' | 'regions' | 'fill' | 'borders' | 'roads' | 'ruler'
 const TOOLS: [Tool, string, IconName, string][] = [
   ['select', 'Select, move, edit (V)', 'pointer', 'v'],
   ['city', 'Place a city (C)', 'pin', 'c'],
   ['landmark', 'Place a landmark (L)', 'flag', 'l'],
   ['regions', 'Draw a region (G)', 'region', 'g'],
+  ['fill', 'Fill a region up to coasts and borders (F)', 'bucket', 'f'],
   ['borders', 'Draw a border (B)', 'border', 'b'],
   ['roads', 'Draw a road (R)', 'road', 'r'],
   ['ruler', 'Measure distance (M)', 'ruler', 'm'],
 ]
-const KIND_OF: Partial<Record<Tool, LayerKind>> = { city: 'cities', landmark: 'landmarks', regions: 'regions', borders: 'borders', roads: 'roads' }
+const KIND_OF: Partial<Record<Tool, LayerKind>> = { city: 'cities', landmark: 'landmarks', regions: 'regions', fill: 'regions', borders: 'borders', roads: 'roads' }
 const DRAWS = new Set<Tool>(['regions', 'borders', 'roads'])
 type ItemRef = { layer: string; id: string }
 
@@ -46,6 +50,9 @@ export default function MapTestPage() {
   const [gen, setGen] = useState<Gen>()
   const [shown, setShown] = useState<string>() // spec of the world on screen
   const [clouds, setClouds] = useState(true)
+  const [life, setLife] = useState(true)
+  const [light, setLight] = useState<Light>('day')
+  const [style, setStyle] = useState<Style>('toon')
   const [labels, setLabels] = useState(true)
   const [msg, setMsg] = useState('')
   const [tool, setToolState] = useState<Tool>('select')
@@ -54,7 +61,10 @@ export default function MapTestPage() {
   const [snap, setSnap] = useState(true)
   const [sel, setSel] = useState<Ref>()
   const [popup, setPopup] = useState<{ target: Ref; x: number; y: number; fresh?: boolean }>()
-  const [draft, setDraft] = useState<XY[]>([])
+  const [draft, setDraft] = useState<XY[]>([]) // clicked points
+  const [legs, setLegs] = useState<XY[][]>([]) // the routed line between each pair of clicks
+  const [follow, setFollow] = useState<Record<string, Follow>>({ regions: 'natural', borders: 'natural', roads: 'free' })
+  const [curve, setCurve] = useState(true)
   const [ruler, setRuler] = useState<XY[]>([])
   const [speed, setSpeed] = useState(30)
   const [active, setActive] = useState<Partial<Record<LayerKind, string>>>({})
@@ -63,7 +73,7 @@ export default function MapTestPage() {
   const [frame, setFrame] = useState(true)
   const file = useRef<HTMLInputElement>(null)
   // per-frame things that must not re-render React
-  const live = useRef<{ hover?: Ref; cursor?: XY; snapAt?: XY; drag?: { ref: ItemRef; vertex: number; item: MapItem; moved: boolean } }>({})
+  const live = useRef<{ hover?: Ref; cursor?: XY; snapAt?: XY; preview?: XY[]; previewAt?: number; drag?: { ref: ItemRef; vertex: number; item: MapItem; moved: boolean } }>({})
   const down = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
@@ -74,7 +84,7 @@ export default function MapTestPage() {
     ro.observe(canvas.current!)
     return () => { ro.disconnect(); s.dispose(); scene.current = null }
   }, [])
-  useEffect(() => { if (scene.current) scene.current.showClouds = clouds }, [clouds])
+  useEffect(() => { const s = scene.current; if (s) Object.assign(s, { showClouds: clouds, showLife: life, light, style }) }, [clouds, life, light, style])
 
   // Rebuild the ground in a worker when the shape or features change; names, notes and layers never rebuild it.
   const spec = world && JSON.stringify({ ...world, name: '', note: '', layers: undefined, features: world.features.map(({ name: _n, note: _o, ...f }) => f) })
@@ -123,7 +133,7 @@ export default function MapTestPage() {
   }
 
   // ---------- tools ----------
-  const setTool = (t: Tool) => { setToolState(t); setDraft([]); setRuler([]); live.current.snapAt = undefined; if (t !== 'select') setPopup(undefined) }
+  const setTool = (t: Tool) => { setToolState(t); setDraft([]); setLegs([]); setRuler([]); live.current.snapAt = live.current.preview = undefined; if (t !== 'select') setPopup(undefined) }
   useEffect(() => {
     if (scene.current) scene.current.dblFly = tool === 'select'
     if (canvas.current) canvas.current.style.cursor = tool === 'select' ? '' : 'crosshair'
@@ -151,7 +161,7 @@ export default function MapTestPage() {
     }
     const w = worldRef.current
     if (!g || !w || !gen) return
-    const regions = (w.layers ?? []).filter((l) => !l.hidden && l.kind === 'regions').flatMap((l) => l.items.filter((i) => i.area && inPoly(i.area, ...g)).map((i) => ({ ref: { layer: l.id, id: i.id }, a: polyArea(i.area!) })))
+    const regions = (w.layers ?? []).filter((l) => !l.hidden && l.kind === 'regions').flatMap((l) => l.items.filter((i) => i.area && inPoly(itemShape(i), ...g)).map((i) => ({ ref: { layer: l.id, id: i.id }, a: polyArea(i.area!) })))
     if (regions.length) return regions.sort((a, b) => a.a - b.a)[0].ref
     const s = scene.current!
     for (const f of w.features) {
@@ -179,14 +189,17 @@ export default function MapTestPage() {
       if (h.x !== undefined && 'id' in h.ref && Math.hypot(h.x - p.x, h.y! - p.y) <= h.r!) { const i = itemOf(w, h.ref); if (i) return { ref: h.ref, vertex: -1, item: i, moved: false } }
     }
   }
-  const finishDraft = (pts = draft) => {
+  const joined = (clicks: XY[], ls: XY[][]) => clicks.length ? [clicks[0], ...ls.flatMap((l) => l.slice(1))] : []
+  const finishDraft = () => {
     const kind = KIND_OF[tool]
-    if (!kind) return
+    if (!kind || !gen) return
+    const back = kind === 'regions' && draft.length >= 3 ? route(gen, draft[draft.length - 1], draft[0], follow[tool]).slice(1, -1) : []
+    const pts = [...joined(draft, legs), ...back]
     const clean = pts.filter((p, n) => !n || Math.hypot(p[0] - pts[n - 1][0], p[1] - pts[n - 1][1]) > 0.5)
     const need = kind === 'regions' ? 3 : 2
-    setDraft([])
+    setDraft([]); setLegs([]); live.current.preview = undefined
     if (clean.length < need) return
-    const item: MapItem = { id: uid(), [kind === 'regions' ? 'area' : 'path']: clean }
+    const item: MapItem = { id: uid(), [kind === 'regions' ? 'area' : 'path']: clean, ...(curve ? { curve: true } : {}) }
     const ref = addItem(kind, item)
     const last = scene.current?.proj(...clean[clean.length - 1])
     setSel(ref); setPopup({ target: ref, x: last?.[0] ?? 200, y: last?.[1] ?? 200, fresh: true })
@@ -204,8 +217,20 @@ export default function MapTestPage() {
       return
     }
     if (tool === 'ruler') { setRuler((r) => [...r, g]); return }
+    if (tool === 'fill') {
+      // fill up to the sea, borders and other regions
+      const w = worldRef.current!, vis = (w.layers ?? []).filter((l) => !l.hidden)
+      const area = gen && fillRegion(gen, g, vis.filter((l) => l.kind === 'borders').flatMap((l) => l.items.map(itemShape)), vis.filter((l) => l.kind === 'regions').flatMap((l) => l.items.map(itemShape)))
+      if (!area) { setMsg('Click on land to fill a region.'); return }
+      const ref = addItem('regions', { id: uid(), area: area.map(([x, y]) => [Math.round(x * 10) / 10, Math.round(y * 10) / 10] as XY), ...(curve ? { curve: true } : {}) })
+      setSel(ref); setPopup({ target: ref, ...p, fresh: true })
+      return
+    }
     if (tool === 'regions' && draft.length >= 3) { const f = s.proj(...draft[0]); if (f && Math.hypot(f[0] - p.x, f[1] - p.y) < 10) { finishDraft(); return } }
-    setDraft((d) => [...d, snapped(g) ?? g])
+    const pt = snapped(g) ?? g
+    if (draft.length && gen) { const leg = route(gen, draft[draft.length - 1], pt, follow[tool]); setLegs((ls) => [...ls, leg]) }
+    setDraft((d) => [...d, pt])
+    live.current.preview = undefined
   }
 
   const onPointerDownCapture = (e: RPointerEvent) => {
@@ -234,6 +259,10 @@ export default function MapTestPage() {
     live.current.cursor = g
     live.current.snapAt = g && DRAWS.has(tool) ? snapped(g) : undefined
     if (live.current.snapAt) live.current.cursor = live.current.snapAt
+    if (DRAWS.has(tool) && draft.length && live.current.cursor && gen && e.timeStamp - (live.current.previewAt ?? 0) > 60) {
+      live.current.previewAt = e.timeStamp
+      live.current.preview = route(gen, draft[draft.length - 1], live.current.cursor, follow[tool])
+    }
     if (tool === 'select' && !e.buttons) {
       const h = grabAt(p) ? sel : pickRef(p, g)
       live.current.hover = h
@@ -261,9 +290,9 @@ export default function MapTestPage() {
     if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return }
     if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); redo(); return }
     if (e.ctrlKey || e.metaKey || e.altKey) return
-    if (e.key === 'Escape') { if (draft.length) setDraft([]); else if (ruler.length) setRuler([]); else if (popup) setPopup(undefined); else setTool('select'); return }
+    if (e.key === 'Escape') { if (draft.length) { setDraft([]); setLegs([]); live.current.preview = undefined } else if (ruler.length) setRuler([]); else if (popup) setPopup(undefined); else setTool('select'); return }
     if (e.key === 'Enter' && draft.length) { finishDraft(); return }
-    if (e.key === 'Backspace' && draft.length) { setDraft((d) => d.slice(0, -1)); return }
+    if (e.key === 'Backspace' && draft.length) { setDraft((d) => d.slice(0, -1)); setLegs((l) => l.slice(0, -1)); live.current.preview = undefined; return }
     if ((e.key === 'Delete' || e.key === 'Backspace') && sel && 'id' in sel) { removeSel(); return }
     const t = TOOLS.find((t) => t[3] === k)
     if (t && world) setTool(t[0])
@@ -283,7 +312,7 @@ export default function MapTestPage() {
       for (const it of l.items) {
         ctx.globalAlpha = sel && 'id' in sel && sel.id === it.id ? 0.5 : 0.3
         ctx.fillStyle = layerColor(l)
-        ctx.beginPath(); it.area!.forEach(([x, y], n) => (n ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)))); ctx.closePath(); ctx.fill()
+        ctx.beginPath(); itemShape(it).forEach(([x, y], n) => (n ? ctx.lineTo(X(x), Y(y)) : ctx.moveTo(X(x), Y(y)))); ctx.closePath(); ctx.fill()
       }
     }
     s.setFill(c)
@@ -298,20 +327,20 @@ export default function MapTestPage() {
       const i = Math.floor(x / mw * gen.w), j = Math.floor(y / mh * gen.h), k = j * gen.w + i, o = (y * mw + x) * 4
       const off = gen.disc && Math.hypot(x - mw / 2, y - mh / 2) > mw / 2
       if (off) continue
-      if (gen.height[k] < 0) { const d = gen.depth[k] / 255; img.data.set([70 - 40 * d, 160 - 90 * d, 190 - 60 * d, 255], o) }
+      if (gen.height[k] < 0 || (gen.data[k * 4 + 1] && gen.data[k * 4] > 0)) { const d = gen.data[k * 4] / 255; img.data.set([70 - 40 * d, 160 - 90 * d, 190 - 60 * d, 255], o) }
       else img.data.set([gen.rgba[k * 4], gen.rgba[k * 4 + 1], gen.rgba[k * 4 + 2], 255], o)
     }
     ctx.putImageData(img, 0, 0)
     return c
   }, [gen])
 
-  const st = { world, gen, labelList, labels, sel, tool, draft, ruler, speed, miniBase }
+  const st = { world, gen, labelList, labels, sel, tool, draft, legs, curve, ruler, speed, miniBase }
   const stRef = useRef(st)
   stRef.current = st
   useEffect(() => {
     const s = scene.current!
     s.onFrame = () => {
-      const { world, gen, labelList, labels, sel, tool, draft, ruler, speed, miniBase } = stRef.current
+      const { world, gen, labelList, labels, sel, tool, draft, legs, curve, ruler, speed, miniBase } = stRef.current
       const c = hudCanvas.current!, k = devicePixelRatio, cw = canvas.current!.clientWidth, ch = canvas.current!.clientHeight
       if (c.width !== Math.round(cw * k) || c.height !== Math.round(ch * k)) { c.width = Math.round(cw * k); c.height = Math.round(ch * k) }
       const ctx = c.getContext('2d')!
@@ -321,9 +350,9 @@ export default function MapTestPage() {
       const kmPerPx = s.kmPerPx(), kind = KIND_OF[tool]
       hud.current.draw(ctx, { proj: s.proj, k, w: cw, h: ch, kmPerPx }, {
         world: w, gen, labels: d?.moved ? collectLabels(w, gen) : labelList, showLabels: labels, sel, hover: live.current.hover,
-        draft: kind && DRAWS.has(tool) ? { kind, pts: draft, cursor: live.current.cursor } : undefined,
+        draft: kind && DRAWS.has(tool) && draft.length ? { kind, clicks: draft, curve, pts: [...joined(draft, legs), ...(live.current.preview ?? (live.current.cursor ? [live.current.cursor] : [])).slice(1)] } : undefined,
         ruler: tool === 'ruler' ? { pts: ruler, cursor: live.current.cursor, speed } : undefined,
-        snap: live.current.snapAt,
+        snap: live.current.snapAt, night: s.night,
       })
       // compass and scale bar
       if (compass.current) compass.current.style.transform = `rotate(${-s.azimuth()}rad)`
@@ -359,7 +388,8 @@ export default function MapTestPage() {
     if (v.errors.length) { setMsg(`Not imported: ${v.errors.slice(0, 3).join('; ')}`); return }
     const fw = j as FlatWorld, old = worlds.find((w) => w.id === fw.id)
     put(old && !fw.layers && old.layers ? { ...fw, layers: old.layers } : fw) // a re-import without layers keeps the ones drawn here
-    setMsg(v.warnings.length ? `Imported with ${v.warnings.length} warnings: ${v.warnings.slice(0, 2).join('; ')}` : 'Imported.')
+    const warn = v.warnings.filter((x) => !x.endsWith('give it a name')) // unnamed rivers and isles are fine on import
+    setMsg(warn.length ? `Imported with ${warn.length} warnings: ${warn.slice(0, 2).join('; ')}` : 'Imported.')
   }
   const download = (blob: Blob, name: string) => {
     const a = document.createElement('a')
@@ -400,7 +430,7 @@ export default function MapTestPage() {
   }
 
   const kind = KIND_OF[tool]
-  const hint = tool === 'select' ? '' : DRAWS.has(tool) ? `Click to add points${tool === 'regions' ? ', click the first point' : ''}, double-click or Enter to finish, Backspace undoes a point, Esc cancels.${snap ? ' Snaps to coasts, rivers, crests and other lines.' : ''}`
+  const hint = tool === 'select' ? '' : tool === 'fill' ? 'Click inside an area: it fills up to the coast, your borders and other regions. Draw borders first to split a land into nations.' : DRAWS.has(tool) ? `Click to add points${tool === 'regions' ? ', click the first point' : ''}, double-click or Enter to finish, Backspace undoes a point, Esc cancels.${follow[tool] !== 'free' ? ' Between clicks the line follows the land.' : ''}`
     : tool === 'ruler' ? 'Click points along the way. Esc clears.' : `Click the map to place ${tool === 'city' ? 'a city' : 'a landmark'}.`
   const visibleLayers = (world?.layers ?? []).filter((l) => !l.hidden && l.items.length)
 
@@ -422,7 +452,12 @@ export default function MapTestPage() {
             {found.map((p) => <li key={'feature' in p.ref ? p.ref.feature : p.ref.id}><button className="ghost" onClick={() => goTo(p)}>{p.name} <small className="muted">{p.kind}</small></button></li>)}
           </ul>}
         </div>}
-        <button className="alt" onClick={() => load(demoRaw)}>Load demo</button>
+        <select value="" onChange={(e) => { if (e.target.value) load(e.target.value === 'disc' ? discRaw : e.target.value === 'erengrad' ? erengradRaw : demoRaw) }} aria-label="Load a demo map">
+          <option value="">Load demo…</option>
+          <option value="rect">The Sundered Reach</option>
+          <option value="disc">The Drowned Disc</option>
+          <option value="erengrad">The Erengrad Realms (your map)</option>
+        </select>
         <button className="alt" onClick={() => file.current?.click()}>Import</button>
         <input ref={file} type="file" accept=".json,application/json" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (f) load(await f.text()); e.target.value = '' }} />
         {world && <>
@@ -431,7 +466,10 @@ export default function MapTestPage() {
           <button className="alt" onClick={exportPng} title="Save the current view as a PNG"><Icon name="download" /> PNG</button>
           <label className="small" title="Parchment frame and title on the PNG"><input type="checkbox" checked={frame} onChange={(e) => setFrame(e.target.checked)} /> Frame</label>
           <label className="small"><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Names</label>
+          <select value={light} onChange={(e) => setLight(e.target.value as Light)} aria-label="Light" title="Time of day">{Object.entries(LIGHTS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select>
+          <select value={style} onChange={(e) => setStyle(e.target.value as Style)} aria-label="Art style" title="Art style">{Object.entries(STYLES).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select>
           <label className="small"><input type="checkbox" checked={clouds} onChange={(e) => setClouds(e.target.checked)} /> Clouds</label>
+          <label className="small" title="Ships and birds"><input type="checkbox" checked={life} onChange={(e) => setLife(e.target.checked)} /> Life</label>
           <button className="ghost icon" onClick={remove} aria-label="Delete map" title="Delete map"><Icon name="trash" /></button>
         </>}
         {spec && !ready && <span className="muted small">Building…</span>}
@@ -447,6 +485,8 @@ export default function MapTestPage() {
       {world && tool !== 'select' && <div className="maptest-hint glass small">
         {tool === 'city' && <select value={citySize} onChange={(e) => setCitySize(e.target.value as CitySize)} aria-label="City size">{CITY_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}</select>}
         {tool === 'landmark' && <select value={icon} onChange={(e) => setIcon(e.target.value as Landmark)} aria-label="Landmark type">{Object.entries(LANDMARKS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select>}
+        {DRAWS.has(tool) && <label title="Between your clicks, the line can run along rivers, ridges or coasts by itself">Follow <select value={follow[tool]} onChange={(e) => setFollow({ ...follow, [tool]: e.target.value as Follow })}>{Object.entries(FOLLOW).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>}
+        {(DRAWS.has(tool) || tool === 'fill') && <label title="Draw a smooth curve through the points"><input type="checkbox" checked={curve} onChange={(e) => setCurve(e.target.checked)} /> Curved</label>}
         {tool === 'ruler' && <label>Travel <input type="number" min={1} max={2000} value={speed} onChange={(e) => setSpeed(Math.max(1, Number(e.target.value) || 1))} style={{ width: '4.5rem' }} /> km/day</label>}
         {kind && (world.layers ?? []).filter((l) => l.kind === kind).length > 1 && <select value={active[kind] ?? ''} onChange={(e) => setActive({ ...active, [kind]: e.target.value })} aria-label="Layer to add to">
           {(world.layers ?? []).filter((l) => l.kind === kind).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>}
@@ -564,8 +604,8 @@ function Popup({ target: r, x, y, fresh, world, gen, commit, onClose, onDelete, 
   } else if (item && layer) {
     kind = LAYER_KINDS[layer.kind].label.replace(/s &.*|s$/, '')
     if (item.at) { at = item.at; extent = 40; stats = `${Math.round(heightAt(gen, ...at)).toLocaleString()} m above sea` }
-    if (item.path) { const L = pathLen(item.path); at = centroid(item.path); extent = L / 2; stats = `${Math.round(L).toLocaleString()} km long` }
-    if (item.area) { const a = polyArea(item.area); at = centroid(item.area); extent = Math.sqrt(a) / 2; stats = `${Math.round(a).toLocaleString()} km²` }
+    if (item.path) { const L = pathLen(itemShape(item)); at = centroid(item.path); extent = L / 2; stats = `${Math.round(L).toLocaleString()} km long` }
+    if (item.area) { const a = polyArea(itemShape(item)); at = centroid(item.area); extent = Math.sqrt(a) / 2; stats = `${Math.round(a).toLocaleString()} km²` }
   }
   const left = Math.min(Math.max(8, x + 14), innerWidth - 300), top = Math.min(Math.max(8, y - 20), innerHeight - 320)
   return (
@@ -579,6 +619,7 @@ function Popup({ target: r, x, y, fresh, world, gen, commit, onClose, onDelete, 
       {stats && <small className="muted">{stats}</small>}
       {layer?.kind === 'cities' && <select value={item!.size ?? 'town'} onChange={(e) => set({ size: e.target.value as CitySize })} aria-label="Size">{CITY_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}</select>}
       {layer?.kind === 'landmarks' && <select value={item!.icon ?? 'monument'} onChange={(e) => set({ icon: e.target.value as Landmark })} aria-label="Kind of landmark">{Object.entries(LANDMARKS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select>}
+      {item && (item.path || item.area) && <label className="small"><input type="checkbox" checked={!!item.curve} onChange={(e) => set({ curve: e.target.checked || undefined })} /> Curved</label>}
       <textarea rows={2} value={note} placeholder="Notes…" onChange={(e) => setNote(e.target.value)} onBlur={saveNote} aria-label="Notes" />
       <div className="row">
         <button className="alt" onClick={() => onZoom(at, extent)}>Zoom to</button>
