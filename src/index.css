@@ -1,12 +1,12 @@
 /* ---------- Design tokens: "Nightpine" (dark, default) and "Mist" (light) ---------- */
 :root, [data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0a100f; --bg-2: #0f1a17; --sky: #0b1620; --glow: rgba(124, 196, 160, .09);
-  --surface: rgba(21, 34, 30, .62); --surface-solid: #14221e; --raised: rgba(255, 255, 255, .045); --hover: rgba(255, 255, 255, .09);
+  --bg: #131315; --bg-2: #1a1a1d; --sky: #19191c; --glow: rgba(255, 255, 255, .04);
+  --surface: rgba(38, 38, 42, .66); --surface-solid: #232326; --raised: rgba(255, 255, 255, .045); --hover: rgba(255, 255, 255, .09);
   --field: rgba(0, 0, 0, .28);
-  --border: rgba(170, 215, 195, .13); --border-strong: rgba(170, 215, 195, .28);
-  --fg: #e9f0ea; --fg-2: #b4c4bb; --muted: #8a9d94;
-  --accent: #7cc4a0; --accent-ink: #08150f; --accent-soft: rgba(124, 196, 160, .17);
+  --border: rgba(255, 255, 255, .13); --border-strong: rgba(255, 255, 255, .28);
+  --fg: #ececee; --fg-2: #b8b8bd; --muted: #8e8e95;
+  --accent: #5577c0; --accent-ink: #ffffff; --accent-soft: rgba(85, 119, 192, .22);
   --ember: #e2a94d; --danger: #ef8a7b; --danger-soft: rgba(239, 138, 123, .15);
   --shadow: 0 12px 40px rgba(0, 0, 0, .45);
   --art: url('/art-dark.svg');
@@ -18,7 +18,7 @@
   --field: rgba(255, 255, 255, .75);
   --border: rgba(20, 60, 45, .14); --border-strong: rgba(20, 60, 45, .30);
   --fg: #14211b; --fg-2: #3f5147; --muted: #566a5f;
-  --accent: #2a7a59; --accent-ink: #ffffff; --accent-soft: rgba(42, 122, 89, .13);
+  --accent: #1f3a6e; --accent-ink: #ffffff; --accent-soft: rgba(31, 58, 110, .13);
   --ember: #a8681a; --danger: #b43c2c; --danger-soft: rgba(180, 60, 44, .11);
   --shadow: 0 12px 36px rgba(30, 60, 45, .18);
   --art: url('/art-light.svg');
@@ -37,7 +37,6 @@ body {
   background: radial-gradient(1100px 520px at 72% -8%, var(--glow), transparent 62%), linear-gradient(180deg, var(--sky) 0%, var(--bg) 52%, var(--bg-2) 100%);
   background-attachment: fixed;
 }
-body::before { content: ''; position: fixed; left: 0; right: 0; bottom: 0; height: 46vh; background: var(--art) center bottom / cover no-repeat; pointer-events: none; z-index: 0 }
 #root { position: relative; z-index: 1 }
 h1, h2, h3 { margin: 0; font-weight: 600 }
 h1 { font-family: var(--serif); font-size: 1.95rem; letter-spacing: .005em }
