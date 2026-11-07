@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { autofillNames, complete } from './autofill'
+import { check, type Common, type Miss } from './spell'
 import { uid, useBook } from './store'
 
 // The one editor behind Scenes and Write: same marks, same autofill, same behaviour in both.
@@ -137,6 +138,92 @@ const Autofill = Extension.create<{ names: () => string[] }>({
   },
 })
 
+// Spelling: only near-misses of common words get a dotted underline (see spell.ts). Tap one for fixes; wiki names are never flagged.
+type Dict = { known: Set<string>; common: Common }
+const FILES = import.meta.glob<string[]>('/node_modules/wordlist-english/{english,american,british}-words-*.json', { import: 'default' })
+let dict: Promise<Dict> | undefined
+const loadDict = () => dict ??= (async () => {
+  const get = (re: RegExp) => Promise.all(Object.entries(FILES).filter(([f]) => re.test(f)).map(([, load]) => load())).then((a) => a.flat())
+  const common: Common = new Map()
+  for (const [i, n] of [10, 20, 35].entries()) for (const w of await get(new RegExp(`/english-words-${n}[.]`))) if (!common.has(w)) common.set(w, i)
+  return { known: new Set(await get(/-words-/)), common }
+})()
+
+const Spelling = Extension.create<{ names: () => string[] }>({
+  name: 'spelling',
+  addOptions() { return { names: () => [] } },
+  addProseMirrorPlugins() {
+    const names = this.options.names
+    const key = new PluginKey<{ list: Miss[]; open: number | null }>('spelling')
+    type St = { list: Miss[]; open: number | null }
+    let ready: Dict | undefined, view: EditorView | undefined
+    const scan = (doc: EditorState['doc']): Miss[] => {
+      const d = ready
+      if (!d) return []
+      const skip = new Set(names().flatMap((n) => n.toLowerCase().split(/[^\p{L}]+/u)))
+      const out: Miss[] = []
+      doc.descendants((node, pos) => {
+        if (!node.isTextblock) return
+        for (const m of check(node.textBetween(0, node.content.size, undefined, '￼'), d.known, d.common, skip)) out.push({ ...m, from: m.from + pos + 1, to: m.to + pos + 1 })
+        return false
+      })
+      return out
+    }
+    return [new Plugin({
+      key,
+      view(v) { view = v; loadDict().then((d) => { ready = d; if (!v.isDestroyed) v.dispatch(v.state.tr.setMeta(key, { ready: true })) }); return {} },
+      // Typing one space or punctuation mark after a word one clear slip from a common word fixes it in place (Ctrl+Z puts it back).
+      appendTransaction(trs, old, now) {
+        if (!trs.some((t) => t.docChanged) || now.doc.content.size - old.doc.content.size !== 1 || !now.selection.empty || view?.composing) return null
+        const at = now.selection.from
+        if (!/^[\s.,;:!?)"”—-]$/.test(now.doc.textBetween(at - 1, at, undefined, '￼'))) return null
+        const hit = key.getState(now)?.list.find((m) => m.to === at - 1 && m.auto)
+        return hit?.auto ? now.tr.insertText(hit.auto, hit.from, hit.to) : null
+      },
+      state: {
+        init: (): St => ({ list: [], open: null }),
+        apply: (tr, st): St => {
+          const meta = tr.getMeta(key)
+          const list = tr.docChanged || meta?.ready ? scan(tr.doc) : st.list
+          return { list, open: meta && 'open' in meta ? meta.open : tr.docChanged ? null : st.open }
+        },
+      },
+      props: {
+        decorations(state) {
+          const st = key.getState(state)
+          if (!st?.list.length) return null
+          const { from, empty } = state.selection
+          const out: Decoration[] = []
+          for (const m of st.list) {
+            const open = st.open === m.from
+            if (!open && empty && from >= m.from && from <= m.to) continue // still typing it
+            out.push(Decoration.inline(m.from, m.to, { class: 'misspelled' }))
+            if (!open) continue
+            out.push(Decoration.widget(m.to, (v) => {
+              const el = document.createElement('span')
+              el.className = 'spell-fix'
+              for (const f of m.fix) {
+                const b = document.createElement('button')
+                b.textContent = f
+                b.addEventListener('mousedown', (e) => { e.preventDefault(); v.dispatch(v.state.tr.insertText(f, m.from, m.to)) })
+                el.append(b)
+              }
+              return el
+            }, { side: 1, key: `fix${m.from}${m.word}` }))
+          }
+          return DecorationSet.create(state.doc, out)
+        },
+        handleClick(v, pos) {
+          const st = key.getState(v.state)
+          const hit = st?.list.find((m) => pos >= m.from && pos <= m.to)
+          if (hit || st?.open != null) v.dispatch(v.state.tr.setMeta(key, { open: hit ? hit.from : null }))
+          return false
+        },
+      },
+    })]
+  },
+})
+
 interface Prose {
   body: string
   onBody: (html: string, editor: Editor) => void
@@ -159,7 +246,7 @@ export function useProse(p: Prose) {
     sc.scrollTop += c.top - (r.top + r.height * 0.42)
   }
   const editor = useEditor({
-    extensions: [StarterKit, CommentMark, Autofill.configure({ names: () => autofillNames(useBook.getState().book, now.current.cast) }), ...(p.extensions ?? [])] as never,
+    extensions: [StarterKit, CommentMark, Autofill.configure({ names: () => autofillNames(useBook.getState().book, now.current.cast) }), Spelling.configure({ names: () => autofillNames(useBook.getState().book) }), ...(p.extensions ?? [])] as never,
     content: p.body,
     onUpdate: ({ editor }) => { now.current.onBody(editor.getHTML(), editor as Editor); center(editor as Editor) },
     onSelectionUpdate: ({ editor }) => center(editor as Editor),

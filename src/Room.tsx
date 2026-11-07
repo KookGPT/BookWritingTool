@@ -10,7 +10,7 @@ import { history, type Snap, snapshot } from './history'
 import Icon from './Icon'
 import { addComment, clearComment, goToComment, setCommentNote } from './prose'
 import { plain, today, useBook, words } from './store'
-import { loadSettings } from './sync'
+import { loadSettings, runSync, useSyncStatus } from './sync'
 import { useLocal } from './ui'
 
 // The writing room: the same page, top bar, goal and side panel around a scene (Scenes) or a chapter (Write).
@@ -167,6 +167,19 @@ function ForClaude({ doc }: { doc: Ref }) {
   return <button className="ghost hide-in-focus" aria-label="For Claude" title="Copy this text, the story around it, its world notes and your comments, to paste to Claude for a continuity check and feedback" onClick={copy}><Icon name="copy" size={16} /> <span className="claude-label">{msg || 'For Claude'}</span></button>
 }
 
+// One tap when you stop: snapshot this text, then push to GitHub if sync is on.
+function SaveButton({ doc, synced }: { doc: Ref & { body: string }; synced: boolean }) {
+  const busy = useSyncStatus((s) => s.busy)
+  const [msg, setMsg] = useState('')
+  const save = async () => {
+    await snapshot(doc.id, doc.body, 'Manual')
+    if (synced) await runSync()
+    setMsg(synced ? useSyncStatus.getState().text : 'Saved')
+    setTimeout(() => setMsg(''), 3000)
+  }
+  return <button className="ghost" aria-label="Save" title="Snapshot this text and sync" disabled={busy} onClick={save}>{busy ? 'Saving...' : msg || 'Save'}</button>
+}
+
 interface RoomProps {
   w: Writer
   crumb: string
@@ -206,6 +219,7 @@ export function Room({ w, crumb, left, aside, doc, editor = null, info, story, c
         <span className="crumb hide-in-focus">{crumb}</span>
         <span className={`save-state hide-in-focus ${synced && dirty ? 'pending' : ''}`}><i />{saved}</span>
         <span className="grow" style={{ display: focus ? 'block' : 'none' }} />
+        {doc && <SaveButton doc={doc} synced={synced} />}
         {doc && <ForClaude doc={doc} />}
         <details className="menu aa">
           <summary aria-label="Editor settings" title="Font, size, width, typewriter scrolling">Aa</summary>

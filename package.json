@@ -22,6 +22,7 @@
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.5",
     "three": "^0.180.0",
+    "wordlist-english": "^1.2.1",
     "zustand": "^5.0.16"
   },
   "devDependencies": {

@@ -632,3 +632,6 @@ button.linklike:hover { color: var(--fg); background: none }
 .scene-card.over-before { box-shadow: 0 -4px 0 var(--accent) }
 .scene-card.over-after { box-shadow: 0 4px 0 var(--accent) }
 .scene-card.dragging { opacity: .45 }
+.misspelled { text-decoration: underline wavy var(--ember); text-underline-offset: 3px }
+.spell-fix { display: inline-flex; gap: 4px; margin-left: 4px; vertical-align: baseline; user-select: none }
+.spell-fix button { font: inherit; font-size: .8em; padding: 0 8px; border-radius: 10px; background: var(--ember); color: #fff; border: 0; cursor: pointer }

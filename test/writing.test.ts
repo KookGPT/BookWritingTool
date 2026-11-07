@@ -6,6 +6,7 @@ import { allComments, commentsIn } from '../src/comments.ts'
 import { canReorder, chapterNeighbours, connected, linkScene, moveScene, sceneNeighbours, sceneOrder } from '../src/connect.ts'
 import { blocks } from '../src/export.ts'
 import { findAll, replaceAll, undoReplace } from '../src/replace.ts'
+import { check } from '../src/spell.ts'
 import type { Book, Scene } from '../src/store.ts'
 import { bookWords, setSceneBody, toText, words } from '../src/text.ts'
 
@@ -250,6 +251,21 @@ const span = (id: string, note: string, text: string) => `<span data-comment="${
   const c = { ...b, chapters: [{ id: 'one', title: 'One', body: '<p>Mara walks.</p>', status: 'draft' as const, notes: '' }] }
   assert.ok(claudeBrief(c, { kind: 'chapter', id: 'one' }).includes('THE TEXT: One'))
   assert.ok(claudeBrief(b, { kind: 'scene', id: 'a' }).includes('After this'))
+}
+
+{ // spelling: only near-misses of common words, never names; one clear slip is auto-fixable
+  const known = new Set(['the', 'which', 'witch', 'receive', 'was', 'there', 'three', 'definitely', 'because']), common: Map<string, number> = new Map([['the', 0], ['which', 0], ['witch', 2], ['receive', 0], ['was', 0], ['there', 0], ['three', 0], ['definitely', 1], ['because', 0]])
+  const r = check('Teh wich recieve Eyaris was thre, and wich', known, common, new Set())
+  assert.deepEqual(r.map((m) => m.word), ['wich', 'recieve', 'thre', 'wich']) // Teh is capitalised, Eyaris is far from any common word
+  assert.deepEqual(r[0].fix, ['which', 'witch'])
+  assert.equal(r[0].auto, 'which') // the more common word wins
+  assert.equal(r[1].auto, 'receive') // swapped letters
+  assert.equal(r[2].auto, undefined) // there or three: ask
+  assert.equal(check('wich', known, common, new Set(['wich'])).length, 0) // wiki name
+  const bad = check('defanitly becuase', known, common, new Set())
+  assert.equal(bad[0].fix[0], 'definitely') // two slips: suggested, never automatic
+  assert.equal(bad[0].auto, undefined)
+  assert.equal(bad[1].auto, 'because')
 }
 
 console.log('writing ok')
