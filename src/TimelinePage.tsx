@@ -6,8 +6,9 @@ import Icon from './Icon'
 import { COLORS, PlanForm, PlanTimeline } from './PlanTimeline'
 import { calendarOf, type PlanItem, type Period, type TDate, type TEvent, uid, useBook } from './store'
 import { dayOf, lanes, layout } from './timelineScale'
+import { PageHead, useLocal } from './ui'
 
-const U = 210 // px per unit (one card width plus breathing room)
+const BASE = 210 // px per unit at zoom 1 (one card width plus breathing room)
 
 const fmtDate = (c: Calendar, t: TDate) => {
   const m = t.m ? c.months[t.m - 1]?.name : undefined
@@ -122,6 +123,8 @@ function PeriodForm({ per, cal, onClose }: { per: Period; cal: Calendar; onClose
 export default function TimelinePage() {
   const { book, update } = useBook()
   const cal = calendarOf(book)
+  const [zoom, setZoom] = useLocal<number>('tl-zoom', 1)
+  const U = BASE * zoom
   const [params] = useSearchParams()
   const [sel, setSel] = useState<{ kind: 'event' | 'period' | 'plan'; id: string } | null>(() => (params.get('e') ? { kind: 'event', id: params.get('e')! } : null))
   const [q, setQ] = useState('')
@@ -146,7 +149,7 @@ export default function TimelinePage() {
     for (const p of periods) { add(p.start, coord[`${p.id}:start`]); add(p.end, coord[`${p.id}:end`]) }
     let edge = -Infinity // drop labels that would touch the previous one
     return [...m].sort((a, b) => a[1] - b[1]).filter(([, c]) => (c - edge) * U >= 80 && ((edge = c), true))
-  }, [events, periods, coord])
+  }, [events, periods, coord, zoom]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const center = (c: number, smooth = true) => {
     const el = scroller.current
@@ -184,6 +187,23 @@ export default function TimelinePage() {
     if (Math.abs(e.clientX - d.x) > 4) d.moved = true
     if (d.moved) scroller.current!.scrollLeft = d.left - (e.clientX - d.x)
   }
+  const [mini, setMini] = useState({ left: 0, width: 1, total: 1 })
+  const syncMini = () => { const el = scroller.current; if (el) setMini({ left: el.scrollLeft, width: el.clientWidth, total: Math.max(el.scrollWidth, 1) }) }
+  useEffect(syncMini, [max, zoom, events.length, periods.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  const jump = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.type === 'pointermove' && !e.buttons) return
+    const el = scroller.current, r = e.currentTarget.getBoundingClientRect()
+    if (el) el.scrollLeft = ((e.clientX - r.left) / r.width) * el.scrollWidth - el.clientWidth / 2
+  }
+  const [dropping, setDropping] = useState(false)
+  const dropPlan = (id: string, cx: number, cy: number) => {
+    const p = book.plan.find((x) => x.id === id), el = scroller.current
+    if (!p || !el) return
+    const c = (cx - el.getBoundingClientRect().left + el.scrollLeft) / U - 1
+    const rail = el.querySelector('.tl-rail')?.getBoundingClientRect()
+    const nearest = [...events].sort((a, b) => Math.abs(coord[a.id] - c) - Math.abs(coord[b.id] - c))[0]
+    schedule(p, nearest?.date ?? last, rail ? (cy < rail.top + rail.height / 2 ? 'party' : 'world') : p.kind ?? 'party')
+  }
   const click = (e: React.MouseEvent) => { if (drag.current?.moved) e.stopPropagation(); drag.current = null }
 
   const ev = sel?.kind === 'event' ? book.events.find((e) => e.id === sel.id) : undefined
@@ -206,8 +226,8 @@ export default function TimelinePage() {
     update((b) => ({ ...b, periods: [...b.periods, p] }))
     setSel({ kind: 'period', id: p.id })
   }
-  const schedule = (p: PlanItem) => {
-    const e: TEvent = { id: uid(), kind: p.kind ?? 'party', title: p.title, date: { ...last }, location: '', summary: p.summary }
+  const schedule = (p: PlanItem, date: TDate = last, kind: TEvent['kind'] = p.kind ?? 'party') => {
+    const e: TEvent = { id: uid(), kind, title: p.title, date: { ...date }, location: '', summary: p.summary }
     update((b) => ({ ...b, plan: b.plan.filter((x) => x.id !== p.id), events: [...b.events, e] }))
     setSel({ kind: 'event', id: e.id })
   }
@@ -232,19 +252,25 @@ export default function TimelinePage() {
   )
 
   return (
-    <div className="page wider tl">
-      <div className="row" style={{ alignItems: 'center' }}>
-        <h1 className="grow">Production Timeline</h1>
+    <div className={`page wider tl ${zoom < 0.8 ? 'zoomed-out' : ''}`}>
+      <PageHead title="Production Timeline" hint="Top: where the party is and what they do. Bottom: what the world is doing out of their sight. Bars on the rail are periods. Drag to move along it, drop a planning card on it to date it.">
         <input className="tl-search" type="search" aria-label="Search timeline" placeholder="Search events..." value={q} onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { const f = [...events].sort((a, b) => coord[a.id] - coord[b.id])[0]; if (f) select('event', f.id) } }} />
-        {toggle('party', 'Party')}{toggle('world', 'World')}{toggle('periods', 'Periods')}
+        <details className="menu">
+          <summary>View</summary>
+          <div className="menu-pop">
+            {toggle('party', 'Party events')}{toggle('world', 'World events')}{toggle('periods', 'Periods')}
+            <label>Zoom
+              <input type="range" min={0.6} max={1.4} step={0.1} value={zoom} onChange={(e) => setZoom(+e.target.value)} />
+            </label>
+          </div>
+        </details>
         <button className="alt icon" aria-label="Previous event" onClick={() => step(-1)}><Icon name="left" /></button>
         <button className="alt icon" aria-label="Next event" onClick={() => step(1)}><Icon name="right" /></button>
         <button onClick={() => addEvent('party')}><Icon name="plus" size={16} /> Party event</button>
-        <button onClick={() => addEvent('world')}><Icon name="plus" size={16} /> World event</button>
+        <button className="alt" onClick={() => addEvent('world')}><Icon name="plus" size={16} /> World event</button>
         <button className="alt" onClick={addPeriod}><Icon name="plus" size={16} /> Period</button>
-      </div>
-      <p className="muted">Top: where the party is and what they do. Bottom: what the world is doing out of their sight. Bars on the rail are periods. Drag or use the arrows to move along it. New items start on the selected event's day.</p>
+      </PageHead>
       {needle && !events.length && !periods.length && <p className="muted">No events or periods match "{q}".</p>}
       {!book.events.length && !book.periods.length && (
         <div className="empty"><Icon name="timeline" size={32} /><p>Nothing on the timeline yet. Add where the party goes, or what the world is up to.</p></div>
@@ -256,8 +282,20 @@ export default function TimelinePage() {
           {per && <PeriodForm key={per.id} per={per} cal={cal} onClose={() => setSel(null)} />}
         </aside>
       )}
-      <div className="tl-scroll" ref={scroller} onPointerDown={down} onPointerMove={move} onPointerUp={() => setTimeout(() => (drag.current = null))} onClickCapture={click}>
-        <div className="tl-canvas" style={{ width: x(max) + U, ['--band' as string]: `${band}px` }}>
+      {events.length + periods.length > 1 && (
+        <div className="tl-mini" aria-label="Overview of the whole timeline: click or drag to move" onPointerDown={jump} onPointerMove={jump}>
+          {periods.map((p) => <i key={p.id} className="per" style={{ left: `${(x(coord[`${p.id}:start`]) / mini.total) * 100}%`, width: `${Math.max(((x(coord[`${p.id}:end`]) - x(coord[`${p.id}:start`])) / mini.total) * 100, 0.6)}%`, background: p.color }} />)}
+          {events.map((e) => <i key={e.id} className={e.kind} style={{ left: `${(x(coord[e.id]) / mini.total) * 100}%` }} />)}
+          <b className="win" style={{ left: `${(mini.left / mini.total) * 100}%`, width: `${Math.min(100, (mini.width / mini.total) * 100)}%` }} />
+        </div>
+      )}
+      <div
+        className={`tl-scroll ${dropping ? 'dropping' : ''}`} ref={scroller} onPointerDown={down} onPointerMove={move} onPointerUp={() => setTimeout(() => (drag.current = null))} onClickCapture={click} onScroll={syncMini}
+        onDragOver={(e) => { if (e.dataTransfer.types.includes('application/x-plan')) { e.preventDefault(); setDropping(true) } }}
+        onDragLeave={() => setDropping(false)}
+        onDrop={(e) => { const id = e.dataTransfer.getData('application/x-plan'); if (!id) return; e.preventDefault(); setDropping(false); dropPlan(id, e.clientX, e.clientY) }}
+      >
+        <div className="tl-canvas" style={{ width: x(max) + U, ['--band' as string]: `${band}px`, ['--cw' as string]: `${Math.round(Math.min(190, 190 * zoom))}px` }}>
           <div className="tl-top">{events.filter((e) => e.kind === 'party').map(card)}</div>
           <div className="tl-rail" style={{ height: band }}>
             <span className="tl-line" />
@@ -276,10 +314,9 @@ export default function TimelinePage() {
           <div className="tl-bottom">{events.filter((e) => e.kind === 'world').map(card)}</div>
         </div>
       </div>
-      <div className="row" style={{ alignItems: 'center', marginTop: '1.4rem' }}>
-        <h1 className="grow">Planning Timeline</h1>
+      <div style={{ marginTop: '1.4rem', display: 'flex', flexDirection: 'column', gap: '.8rem' }}>
+        <PageHead title="Planning Timeline" hint="No dates here. Lay out what happens in the order you want: drag cards to reorder, press + between cards to insert. Drag a card up onto the Production Timeline to date it (it lands on the nearest event's day, above or below the rail for party or world)." />
       </div>
-      <p className="muted">No dates here. Lay out what happens in the order you want: drag cards to reorder, press + between cards to insert, and move a card to the Production Timeline once it has a date.</p>
       <PlanTimeline selId={planItem?.id} onSelect={(id) => setSel({ kind: 'plan', id })} />
     </div>
   )

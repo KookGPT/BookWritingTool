@@ -1,12 +1,14 @@
-import { EditorContent, useEditor } from '@tiptap/react'
+import { type Editor as Tip, EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import Icon from './Icon'
 import { history, type Snap, snapshot, trashIt } from './history'
 import { PlanView } from './ScenePlan'
 import { SceneBlock } from './sceneNode'
 import { type Chapter, mentionsEntry, needsPlacement, plain, sceneBlocks, syncPlacement, today, uid, useBook, words } from './store'
+import { loadSettings } from './sync'
+import { readLocal, useLocal } from './ui'
 
 const STATUSES: Chapter['status'][] = ['draft', 'revised', 'done']
 
@@ -38,7 +40,7 @@ function History({ chapter, restore }: { chapter: Chapter; restore: (html: strin
   )
 }
 
-function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean; closeInfo: () => void }) {
+function Editor({ chapter, info, closeInfo, typewriter }: { chapter: Chapter; info: boolean; closeInfo: () => void; typewriter: boolean }) {
   const update = useBook((s) => s.update)
   const wiki = useBook((s) => s.book.wiki)
   const allScenes = useBook((s) => s.book.scenes)
@@ -67,10 +69,21 @@ function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean;
       return { ...b, stats, scenes, chapters: b.chapters.map((c) => (c.id === chapter.id ? { ...c, ...p } : c)) }
     })
   }
+  // Typewriter scrolling keeps the line you are typing near the middle of the screen.
+  const scroller = useRef<HTMLDivElement>(null)
+  const tw = useRef(typewriter)
+  tw.current = typewriter
+  const center = (ed: Tip) => {
+    const sc = scroller.current
+    if (!sc || !tw.current || !ed.isFocused) return
+    const c = ed.view.coordsAtPos(ed.state.selection.head), r = sc.getBoundingClientRect()
+    sc.scrollTop += c.top - (r.top + r.height * 0.42)
+  }
   const editor = useEditor({
     extensions: [StarterKit, SceneBlock],
     content: chapter.body,
-    onUpdate: ({ editor }) => patch({ body: editor.getHTML() }),
+    onUpdate: ({ editor }) => { patch({ body: editor.getHTML() }); center(editor) },
+    onSelectionUpdate: ({ editor }) => center(editor),
   })
   // A sync can bring in this chapter's text from the other device; show it instead of overwriting it on the next keystroke.
   useEffect(() => {
@@ -92,7 +105,7 @@ function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean;
   const mentioned = wiki.filter((w) => mentionsEntry(plain(chapter.body), w))
   return (
     <>
-      <div className="w-scroll">
+      <div className="w-scroll" ref={scroller}>
         <div className="w-page">
           <input className="w-title" aria-label="Chapter title" value={chapter.title} onChange={(e) => patch({ title: e.target.value })} />
           <div className="w-meta">
@@ -153,18 +166,26 @@ function Editor({ chapter, info, closeInfo }: { chapter: Chapter; info: boolean;
   )
 }
 
+export interface Prefs { font: 'serif' | 'sans' | 'mono'; size: number; width: number; typewriter: boolean }
+const PREFS: Prefs = { font: 'serif', size: 19, width: 47, typewriter: false }
+const FONTS = { serif: 'var(--serif)', sans: 'var(--sans)', mono: "ui-monospace, 'Cascadia Code', Consolas, monospace" }
+const NARROW = 900 // below this the chapter list floats over the page instead of sitting beside it
+
 export default function Write() {
-  const { book, update } = useBook()
+  const { book, update, dirty } = useBook()
   const [params] = useSearchParams()
-  const [sel, setSel] = useState<string | null>(params.get('c'))
+  const [sel, setSel] = useState<string | null>(params.get('c') ?? readLocal<string | null>('write-last', null))
   useEffect(() => { const c = params.get('c'); if (c) setSel(c) }, [params])
   const [focus, setFocus] = useState(false)
-  const [list, setList] = useState(!params.get('c'))
+  const [list, setList] = useState(() => innerWidth >= NARROW && readLocal('write-list', true))
+  useEffect(() => { if (innerWidth >= NARROW) try { localStorage.setItem('write-list', JSON.stringify(list)) } catch { /* private mode */ } }, [list])
+  const [prefs, setPrefs] = useLocal<Prefs>('write-prefs', PREFS)
   const [info, setInfo] = useState(false)
   const [drag, setDrag] = useState<number | null>(null)
   const chapter = book.chapters.find((c) => c.id === sel)
+  useEffect(() => { if (chapter) try { localStorage.setItem('write-last', JSON.stringify(chapter.id)) } catch { /* private mode */ } }, [chapter?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { if (focus) setFocus(false); else if (info) setInfo(false); else if (list) setList(false) } }
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') { if (focus) setFocus(false); else if (info) setInfo(false); else if (list && innerWidth < NARROW) setList(false) } }
     addEventListener('keydown', h)
     return () => removeEventListener('keydown', h)
   }, [focus, info, list])
@@ -173,7 +194,7 @@ export default function Write() {
     const c: Chapter = { id: uid(), title: `Chapter ${book.chapters.length + 1}`, body: '', status: 'draft', notes: '' }
     update((b) => ({ ...b, chapters: [...b.chapters, c] }))
     setSel(c.id)
-    setList(false)
+    if (innerWidth < NARROW) setList(false)
   }
   const remove = (id: string) => {
     if (!confirm('Delete this chapter? (It goes to Trash.)')) return
@@ -191,41 +212,81 @@ export default function Write() {
     })
     setDrag(null)
   }
-  const total = book.chapters.reduce((n, c) => n + words(c.body), 0)
+  const counts = book.chapters.map((c) => words(c.body))
+  const total = counts.reduce((n, w) => n + w, 0)
+  const longest = Math.max(1, ...counts)
+  const { goal, days } = book.stats
+  const done = days[today()] ?? 0
+  const synced = !!loadSettings().token
+  const saved = synced ? (dirty ? 'Unsynced changes' : 'Synced') : 'Saved on this device'
+  const vars = { ['--w-font' as string]: FONTS[prefs.font], ['--w-size' as string]: `${prefs.size}px`, ['--w-width' as string]: `${prefs.width}rem` }
+  const set = (p: Partial<Prefs>) => setPrefs({ ...prefs, ...p })
 
   return (
-    <div className={`writer ${focus ? 'focus' : ''}`}>
+    <div className={`writer ${focus ? 'focus' : ''}`} style={vars}>
       <div className="w-top">
         <button className={`ghost icon hide-in-focus ${list ? 'on' : ''}`} aria-label="Chapters" title="Chapters" onClick={() => setList(!list)}><Icon name="list" /></button>
         <span className="crumb hide-in-focus">{chapter ? `${chapter.title} · ` : ''}{total} words in book</span>
+        <span className={`save-state hide-in-focus ${synced && dirty ? 'pending' : ''}`}><i />{saved}</span>
         <span className="grow" style={{ display: focus ? 'block' : 'none' }} />
+        <details className="menu aa">
+          <summary aria-label="Editor settings" title="Font, size, width, typewriter scrolling">Aa</summary>
+          <div className="menu-pop">
+            <label>Font
+              <select value={prefs.font} onChange={(e) => set({ font: e.target.value as Prefs['font'] })}><option value="serif">Serif</option><option value="sans">Sans</option><option value="mono">Mono</option></select>
+            </label>
+            <label>Text size: {prefs.size}px
+              <input type="range" min={15} max={28} value={prefs.size} onChange={(e) => set({ size: +e.target.value })} />
+            </label>
+            <label>Line width
+              <select value={prefs.width} onChange={(e) => set({ width: +e.target.value })}><option value={38}>Narrow</option><option value={47}>Medium</option><option value={60}>Wide</option></select>
+            </label>
+            <label className="check"><input type="checkbox" checked={prefs.typewriter} onChange={(e) => set({ typewriter: e.target.checked })} /> Typewriter scrolling</label>
+          </div>
+        </details>
         <button className={`ghost icon hide-in-focus ${info ? 'on' : ''}`} aria-label="Notes and history" title="Notes, mentions, history" disabled={!chapter} onClick={() => setInfo(!info)}><Icon name="panel" /></button>
         <button className="ghost icon" aria-label={focus ? 'Exit focus mode' : 'Focus mode'} title={focus ? 'Exit focus mode' : 'Focus mode'} onClick={() => setFocus(!focus)}><Icon name="focus" /></button>
       </div>
-      {list && !focus && (
-        <aside className="drawer left" aria-label="Chapters">
-          <button onClick={add}><Icon name="plus" size={16} /> Chapter</button>
-          <p className="muted">Drag to reorder</p>
-          {book.chapters.map((c, i) => (
-            <div
-              key={c.id}
-              draggable
-              onDragStart={() => setDrag(i)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => move(i)}
-              className={`item ${c.id === sel ? 'sel' : ''}`}
-              onClick={() => { setSel(c.id); if (innerWidth < 800) setList(false) }}
-            >
-              <span>{i + 1}. {c.title}</span>
-              <small className="muted">{c.status} · {words(c.body)}w</small>
-            </div>
-          ))}
-          {chapter && <button className="danger" onClick={() => remove(chapter.id)}>Delete chapter</button>}
-        </aside>
-      )}
-      {chapter
-        ? <Editor key={chapter.id} chapter={chapter} info={info} closeInfo={() => setInfo(false)} />
-        : <div className="empty"><Icon name="pen" size={32} /><p>Pick a chapter, or start a new one.</p><button onClick={add}>+ Chapter</button></div>}
+      <div className="w-body">
+        {list && !focus && (
+          <aside className="w-list" aria-label="Chapters">
+            <button onClick={add}><Icon name="plus" size={16} /> Chapter</button>
+            <p className="muted">Drag to reorder</p>
+            {book.chapters.map((c, i) => (
+              <div
+                key={c.id}
+                draggable
+                onDragStart={() => setDrag(i)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => move(i)}
+                className={`item ${c.id === sel ? 'sel' : ''}`}
+                onClick={() => { setSel(c.id); if (innerWidth < NARROW) setList(false) }}
+              >
+                <span className="ch-title"><i className={`ch-dot ${c.status}`} title={c.status} />{i + 1}. {c.title}</span>
+                <small className="muted">{c.status} · {counts[i]}w</small>
+                <div className="ch-bar"><div style={{ width: `${(counts[i] / longest) * 100}%` }} /></div>
+              </div>
+            ))}
+            {chapter && <button className="danger" onClick={() => remove(chapter.id)}>Delete chapter</button>}
+          </aside>
+        )}
+        <div className="w-main">
+          {chapter
+            ? <Editor key={chapter.id} chapter={chapter} info={info} closeInfo={() => setInfo(false)} typewriter={prefs.typewriter} />
+            : (
+              <div className="empty">
+                <Icon name="pen" size={32} />
+                {book.chapters.length
+                  ? <><p>Pick a chapter on the left to keep writing.</p><button onClick={() => setSel(book.chapters.find((c) => c.status !== 'done')?.id ?? book.chapters[0].id)}>Continue with {(book.chapters.find((c) => c.status !== 'done') ?? book.chapters[0]).title}</button></>
+                  : <><p>Your book starts here. Add the first chapter, then write.</p><button onClick={add}>+ Chapter</button></>}
+              </div>
+            )}
+        </div>
+      </div>
+      <div className="w-goal" title={`${done} of ${goal} words today`}>
+        <div className="w-goal-fill" style={{ width: `${Math.min(100, (done / Math.max(goal, 1)) * 100)}%` }} />
+        <span>{done} / {goal} words today</span>
+      </div>
     </div>
   )
 }

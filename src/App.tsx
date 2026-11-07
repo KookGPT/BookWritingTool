@@ -10,17 +10,19 @@ import Search from './Search'
 import Settings from './Settings'
 import Scenes from './Scenes'
 import TimelinePage from './TimelinePage'
+import Today from './Today'
 import Trash from './Trash'
 import Wiki from './Wiki'
 import Write from './Write'
 import { useBook } from './store'
+import { useLocal } from './ui'
 import { loadSettings, runSync, useSyncStatus } from './sync'
 
 // The Globe (src/world/) and the old image maps (MapView.tsx) are hidden on request; their code is kept. Their addresses open the map.
 const MapTestPage = lazy(() => import('./flatworld/MapTestPage'))
 
 const NAV: { label: string; items: [path: string, name: string, icon: IconName][] }[] = [
-  { label: 'Write', items: [['write', 'Write', 'pen'], ['manuscript', 'Manuscript', 'book']] },
+  { label: 'Write', items: [['today', 'Today', 'clock'], ['write', 'Write', 'pen'], ['manuscript', 'Manuscript', 'book']] },
   { label: 'Plan', items: [['timeline', 'Timeline', 'timeline'], ['scenes', 'Scenes', 'list'], ['calendar', 'Calendar', 'calendar'], ['ideas', 'Ideas', 'idea']] },
   { label: 'World', items: [['wiki', 'Wiki', 'wiki'], ['map-test', 'Map', 'mountain']] },
   { label: 'Review', items: [['insights', 'Insights', 'insights'], ['search', 'Search', 'search']] },
@@ -32,6 +34,7 @@ const keep = (k: string, v: string) => { try { localStorage.setItem(k, v) } catc
 export default function App() {
   const { book, dirty, ready, update } = useBook()
   const [renaming, setRenaming] = useState(false)
+  const [closed, setClosed] = useLocal<string[]>('nav-closed', [])
   const nav = useNavigate()
   const [theme, setTheme] = useState(() => stored('theme', 'dark'))
   const [collapsed, setCollapsed] = useState(() => stored('nav-collapsed', '') === '1')
@@ -106,8 +109,12 @@ export default function App() {
           <Icon name="search" /><span className="label">Search or jump...</span><kbd>Ctrl K</kbd>
         </button>
         {NAV.map((g) => (
-          <div key={g.label} style={{ display: 'contents' }}>
-            <div className="group-label">{g.label}</div>
+          <div key={g.label} className={closed.includes(g.label) ? 'grp-closed' : ''} style={{ display: 'contents' }}>
+            <div className="group-label" role="button" tabIndex={0} aria-expanded={!closed.includes(g.label)}
+              onClick={() => setClosed(closed.includes(g.label) ? closed.filter((x) => x !== g.label) : [...closed, g.label])}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click() } }}>
+              <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>{g.label}
+            </div>
             {g.items.map(([path, name, icon]) => (
               <NavLink key={path} to={`/${path}`} className="navlink" title={name} aria-label={name}>
                 <Icon name={icon} /><span className="label">{name}</span>
@@ -120,7 +127,7 @@ export default function App() {
             className={`syncpill ${syncState}`} title={sync.text || syncLabel}
             onClick={() => (configured ? runSync() : nav('/settings'))} aria-live="polite"
           >
-            <Icon name="refresh" /><span className="label">{syncLabel}</span>
+            <Icon name="refresh" /><span className="label">{syncLabel}</span><span className="sdot" />
           </button>
           <NavLink to="/trash" className="navlink" title="Trash" aria-label="Trash"><Icon name="trash" /><span className="label">Trash</span></NavLink>
           <NavLink to="/settings" className="navlink" title="Settings and sync" aria-label="Settings and sync"><Icon name="settings" /><span className="label">Settings</span></NavLink>
@@ -136,7 +143,8 @@ export default function App() {
       </nav>
       <main id="main" tabIndex={-1}>
         <Routes>
-          <Route path="/" element={<Navigate to="/write" replace />} />
+          <Route path="/" element={<Navigate to="/today" replace />} />
+          <Route path="/today" element={<Today />} />
           <Route path="/write" element={<Write />} />
           <Route path="/manuscript" element={<Manuscript />} />
           <Route path="/wiki/:id?" element={<Wiki />} />

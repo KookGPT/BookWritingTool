@@ -68,5 +68,8 @@ A separate section (`/map-test`, `src/flatworld/`) that leaves the Globe alone. 
 
 `/timeline` has two parts. **Production Timeline** (`TimelinePage.tsx`, `timelineScale.ts`): dated events and periods on a rail; new items start on the selected event's day; the wheel is not hijacked so the page scrolls on to the plan. **Planning Timeline** (`PlanTimeline.tsx`, pure helpers in `plan.ts`): `book.plan` is a dateless ordered list (array order = order; synced as `plan/<id>.json` plus `planOrder` in `book.json`); drag to reorder, + between cards inserts, arrows for touch, "Move to Production Timeline" turns a card into an event. `merge.ts` merges events, periods, plan items and threads field by field when both devices edit one (`FIELDWISE`); only chapters, scenes, wiki and ideas still save an "(other device)" copy.
 
+## UI conventions
+Neutral dark grey theme (light "Mist" is neutral too), navy accent, no background art. Every page opens with `PageHead` (`src/ui.tsx`: title left, actions right, one-line hint); `useLocal`/`readLocal` keep small per-device preferences in localStorage (editor font/size/width/typewriter `write-prefs`, chapter list `write-list`, last chapter `write-last`, nav groups `nav-closed`, timeline `tl-zoom`). `/today` is the landing page (continue card, goal, next step from `next.ts`, idea capture, getting-started checklist). Write has a chapter column beside the editor (a floating panel under 900 px), Aa editor settings, a goal bar and a save-state label. Wiki has type filter chips, avatars and a card overview. Timeline has an overview strip, zoom (View menu) and accepts dropped planning cards.
+
 ## Checks
 `npx tsc -b`, `npm test`, `npm run build`.

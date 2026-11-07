@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { trashIt } from './history'
 import { allTypes, uid, useBook, type WikiEntry } from './store'
+import { PageHead } from './ui'
 
 const tagsOf = (t: string) => [...t.matchAll(/#(\w+)/g)].map((m) => m[1].toLowerCase())
 
@@ -41,11 +42,11 @@ ${d}` : t }
 
   return (
     <div className="page wide">
-      <h1>Ideas</h1>
-      <div className="row">
-        <input
-          id="idea-input" className="grow" autoFocus value={text} placeholder="Jot an idea... use #tags, Enter to save"
-          onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()}
+      <PageHead title="Ideas" hint="Press Ctrl+Shift+I anywhere to jump here. Enter saves, Shift+Enter adds a line, #tags group ideas." />
+      <div className="row" style={{ alignItems: 'flex-start' }}>
+        <textarea
+          id="idea-input" className="grow idea-capture" autoFocus rows={3} value={text} placeholder="Jot an idea, a line, a twist..."
+          onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); add() } }}
         />
         <button onClick={add}>Add</button>
       </div>
@@ -57,13 +58,13 @@ ${d}` : t }
       )}
       {shown.map((i) => (
         <div key={i.id} className="item">
-          <span>{i.pinned && '📌 '}{i.text}</span>
+          <span className="idea-text">{i.pinned && '📌 '}{i.text}</span>
           {i.description?.trim() && <p className="idea-desc">{i.description}</p>}
           <details>
             <summary>{i.description?.trim() ? 'Edit description' : 'Add description'}</summary>
             <textarea rows={4} aria-label="Idea description" placeholder="Flesh it out: why it matters, how it could play out..." value={i.description ?? ''} onChange={(e) => describe(i.id, e.target.value)} />
           </details>
-          <div className="row">
+          <div className="row hover-actions idea-actions">
             <button className="alt" onClick={() => pin(i.id)}>{i.pinned ? 'Unpin' : 'Pin'}</button>
             <button className="alt" onClick={() => toScene(i.id, i.text, i.description)}>→ Scene</button>
             <select value="" onChange={(e) => e.target.value && toWiki(i.id, i.text, e.target.value, i.description)}>
@@ -74,7 +75,7 @@ ${d}` : t }
           </div>
         </div>
       ))}
-      {!shown.length && <p className="muted">No ideas yet. Press Ctrl+Shift+I anywhere to jump here.</p>}
+      {!shown.length && <p className="muted">No ideas yet. Type one above and press Enter.</p>}
     </div>
   )
 }

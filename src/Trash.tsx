@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getTrash, setTrash, type Trashed } from './history'
 import { useBook } from './store'
+import { PageHead } from './ui'
 
 export default function Trash() {
   const update = useBook((s) => s.update)
@@ -15,8 +16,7 @@ export default function Trash() {
 
   return (
     <div className="page wide">
-      <h1>Trash</h1>
-      <p className="muted">Deleted chapters, wiki entries, scenes, ideas, maps and timeline events are kept here on this device (last 100).</p>
+      <PageHead title="Trash" hint="Deleted chapters, wiki entries, scenes, ideas, maps and timeline items are kept here on this device (last 100)." />
       {items.length > 0 && <button className="danger" style={{ alignSelf: 'flex-start' }} onClick={() => confirm('Empty trash forever?') && save([])}>Empty trash</button>}
       {items.map((t) => (
         <div key={t.id} className="item">

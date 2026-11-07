@@ -51,7 +51,7 @@ export interface TEvent { id: string; kind: 'party' | 'world'; title: string; da
 export interface Period { id: string; title: string; color: string; start: TDate; end: TDate; startEvent?: string; endEvent?: string; summary?: string }
 
 // Planning Timeline: an ordered list with no dates (array order = order). Cards can later move onto the Production Timeline.
-export interface PlanItem { id: string; title: string; summary: string; color?: string; kind?: 'party' | 'world' }
+export interface PlanItem { id: string; title: string; summary: string; color?: string; kind?: 'party' | 'world'; sceneId?: string }
 
 export interface Thread { id: string; name: string; resolved: boolean }
 
@@ -81,6 +81,13 @@ export const mentions = (text: string, name: string) =>
   !!name.trim() && new RegExp(`\\b${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)
 export const namesOf = (w: WikiEntry) => [w.name, ...(w.aliases ?? [])].filter((n) => n.trim())
 export const mentionsEntry = (text: string, w: WikiEntry) => namesOf(w).some((n) => mentions(text, n))
+const dayKey = (back: number) => { const d = new Date(); d.setDate(d.getDate() - back); return d.toLocaleDateString('en-CA') }
+// Consecutive days that met the goal; today does not break the streak until the day is over.
+export function streakOf(s: Book['stats']) {
+  let n = 0
+  for (let i = (s.days[today()] ?? 0) >= s.goal ? 0 : 1; (s.days[dayKey(i)] ?? 0) >= s.goal && s.goal > 0; i++) n++
+  return n
+}
 export const uid =() => crypto.randomUUID().slice(0, 8)
 
 // Scenes placed in a chapter live in its HTML as <div data-scene="id" class="scene-block">...</div>.

@@ -1,9 +1,10 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { trashIt } from './history'
 import { shrink } from './image'
 import LinkedText, { hasLinks } from './LinkedText'
 import { allTypes, mentionsEntry, namesOf, plain, uid, useBook, type WikiEntry } from './store'
+import { colorOf, PageHead } from './ui'
 
 const MiniGlobe = lazy(() => import('./world/MiniGlobe'))
 const GLOBE = false // the Globe page is hidden on request; set true to bring back 'Place it on the globe'
@@ -107,6 +108,7 @@ function Entry({ entry }: { entry: WikiEntry }) {
           {placeWorld && <Suspense fallback={null}><MiniGlobe world={placeWorld} lat={entry.place!.lat} lon={entry.place!.lon} /></Suspense>}
         </div>
       )}
+      <div className="fields-grid">
       {keys.map((k) => (
         <div key={k} className="field">
           <label>{k}
@@ -124,6 +126,7 @@ function Entry({ entry }: { entry: WikiEntry }) {
           )}
         </div>
       ))}
+      </div>
       {adding ? (
         <div className="row" style={{ alignItems: 'center' }}>
           <input aria-label="New field name" className="grow" autoFocus placeholder="New field name (e.g. Eye color)" value={field} onChange={(e) => setField(e.target.value)}
@@ -180,15 +183,26 @@ function Entry({ entry }: { entry: WikiEntry }) {
   )
 }
 
+function Avatar({ w }: { w: WikiEntry }) {
+  return w.image
+    ? <img src={w.image} className="avatar" alt="" />
+    : <span className="avatar" style={{ background: colorOf(w.id) }} aria-hidden="true">{w.name.trim().charAt(0).toUpperCase() || '?'}</span>
+}
+
 export default function Wiki() {
   const { book, update } = useBook()
   const { id } = useParams()
   const nav = useNavigate()
   const [q, setQ] = useState('')
+  const [tf, setTf] = useState('all')
   const [newType, setNewType] = useState<{ name: string; fields: string } | null>(null)
   const types = allTypes(book)
   const entry = book.wiki.find((w) => w.id === id)
-  const shown = book.wiki.filter((w) => namesOf(w).some((n) => n.toLowerCase().includes(q.toLowerCase())))
+  const shown = book.wiki.filter((w) => (tf === 'all' || w.type === tf) && namesOf(w).some((n) => n.toLowerCase().includes(q.toLowerCase())))
+  const bodies = useMemo(() => book.chapters.map((c) => plain(c.body)), [book.chapters])
+  const seen = (w: WikiEntry) => bodies.filter((b) => mentionsEntry(b, w)).length
+  const blurb = (w: WikiEntry) => w.notes.trim().replace(/\s+/g, ' ').slice(0, 140)
+  const used = Object.keys(types).filter((t) => book.wiki.some((w) => w.type === t))
 
   const add = (type: string) => {
     if (type === '__new') { setNewType({ name: '', fields: '' }); return }
@@ -209,7 +223,7 @@ export default function Wiki() {
   return (
     <div className="write">
       <aside>
-        <select value="" onChange={(e) => e.target.value && add(e.target.value)}>
+        <select className="new-select" aria-label="New entry" value="" onChange={(e) => e.target.value && add(e.target.value)}>
           <option value="">+ New entry...</option>
           {Object.keys(types).map((t) => <option key={t}>{t}</option>)}
           <option value="__new">+ New type...</option>
@@ -222,21 +236,48 @@ export default function Wiki() {
           </div>
         )}
         <input placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+        {used.length > 1 && (
+          <div className="filter-chips" role="group" aria-label="Filter by type">
+            <button className={`fchip ${tf === 'all' ? 'on' : ''}`} onClick={() => setTf('all')}>all {book.wiki.length}</button>
+            {used.map((t) => <button key={t} className={`fchip ${tf === t ? 'on' : ''}`} onClick={() => setTf(t)}>{t} {book.wiki.filter((w) => w.type === t).length}</button>)}
+          </div>
+        )}
         {Object.keys(types).map((t) => {
           const group = shown.filter((w) => w.type === t)
           return group.length > 0 && (
             <div key={t}>
-              <small className="muted">{t.toUpperCase()}</small>
+              {tf === 'all' && <small className="muted">{t.toUpperCase()}</small>}
               {group.map((w) => (
-                <Link key={w.id} to={`/wiki/${w.id}`} className={`item ${w.id === id ? 'sel' : ''}`}>
-                  {w.image && <img src={w.image} className="thumb" alt="" />}{w.name}
+                <Link key={w.id} to={`/wiki/${w.id}`} title={blurb(w) || w.name} className={`item wlink ${w.id === id ? 'sel' : ''}`}>
+                  <Avatar w={w} />
+                  <span className="grow">{w.name}</span>
+                  {seen(w) > 0 && <small className="muted" title={`In ${seen(w)} chapter${seen(w) > 1 ? 's' : ''}`}>{seen(w)}</small>}
                 </Link>
               ))}
             </div>
           )
         })}
+        {!shown.length && <small className="muted">No entries match.</small>}
       </aside>
-      <section>{entry ? <Entry key={entry.id} entry={entry} /> : <p className="muted">Pick or add an entry.</p>}</section>
+      <section>
+        {entry ? <Entry key={entry.id} entry={entry} /> : (
+          <>
+            <PageHead title="Wiki" hint={book.wiki.length ? 'Everything in your world. Pick an entry, or add one with the button at the top left.' : 'Characters, places, items and anything else your story needs. Add the first entry with the button at the top left.'} />
+            <div className="wcards">
+              {shown.map((w) => (
+                <Link key={w.id} to={`/wiki/${w.id}`} className="wcard" tabIndex={0}>
+                  <Avatar w={w} />
+                  <div className="wcard-text">
+                    <b>{w.name}</b>
+                    <small className="muted">{w.type}{seen(w) ? ` · in ${seen(w)} chapter${seen(w) > 1 ? 's' : ''}` : ''}</small>
+                    {blurb(w) && <span className="wcard-blurb">{blurb(w)}</span>}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
     </div>
   )
 }

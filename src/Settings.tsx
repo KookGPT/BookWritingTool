@@ -3,6 +3,7 @@ import { saveDocx, saveEpub } from './export'
 import { sampleBook } from './sample'
 import { type Book, useBook } from './store'
 import { loadSettings, runSync, saveSettings, useSyncStatus } from './sync'
+import { PageHead } from './ui'
 
 const download = (name: string, text: string, type: string) => {
   const a = document.createElement('a')
@@ -31,7 +32,7 @@ export default function Settings() {
 
   return (
     <div className="page">
-      <h1>Settings and Sync</h1>
+      <PageHead title="Settings and Sync" />
       <label>Book title<input value={book.title} onChange={(e) => update((b) => ({ ...b, title: e.target.value }))} /></label>
       <h2>Export</h2>
       <div className="row">

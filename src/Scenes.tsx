@@ -5,6 +5,7 @@ import SceneText from './SceneText'
 import { trashIt } from './history'
 import { fmt } from './calendar'
 import { calendarOf, patchScene, type Scene, uid, useBook } from './store'
+import { colorOf, PageHead } from './ui'
 
 const STATUSES = ['planned', 'drafting', 'done'] as const
 
@@ -153,13 +154,12 @@ export default function Scenes() {
 
   return (
     <div className="page wider">
-      <div className="row" style={{ alignItems: 'center' }}>
-        <h1 className="grow">Scenes</h1>
+      <PageHead title="Scenes" hint="Drag a card to another column to change its stage. The coloured edge is the POV character.">
         <button onClick={add}>+ Scene</button>
         <button className="alt" onClick={() => setView(view === 'board' ? 'lanes' : 'board')}>
           {view === 'board' ? 'Show lanes' : 'Show board'}
         </button>
-      </div>
+      </PageHead>
       {scene && <SceneForm key={scene.id} scene={scene} onClose={() => setSel(null)} />}
       {view === 'board' ? (
         <div className="board">
@@ -168,7 +168,7 @@ export default function Scenes() {
               <small className="muted">{st.toUpperCase()}</small>
               {book.scenes.filter((s) => (s.status ?? 'planned') === st).map((s) => (
                 <div key={s.id} draggable onDragStart={() => setDrag(s.id)} onClick={() => setSel(s.id)}
-                  className={`item ${s.id === sel ? 'sel' : ''}`}>
+                  className={`item scene-card ${s.id === sel ? 'sel' : ''}`} style={{ ['--pc' as string]: s.pov ? colorOf(s.pov) : 'transparent' }}>
                   <b>{s.title}</b>
                   <small className="muted">{[s.date ? fmt(calendarOf(book), s.date) : s.when, name(s.pov) && `POV ${name(s.pov)}`, name(s.location)].filter(Boolean).join(' · ')}</small>
                   {st === 'planned'

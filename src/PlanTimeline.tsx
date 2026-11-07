@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { trashIt } from './history'
 import Icon from './Icon'
 import { insertAt, moveTo, shift } from './plan'
@@ -35,7 +36,7 @@ export function PlanTimeline({ selId, onSelect }: { selId?: string; onSelect: (i
             className={`plan-card ${selId === p.id ? 'sel' : ''} ${drag === p.id ? 'dragging' : ''} ${over?.id === p.id ? (over.after ? 'over-after' : 'over-before') : ''}`}
             style={{ ['--c' as string]: p.color ?? 'var(--border-strong)' }}
             draggable
-            onDragStart={(e) => { setDrag(p.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', p.id) }}
+            onDragStart={(e) => { setDrag(p.id); e.dataTransfer.effectAllowed = 'copyMove'; e.dataTransfer.setData('text/plain', p.id); e.dataTransfer.setData('application/x-plan', p.id) }}
             onDragOver={(e) => {
               if (!drag) return
               e.preventDefault()
@@ -49,6 +50,9 @@ export function PlanTimeline({ selId, onSelect }: { selId?: string; onSelect: (i
               <small className="muted">{i + 1}{p.kind === 'world' ? ' · World' : ''}</small>
               <b>{p.title || 'Untitled'}</b>
               {p.summary && <span className="tl-sum">{p.summary}</span>}
+              {p.sceneId && book.scenes.some((s) => s.id === p.sceneId) && (
+                <Link className="chip" to={`/scenes?s=${p.sceneId}`} onClick={(e) => e.stopPropagation()}>Scene: {book.scenes.find((s) => s.id === p.sceneId)!.title}</Link>
+              )}
             </div>
             <div className="plan-move">
               <button className="ghost icon" aria-label="Move earlier" title="Move earlier" disabled={i === 0} onClick={() => set((l) => shift(l, p.id, -1))}><Icon name="left" size={14} /></button>
@@ -67,7 +71,7 @@ export function PlanTimeline({ selId, onSelect }: { selId?: string; onSelect: (i
 }
 
 export function PlanForm({ item, onClose, onSchedule }: { item: PlanItem; onClose: () => void; onSchedule: (p: PlanItem) => void }) {
-  const { update } = useBook()
+  const { book, update } = useBook()
   const patch = (p: Partial<PlanItem>) => update((b) => ({ ...b, plan: b.plan.map((x) => (x.id === item.id ? { ...x, ...p } : x)) }))
   const remove = () => {
     if (!confirm('Delete this card? (It goes to Trash.)')) return
@@ -88,6 +92,12 @@ export function PlanForm({ item, onClose, onSchedule }: { item: PlanItem; onClos
         ))}
       </div>
       <label>Notes<textarea rows={5} value={item.summary} onChange={(e) => patch({ summary: e.target.value })} /></label>
+      <label>Linked scene
+        <select value={item.sceneId ?? ''} onChange={(e) => patch({ sceneId: e.target.value || undefined })}>
+          <option value="">None</option>
+          {book.scenes.map((s) => <option key={s.id} value={s.id}>{s.title}</option>)}
+        </select>
+      </label>
       <label>When it moves to the Production Timeline it goes on the
         <select value={item.kind ?? 'party'} onChange={(e) => patch({ kind: e.target.value as PlanItem['kind'] })}>
           <option value="party">Party side (top)</option>

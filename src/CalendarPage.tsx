@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { type Calendar, fmt, ordinal, span, yearLen } from './calendar'
 import { calendarOf, useBook } from './store'
+import { PageHead } from './ui'
 
 export default function CalendarPage() {
   const { book, update } = useBook()
@@ -14,8 +15,7 @@ export default function CalendarPage() {
 
   return (
     <div className="page wide">
-      <h1>Story calendar</h1>
-      <p className="muted">Define how time works in your world, then give scenes dates in Scenes. A year here is {yearLen(cal)} days.</p>
+      <PageHead title="Story calendar" hint={`Define how time works in your world, then give scenes dates in Scenes. A year here is ${yearLen(cal)} days.`} />
       <label>Era label (shown after the year, e.g. "AE" or "of the Third Age")
         <input value={cal.era} onChange={(e) => set({ ...cal, era: e.target.value })} />
       </label>
