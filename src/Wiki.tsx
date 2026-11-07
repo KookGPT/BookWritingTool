@@ -1,9 +1,11 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { connected } from './connect'
+import Connected from './Connected'
 import { trashIt } from './history'
 import { shrink } from './image'
 import LinkedText, { hasLinks } from './LinkedText'
-import { allTypes, mentionsEntry, namesOf, plain, uid, useBook, type WikiEntry } from './store'
+import { allTypes, namesOf, uid, useBook, type WikiEntry } from './store'
 import { colorOf, PageHead } from './ui'
 
 const MiniGlobe = lazy(() => import('./world/MiniGlobe'))
@@ -19,9 +21,6 @@ function Entry({ entry }: { entry: WikiEntry }) {
   const hidden = entry.hiddenFields ?? []
   const keys = [...new Set([...typeFields, ...Object.keys(entry.fields)])].filter((k) => !hidden.includes(k))
   const sameType = book.wiki.filter((w) => w.type === entry.type)
-  const inChapters = book.chapters.filter((c) => mentionsEntry(plain(c.body), entry))
-  const inWiki = book.wiki.filter((w) => w.id !== entry.id && mentionsEntry(`${w.notes} ${Object.values(w.fields).join(' ')}`, entry))
-  const onTimeline = book.events.filter((e) => e.wikiId === entry.id || e.locationId === entry.id)
   const placeWorld = entry.place && book.worlds.find((w) => w.id === entry.place!.worldId)
   const links = entry.links ?? []
   const incoming = book.wiki.flatMap((w) => (w.links ?? []).filter((l) => l.to === entry.id).map((l) => ({ from: w, label: l.label })))
@@ -166,13 +165,8 @@ function Entry({ entry }: { entry: WikiEntry }) {
         <button className="alt" disabled={!target} onClick={() => { patch({ links: [...links, { to: target, label: label.trim() }] }); setTarget(''); setLabel('') }}>Add</button>
       </div>
 
-      <h3>Mentioned in</h3>
-      <div className="row">
-        {inChapters.map((c) => <Link key={c.id} to={`/write?c=${c.id}`} className="chip">{c.title}</Link>)}
-        {inWiki.map((w) => <Link key={w.id} to={`/wiki/${w.id}`} className="chip">{w.name}</Link>)}
-        {onTimeline.map((e) => <Link key={e.id} to={`/timeline?e=${e.id}`} className="chip">{e.title}</Link>)}
-        {!inChapters.length && !inWiki.length && !onTimeline.length && <span className="muted">Nowhere yet. Writing the name or an alias in a chapter links it here.</span>}
-      </div>
+      <h3>Connected to</h3>
+      <Connected of={{ kind: 'wiki', id: entry.id }} none="Nothing yet. Using the name or an alias in a scene links it here, and a map place with the same name joins up by itself." />
       <button className="danger" onClick={() => {
         if (!confirm(`Delete ${entry.name}? (It goes to Trash.)`)) return
         trashIt('wiki', entry.name, entry)
@@ -199,8 +193,7 @@ export default function Wiki() {
   const types = allTypes(book)
   const entry = book.wiki.find((w) => w.id === id)
   const shown = book.wiki.filter((w) => (tf === 'all' || w.type === tf) && namesOf(w).some((n) => n.toLowerCase().includes(q.toLowerCase())))
-  const bodies = useMemo(() => book.chapters.map((c) => plain(c.body)), [book.chapters])
-  const seen = (w: WikiEntry) => bodies.filter((b) => mentionsEntry(b, w)).length
+  const seen = (w: WikiEntry) => connected(book, { kind: 'wiki', id: w.id }).filter((h) => h.kind === 'scene').length
   const blurb = (w: WikiEntry) => w.notes.trim().replace(/\s+/g, ' ').slice(0, 140)
   const used = Object.keys(types).filter((t) => book.wiki.some((w) => w.type === t))
 
@@ -251,7 +244,7 @@ export default function Wiki() {
                 <Link key={w.id} to={`/wiki/${w.id}`} title={blurb(w) || w.name} className={`item wlink ${w.id === id ? 'sel' : ''}`}>
                   <Avatar w={w} />
                   <span className="grow">{w.name}</span>
-                  {seen(w) > 0 && <small className="muted" title={`In ${seen(w)} chapter${seen(w) > 1 ? 's' : ''}`}>{seen(w)}</small>}
+                  {seen(w) > 0 && <small className="muted" title={`In ${seen(w)} scene${seen(w) > 1 ? 's' : ''}`}>{seen(w)}</small>}
                 </Link>
               ))}
             </div>
@@ -269,7 +262,7 @@ export default function Wiki() {
                   <Avatar w={w} />
                   <div className="wcard-text">
                     <b>{w.name}</b>
-                    <small className="muted">{w.type}{seen(w) ? ` · in ${seen(w)} chapter${seen(w) > 1 ? 's' : ''}` : ''}</small>
+                    <small className="muted">{w.type}{seen(w) ? ` · in ${seen(w)} scene${seen(w) > 1 ? 's' : ''}` : ''}</small>
                     {blurb(w) && <span className="wcard-blurb">{blurb(w)}</span>}
                   </div>
                 </Link>

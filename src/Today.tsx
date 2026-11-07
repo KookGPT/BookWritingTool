@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { nextStep } from './next'
-import { streakOf, today, uid, useBook, words } from './store'
+import { bookWords, streakOf, today, uid, useBook, words } from './store'
 import { PageHead, readLocal } from './ui'
 
 export default function Today() {
@@ -9,16 +9,18 @@ export default function Today() {
   const [idea, setIdea] = useState('')
   const { goal, days } = book.stats
   const done = days[today()] ?? 0
-  const total = book.chapters.reduce((n, c) => n + words(c.body), 0)
-  const last = readLocal<string | null>('write-last', null)
-  const chapter = book.chapters.find((c) => c.id === last) ?? book.chapters.find((c) => c.status !== 'done') ?? book.chapters[0]
+  const total = bookWords(book)
+  // Back to whatever was open last, scene or chapter; with no history, the first thing being drafted.
+  const last = readLocal<{ kind: string; id: string } | null>('room-last', null)
+  const openScene = (last?.kind === 'scene' ? book.scenes.find((s) => s.id === last.id) : undefined) ?? (last ? undefined : book.scenes.find((s) => s.status === 'drafting'))
+  const chapter = book.chapters.find((c) => c.id === last?.id) ?? book.chapters.find((c) => c.status !== 'done') ?? book.chapters[0]
+  const scene = openScene ?? (chapter ? undefined : book.scenes[0])
   const next = nextStep(book)
   const hour = new Date().getHours()
   const hello = hour < 5 ? 'Still up' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
   const steps: [string, boolean, string][] = [
-    ['Add a chapter', book.chapters.length > 0, '/write'],
-    ['Add a character to the wiki', book.wiki.some((w) => w.type === 'character'), '/wiki'],
     ['Plan a scene', book.scenes.length > 0, '/scenes'],
+    ['Add a character to the wiki', book.wiki.some((w) => w.type === 'character'), '/wiki'],
     ['Put an event on the timeline', book.events.length > 0 || book.plan.length > 0, '/timeline'],
   ]
   const started = steps.filter((s) => s[1]).length
@@ -34,14 +36,20 @@ export default function Today() {
       <div className="cards">
         <div className="card">
           <small className="muted">CONTINUE WRITING</small>
-          {chapter ? (
+          {scene ? (
+            <>
+              <b className="card-title">{scene.title}</b>
+              <small className="muted">{scene.status ?? 'planned'} · {words(scene.body ?? '')} words</small>
+              <Link className="btn" to={`/scenes?s=${scene.id}`}>Continue</Link>
+            </>
+          ) : chapter ? (
             <>
               <b className="card-title">{chapter.title}</b>
               <small className="muted">{chapter.status} · {words(chapter.body)} words</small>
               <Link className="btn" to={`/write?c=${chapter.id}`}>Continue</Link>
             </>
           ) : (
-            <><b className="card-title">No chapters yet</b><Link className="btn" to="/write">Start the first chapter</Link></>
+            <><b className="card-title">Nothing written yet</b><Link className="btn" to="/scenes">Start the first scene</Link></>
           )}
         </div>
         <div className="card">
@@ -53,7 +61,7 @@ export default function Today() {
         <div className="card">
           <small className="muted">THE BOOK</small>
           <span className="stat">{total.toLocaleString()}<small className="muted"> words</small></span>
-          <small className="muted">{book.chapters.filter((c) => c.status === 'done').length} of {book.chapters.length} chapters done · {dirty ? 'unsynced changes' : 'everything saved'}</small>
+          <small className="muted">{book.scenes.filter((s) => s.status === 'done').length} of {book.scenes.length} scenes done · {dirty ? 'unsynced changes' : 'everything saved'}</small>
         </div>
       </div>
       <div className="card">

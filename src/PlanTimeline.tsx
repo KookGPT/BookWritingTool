@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import Connected from './Connected'
 import { trashIt } from './history'
 import Icon from './Icon'
 import { insertAt, moveTo, shift } from './plan'
@@ -109,6 +110,8 @@ export function PlanForm({ item, onClose, onSchedule }: { item: PlanItem; onClos
         <button className="danger" onClick={remove}>Delete</button>
       </div>
       <small className="muted">Moving it removes the card from this strip and adds a dated event you can then set a date for.</small>
+      <h3>Connected to</h3>
+      <Connected of={{ kind: 'plan', id: item.id }} />
     </div>
   )
 }

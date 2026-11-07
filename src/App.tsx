@@ -89,6 +89,7 @@ export default function App() {
       {palette && <Palette onClose={() => setPalette(false)} />}
       <button className="skip" onClick={() => document.getElementById('main')?.focus()}>Skip to content</button>
       <nav className="side" aria-label="Main">
+        <div className="plate" aria-hidden>EX LIBRIS</div>
         <div className="brand">
           <Icon name="mountain" size={22} />
           {renaming ? (
@@ -122,6 +123,7 @@ export default function App() {
             ))}
           </div>
         ))}
+        <div className="shelf" aria-hidden><i style={{ height: 46, width: 11, background: '#2e4d30' }} /><i style={{ height: 56, width: 9, background: '#7a3b24' }} /><i style={{ height: 40, width: 7, background: '#c98a53' }} /><i style={{ height: 52, width: 12, background: '#33492f' }} /><i style={{ height: 44, width: 8, background: '#5a3a22' }} /><i style={{ height: 58, width: 10, background: '#2e4d30' }} /><i style={{ height: 48, width: 9, background: '#8a5a30' }} /><i style={{ height: 54, width: 11, background: '#3d5a38' }} /><i style={{ height: 42, width: 8, background: '#6b2f20' }} /></div>
         <div className="foot">
           <button
             className={`syncpill ${syncState}`} title={sync.text || syncLabel}

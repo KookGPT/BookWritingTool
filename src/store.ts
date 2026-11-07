@@ -3,6 +3,9 @@ import { get as idbGet, set as idbSet } from 'idb-keyval'
 import { type Calendar, DEFAULT_CAL, type SDate } from './calendar'
 import type { World } from './world/terrain.ts'
 import type { FlatWorld } from './flatworld/gen.ts'
+import { bookWords, mentions, mentionsEntry, namesOf, plain, sceneBlocks, setSceneBody, words } from './text.ts'
+
+export { bookWords, mentions, mentionsEntry, namesOf, plain, sceneBlocks, setSceneBody, words }
 
 export interface Chapter { id: string; title: string; body: string; status: 'draft' | 'revised' | 'done'; notes: string }
 export interface WikiEntry {
@@ -47,7 +50,8 @@ export interface MapDoc { id: string; name: string; image: string; w: number; h:
 // Timeline: party events draw above the rail, world events below, periods as bars on it. m/d optional (year-only dates).
 export interface TDate { y: number; m?: number; d?: number }
 export interface TEvent { id: string; kind: 'party' | 'world'; title: string; date: TDate; location: string; summary: string; estimated?: boolean; wikiId?: string
-  locationId?: string } // wiki ids; `location` stays as free text for places not in the wiki
+  locationId?: string // wiki ids; `location` stays as free text for places not in the wiki
+  sceneIds?: string[] } // scenes tied to this event by hand; everything else is worked out (see connect.ts)
 export interface Period { id: string; title: string; color: string; start: TDate; end: TDate; startEvent?: string; endEvent?: string; summary?: string }
 
 // Planning Timeline: an ordered list with no dates (array order = order). Cards can later move onto the Production Timeline.
@@ -73,14 +77,7 @@ export interface Book {
 }
 
 export const emptyBook = (): Book => ({ title: 'Untitled Book', threads: [], config: { types: {} }, stats: { goal: 500, days: {} }, maps: [], worlds: [], flatWorlds: [], chapters: [], wiki: [], ideas: [], scenes: [], events: [], periods: [], plan: [] })
-export const plain = (html: string) => html.replace(/<[^>]+>/g, ' ')
-export const words = (html: string) => plain(html).split(/\s+/).filter(Boolean).length
 export const today = () => new Date().toLocaleDateString('en-CA') // YYYY-MM-DD, local time
-// Whole-word, case-insensitive name match; also catches [[Name]] links.
-export const mentions = (text: string, name: string) =>
-  !!name.trim() && new RegExp(`\\b${name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)
-export const namesOf = (w: WikiEntry) => [w.name, ...(w.aliases ?? [])].filter((n) => n.trim())
-export const mentionsEntry = (text: string, w: WikiEntry) => namesOf(w).some((n) => mentions(text, n))
 const dayKey = (back: number) => { const d = new Date(); d.setDate(d.getDate() - back); return d.toLocaleDateString('en-CA') }
 // Consecutive days that met the goal; today does not break the streak until the day is over.
 export function streakOf(s: Book['stats']) {
@@ -88,20 +85,12 @@ export function streakOf(s: Book['stats']) {
   for (let i = (s.days[today()] ?? 0) >= s.goal ? 0 : 1; (s.days[dayKey(i)] ?? 0) >= s.goal && s.goal > 0; i++) n++
   return n
 }
+// Words typed count toward today's goal, wherever they were typed. Moving text between places does not go through here.
+export const addWords = (b: Book, before: string, after: string): Book => {
+  const d = words(after) - words(before), day = today()
+  return d ? { ...b, stats: { ...b.stats, days: { ...b.stats.days, [day]: Math.max(0, (b.stats.days[day] ?? 0) + d) } } } : b
+}
 export const uid =() => crypto.randomUUID().slice(0, 8)
-
-// Scenes placed in a chapter live in its HTML as <div data-scene="id" class="scene-block">...</div>.
-const BLOCK = /<div data-scene="([^"]+)"[^>]*>([\s\S]*?)<\/div>/g
-export const sceneBlocks = (html: string) => [...html.matchAll(BLOCK)].map((m) => ({ id: m[1], html: m[2] }))
-// Write a scene's text and mirror it into every chapter that contains it.
-export const setSceneBody = (b: Book, id: string, html: string): Book => ({
-  ...b,
-  scenes: b.scenes.map((s) => (s.id === id ? { ...s, body: html } : s)),
-  chapters: b.chapters.map((c) =>
-    c.body.includes(`data-scene="${id}"`)
-      ? { ...c, body: c.body.replace(new RegExp(`(<div data-scene="${id}"[^>]*>)[\\s\\S]*?(</div>)`), (_, a, z) => a + html + z) }
-      : c),
-})
 
 const hasText = (html?: string) => !!html?.replace(/<[^>]+>/g, '').trim()
 const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')

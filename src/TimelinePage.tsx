@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import Connected from './Connected'
 import { type Calendar, yearLen } from './calendar'
 import { trashIt } from './history'
 import Icon from './Icon'
@@ -79,6 +80,8 @@ function EventForm({ ev, cal, onClose, onCopy }: { ev: TEvent; cal: Calendar; on
         <button className="alt" onClick={onCopy}>Duplicate</button>
         <button className="danger" onClick={remove}>Delete</button>
       </div>
+      <h3>Connected to</h3>
+      <Connected of={{ kind: 'event', id: ev.id }} />
     </div>
   )
 }
@@ -126,7 +129,7 @@ export default function TimelinePage() {
   const [zoom, setZoom] = useLocal<number>('tl-zoom', 1)
   const U = BASE * zoom
   const [params] = useSearchParams()
-  const [sel, setSel] = useState<{ kind: 'event' | 'period' | 'plan'; id: string } | null>(() => (params.get('e') ? { kind: 'event', id: params.get('e')! } : null))
+  const [sel, setSel] = useState<{ kind: 'event' | 'period' | 'plan'; id: string } | null>(() => (params.get('e') ? { kind: 'event', id: params.get('e')! } : params.get('p') ? { kind: 'plan', id: params.get('p')! } : null))
   const [q, setQ] = useState('')
   const [show, setShow] = useState({ party: true, world: true, periods: true })
   const scroller = useRef<HTMLDivElement>(null)

@@ -1,5 +1,7 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { connected } from './connect'
+import Connected from './Connected'
 import { trashIt } from './history'
 import { allTypes, uid, useBook, type WikiEntry } from './store'
 import { PageHead } from './ui'
@@ -11,6 +13,9 @@ export default function Ideas() {
   const nav = useNavigate()
   const [text, setText] = useState('')
   const [tag, setTag] = useState('')
+  const [params] = useSearchParams()
+  const opened = params.get('i')
+  useEffect(() => { if (opened) document.getElementById(`idea-${opened}`)?.scrollIntoView({ block: 'center' }) }, [opened])
 
   const add = () => {
     if (!text.trim()) return
@@ -57,13 +62,19 @@ ${d}` : t }
         </div>
       )}
       {shown.map((i) => (
-        <div key={i.id} className="item">
+        <div key={i.id} id={`idea-${i.id}`} className={`item ${opened === i.id ? 'sel' : ''}`}>
           <span className="idea-text">{i.pinned && '📌 '}{i.text}</span>
           {i.description?.trim() && <p className="idea-desc">{i.description}</p>}
           <details>
             <summary>{i.description?.trim() ? 'Edit description' : 'Add description'}</summary>
             <textarea rows={4} aria-label="Idea description" placeholder="Flesh it out: why it matters, how it could play out..." value={i.description ?? ''} onChange={(e) => describe(i.id, e.target.value)} />
           </details>
+          {connected(book, { kind: 'idea', id: i.id }).length > 0 && (
+            <details open={opened === i.id}>
+              <summary>Connected to ({connected(book, { kind: 'idea', id: i.id }).length})</summary>
+              <Connected of={{ kind: 'idea', id: i.id }} />
+            </details>
+          )}
           <div className="row hover-actions idea-actions">
             <button className="alt" onClick={() => pin(i.id)}>{i.pinned ? 'Unpin' : 'Pin'}</button>
             <button className="alt" onClick={() => toScene(i.id, i.text, i.description)}>→ Scene</button>

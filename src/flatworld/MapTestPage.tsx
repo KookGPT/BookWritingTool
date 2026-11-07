@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import Connected from '../Connected'
+import { connected, placeId } from '../connect'
 import Icon, { type IconName } from '../Icon'
 import { trashIt } from '../history'
-import { uid, useBook } from '../store'
+import { namesOf, uid, useBook, type WikiEntry } from '../store'
 import {
   brief, CITY_SIZES, FEATURE_KINDS, heightAt, inPoly, itemShape, LANDMARKS, LAYER_KINDS, layerColor, pathLen, polyArea, segDist, underFeature, validate,
   type CitySize, type FlatWorld, type Gen, type Landmark, type LayerKind, type MapItem, type MapLayer, type XY,
@@ -41,7 +44,8 @@ const builtCache = new Map<string, Built>()
 export default function MapTestPage() {
   const { book, update } = useBook()
   const worlds = book.flatWorlds
-  const [selWorld, setSelWorld] = useState<string>()
+  const [params] = useSearchParams()
+  const [selWorld, setSelWorld] = useState<string | undefined>(params.get('w') ?? undefined)
   const world = worlds.find((w) => w.id === selWorld) ?? worlds[0]
   const canvas = useRef<HTMLCanvasElement>(null), hudCanvas = useRef<HTMLCanvasElement>(null), mini = useRef<HTMLCanvasElement>(null)
   const compass = useRef<HTMLButtonElement>(null), scaleEl = useRef<HTMLDivElement>(null)
@@ -347,7 +351,8 @@ export default function MapTestPage() {
     const s = scene.current!
     s.onFrame = () => {
       const { world, gen, labelList, labels, sel, tool, draft, legs, curve, ruler, speed, miniBase } = stRef.current
-      const c = hudCanvas.current!, k = devicePixelRatio, cw = canvas.current!.clientWidth, ch = canvas.current!.clientHeight
+      if (!hudCanvas.current || !canvas.current) return // leaving the page: refs go before this callback does
+      const c = hudCanvas.current, k = devicePixelRatio, cw = canvas.current.clientWidth, ch = canvas.current.clientHeight
       if (c.width !== Math.round(cw * k) || c.height !== Math.round(ch * k)) { c.width = Math.round(cw * k); c.height = Math.round(ch * k) }
       const ctx = c.getContext('2d')!
       if (!world || !gen) { ctx.clearRect(0, 0, c.width, c.height); return }
@@ -434,6 +439,14 @@ export default function MapTestPage() {
     s.flyTo(p.at[0], p.at[1])
     setQuery(''); setSel(p.ref); setPopup({ target: p.ref, x: canvas.current!.clientWidth / 2, y: canvas.current!.clientHeight / 2 })
   }
+
+  // A link from a scene or a wiki page: go to the place and open it.
+  const opened = params.get('place'), jumped = useRef<string>(null)
+  useEffect(() => {
+    if (!opened || jumped.current === opened || !scene.current) return
+    const p = places.find((x) => ('feature' in x.ref ? x.ref.feature : x.ref.id) === opened)
+    if (p) { jumped.current = opened; goTo(p) }
+  }, [opened, places]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const kind = KIND_OF[tool]
   const hint = tool === 'select' ? '' : tool === 'fill' ? 'Click inside an area: it fills up to the coast, your borders and other regions. Draw borders first to split a land into nations.' : DRAWS.has(tool) ? `Click to add points${tool === 'regions' ? ', click the first point' : ''}, double-click or Enter to finish, Backspace undoes a point, Esc cancels.${follow[tool] !== 'free' ? ' Between clicks the line follows the land.' : ''}`
@@ -577,6 +590,22 @@ function LayersPanel({ world, open, setOpen, active, setActive, commit }: {
   )
 }
 
+// What this place connects to. A wiki page with the same name is the same place; offer to make one if there is none.
+function Links({ id, name }: { id: string; name: string }) {
+  const { book, update } = useBook()
+  const twin = book.wiki.some((w) => namesOf(w).some((n) => n.trim().toLowerCase() === name.toLowerCase()))
+  const add = () => {
+    const w: WikiEntry = { id: uid(), type: 'location', name, fields: {}, notes: '' }
+    update((b) => ({ ...b, wiki: [...b.wiki, w] }))
+  }
+  return (
+    <>
+      {connected(book, { kind: 'place', id }).length > 0 && <Connected of={{ kind: 'place', id }} />}
+      {!twin && <button className="alt" onClick={add}>Make a wiki page for {name}</button>}
+    </>
+  )
+}
+
 function Popup({ target: r, x, y, fresh, world, gen, commit, onClose, onDelete, onZoom }: {
   target: Ref; x: number; y: number; fresh?: boolean; world: FlatWorld; gen: Gen
   commit: (fn: (w: FlatWorld) => FlatWorld) => void; onClose: () => void; onDelete: () => void; onZoom: (at: XY, km: number) => void
@@ -607,9 +636,9 @@ function Popup({ target: r, x, y, fresh, world, gen, commit, onClose, onDelete, 
     if (item.path) { const L = pathLen(itemShape(item)); at = centroid(item.path); extent = L / 2; stats = `${Math.round(L).toLocaleString()} km long` }
     if (item.area) { const a = polyArea(itemShape(item)); at = centroid(item.area); extent = Math.sqrt(a) / 2; stats = `${Math.round(a).toLocaleString()} km²` }
   }
-  const left = Math.min(Math.max(8, x + 14), innerWidth - 300), top = Math.min(Math.max(8, y - 20), innerHeight - 320)
+  const left = Math.min(Math.max(8, x + 14), innerWidth - 300), top = Math.max(8, Math.min(y - 20, innerHeight - 520)) // tall enough for its connections; scrolls past that
   return (
-    <div className="maptest-popup glass" style={{ left, top }} role="dialog" aria-label={name || kind}
+    <div className="maptest-popup glass" style={{ left, top, maxHeight: innerHeight - top - 24 }} role="dialog" aria-label={name || kind}
       onKeyDown={(e) => { if (e.key === 'Escape') onClose(); e.stopPropagation() }}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <small className="muted">{kind}{layer ? ` · ${layer.name}` : ''}</small>
@@ -626,6 +655,7 @@ function Popup({ target: r, x, y, fresh, world, gen, commit, onClose, onDelete, 
         {item && <button className="ghost" onClick={onDelete}><Icon name="trash" size={15} /> Delete</button>}
       </div>
       {feature && <small className="muted">The ground is Claude's to reshape: use “For Claude” and describe the change.</small>}
+      {name.trim() && <Links id={placeId(world.id, 'feature' in r ? r.feature : r.id)} name={name.trim()} />}
       {item && (item.path || item.area) && <small className="muted">Drag the square handles to reshape.</small>}
     </div>
   )

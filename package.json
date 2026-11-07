@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "node test/merge.test.ts && node test/export.test.ts && node test/calendar.test.ts && node test/timelineScale.test.ts && node test/plan.test.ts && node test/next.test.ts && node test/world.test.ts && node test/flatworld.test.ts && node test/route.test.ts"
+    "test": "node test/merge.test.ts && node test/export.test.ts && node test/calendar.test.ts && node test/timelineScale.test.ts && node test/plan.test.ts && node test/next.test.ts && node test/world.test.ts && node test/flatworld.test.ts && node test/route.test.ts && node test/writing.test.ts"
   },
   "dependencies": {
     "@tiptap/pm": "^3.32.2",

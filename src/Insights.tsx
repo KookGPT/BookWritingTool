@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { nextStep } from './next'
-import { mentionsEntry, plain, streakOf, today, useBook, words } from './store'
+import { bookWords, mentionsEntry, plain, streakOf, today, useBook } from './store'
 import { PageHead } from './ui'
 
 const dayKey = (back: number) => {
@@ -17,7 +17,7 @@ export default function Insights() {
   const last = Array.from({ length: 14 }, (_, i) => dayKey(13 - i))
   const max = Math.max(goal, ...last.map((d) => days[d] ?? 0), 1)
   const chars = book.wiki.filter((w) => w.type === 'character')
-  const total = book.chapters.reduce((n, c) => n + words(c.body), 0)
+  const total = bookWords(book)
   const week = last.slice(7).reduce((n, d) => n + (days[d] ?? 0), 0)
   const next = nextStep(book)
   const pct = `${Math.min(100, (done / Math.max(goal, 1)) * 100)}%`

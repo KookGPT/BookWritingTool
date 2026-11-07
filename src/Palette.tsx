@@ -22,11 +22,13 @@ export default function Palette({ onClose }: { onClose: () => void }) {
     { label: 'New chapter', run: newChapter },
     { label: 'New idea', run: () => { nav('/ideas'); setTimeout(() => document.getElementById('idea-input')?.focus()) } },
     { label: 'Sync now', run: () => runSync() },
+    { label: 'Find and replace', run: () => nav('/search?replace=1') },
     ...['Today', 'Write', 'Manuscript', 'Timeline', 'Scenes', 'Calendar', 'Ideas', 'Globe', 'Map', 'Wiki', 'Insights', 'Search', 'Trash', 'Settings'].map((n) => ({ label: `Go to ${n}`, run: () => nav(`/${n.toLowerCase()}`) })),
     ...book.chapters.map((c) => ({ label: `Chapter: ${c.title}`, run: () => nav(`/write?c=${c.id}`) })),
     ...book.wiki.map((w) => ({ label: `${w.type}: ${w.name}`, run: () => nav(`/wiki/${w.id}`) })),
-    ...book.scenes.map((s) => ({ label: `Scene: ${s.title}`, run: () => nav('/scenes') })),
+    ...book.scenes.map((s) => ({ label: `Scene: ${s.title}`, run: () => nav(`/scenes?s=${s.id}`) })),
     ...book.events.map((e) => ({ label: `Event: ${e.title}`, run: () => nav(`/timeline?e=${e.id}`) })),
+    ...book.flatWorlds.flatMap((w) => [...w.features, ...(w.layers ?? []).flatMap((l) => l.items)].filter((i) => i.name).map((i) => ({ label: `Map: ${i.name}`, run: () => nav(`/map-test?w=${w.id}&place=${i.id}`) }))),
   ]
   const words = q.toLowerCase().split(/\s+/).filter(Boolean)
   const shown = items.filter((i) => words.every((w) => i.label.toLowerCase().includes(w))).slice(0, 12)

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useBook, words } from './store'
+import { sceneBlocks, useBook, words } from './store'
 
 // Chapter HTML is the user's own Tiptap output (and their private repo), but strip anything executable anyway.
 const clean = (html: string) => {
@@ -15,6 +15,8 @@ const clean = (html: string) => {
 export default function Manuscript() {
   const { book } = useBook()
   const total = book.chapters.reduce((n, c) => n + words(c.body), 0)
+  const placed = new Set(book.chapters.flatMap((c) => sceneBlocks(c.body).map((x) => x.id)))
+  const loose = book.scenes.filter((s) => !placed.has(s.id) && words(s.body ?? '') > 0).length
   return (
     <div className="manuscript">
       <h1>{book.title}</h1>
@@ -22,6 +24,7 @@ export default function Manuscript() {
       <p className="muted">
         {book.chapters.length} chapters · {total.toLocaleString()} words · about {Math.round(total / 250)} pages · {Math.max(1, Math.round(total / 238))} min read
       </p>
+      {loose > 0 && <p className="muted noprint">{loose} written scene{loose > 1 ? 's are' : ' is'} not in a chapter yet, so {loose > 1 ? 'they are' : 'it is'} not here or in exports. Set a chapter under Details in the scene.</p>}
       {book.chapters.map((c) => (
         <section key={c.id}>
           <h2>
