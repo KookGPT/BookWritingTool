@@ -14,10 +14,12 @@ export type Light = keyof typeof LIGHTS
 export const STYLES = { toon: 'Toon', watercolor: 'Watercolour', atlas: 'Old atlas', neon: 'Neon night' } as const
 export type Style = keyof typeof STYLES
 
-const MAX_CLOUDS = 40, MAX_WHIRLS = 8, MAX_FLOCKS = 8, TILE = 64
+const MAX_CLOUDS = 40, MAX_WHIRLS = 8, MAX_FLOCKS = 8
+export const TILE = 64
+const FX_KM = 13000 // smoke, clouds, ships and birds are scaled to the map up to this size, and stay that size on a bigger one
 
 // Shared GLSL: ground height (bilinear, exact), close-up detail (integer hash, matches gen.ts), toon light, cloud shadows.
-const COMMON = /* glsl */ `
+export const COMMON = /* glsl */ `
 uniform vec3 uSun; uniform vec3 uSunCol; uniform vec3 uAmb; uniform float uNight; uniform float uTime;
 uniform vec4 uClouds[${MAX_CLOUDS}]; uniform int uNC; uniform float uDiscR; uniform float uFlash;
 uniform sampler2D tHeight; uniform sampler2D tRough; uniform vec2 uSize; uniform vec2 uGrid; uniform float uE; uniform float uHScale;
@@ -55,7 +57,7 @@ float cloudShade(vec2 p) {
   return 1. - .32 * s;
 }
 `
-const uniforms = () => ({
+export const uniforms = () => ({
   uSun: { value: new THREE.Vector3(-0.55, 0.75, -0.4).normalize() }, uSunCol: { value: new THREE.Vector3(1.07, 1.03, 0.96) }, uAmb: { value: new THREE.Vector3(0.66, 0.62, 0.76) },
   uNight: { value: 0 }, uTime: { value: 0 }, uNC: { value: 0 }, uDiscR: { value: 0 }, uFlash: { value: 0 },
   uClouds: { value: Array.from({ length: MAX_CLOUDS }, () => new THREE.Vector4()) },
@@ -429,7 +431,7 @@ function treeInstances(base: THREE.BufferGeometry, data: Float32Array) {
   return g
 }
 // One terrain tile: a grid over 0..1 plus a skirt (z = 1) around its edge.
-function tileGeometry() {
+export function tileGeometry() {
   const n = TILE, pos: number[] = [], idx: number[] = []
   for (let j = 0; j <= n; j++) for (let i = 0; i <= n; i++) pos.push(i / n, j / n, 0)
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const a = j * (n + 1) + i, b = a + 1, c = a + n + 1, d = c + 1; idx.push(a, b, c, b, d, c) }
@@ -473,6 +475,7 @@ export class MapScene {
   private props: { obj: THREE.Object3D; ground: number; float: number; bob: number }[] = []
   private ships: { obj: THREE.Object3D; x: number; y: number; a: number; v: number }[] = []
   private birds?: THREE.Mesh
+  private smoke?: THREE.Mesh
   private storm?: { pts: Float32Array; next: number; bolt: THREE.LineSegments }
   private cloudAlt = 0
   private edgeMist: number[][] = []
@@ -489,6 +492,7 @@ export class MapScene {
   raf = 0
   showClouds = true
   showLife = true
+  showSmoke = true
   light: Light = 'day'
   style: Style = 'toon'
   night = 0 // 0..1, read by the page (city lights)
@@ -532,7 +536,7 @@ export class MapScene {
     for (const o of [...this.world.children]) { this.world.remove(o); o.traverse((m) => { if (m instanceof THREE.Mesh || m instanceof THREE.LineSegments) { m.geometry.dispose(); (m.material as THREE.Material).dispose() } }) }
     for (const t of [this.u.tHeight.value, this.u.tRough.value]) t?.dispose()
     this.clouds = []; this.props = []; this.ships = []; this.nearTrees = []; this.edgeMist = []; this.birds = undefined; this.storm = undefined; this.shadowKey = ''
-    const g = b.gen, e = g.exag / 1000, u = this.u, size = Math.max(g.W, g.H), r = rng(hash(b.seed) ^ 0x51ed)
+    const g = b.gen, e = g.exag / 1000, u = this.u, size = Math.min(FX_KM, Math.max(g.W, g.H)), r = rng(hash(b.seed) ^ 0x51ed)
     u.uDiscR.value = g.disc ? g.W / 2 : 0
     u.uSize.value.set(g.W, g.H); u.uGrid.value.set(g.w, g.h); u.uE.value = e
 
@@ -638,8 +642,9 @@ export class MapScene {
       pts.forEach((p, n) => { for (let q = 0; q < per; q++) { iP.set([p[0], p[1], p[2], (q + r()) / per], (n * per + q) * 4); iC.set(color ?? [1, 1, 1], (n * per + q) * 3) } })
       const m = new THREE.Mesh(instanced(new THREE.IcosahedronGeometry(1, kind === 'rain' || kind === 'mote' ? 0 : 1), { iP: [iP, 4], iC: [iC, 3] }, pts.length * per), puffMat(u, kind, sz, rise, this.treeK))
       m.frustumCulled = false; this.world.add(m)
+      return m
     }
-    puffs('smoke', g.vents.map((v) => [v.at[0], v.at[1], v.top * e]), 18, size * 0.006, size * 0.06)
+    this.smoke = puffs('smoke', g.vents.map((v) => [v.at[0], v.at[1], v.top * e]), 18, size * 0.006, size * 0.06)
     puffs('plume', g.summits.map((s) => [s[0], s[1], heightAt(g, ...s) * e]), 6, size * 0.0009, size * 0.012)
     puffs('spray', g.steam.map((p) => [p[0], p[1], heightAt(g, ...p) * e]), 8, size * 0.0012, size * 0.01)
     puffs('spray', g.falls.map((f) => [f.at[0], f.at[1], (f.bottom + 20) * e]), 10, g.cell * 0.5, g.cell * 2.5)
@@ -865,13 +870,13 @@ export class MapScene {
 
   // Quadtree of ground tiles: split where the camera is close, down to 1/512 of the map.
   private updateTiles(g: Gen) {
-    const cam = this.camera.position, out = this.tiles
+    const cam = this.camera.position, out = this.tiles, maxDepth = 9 + Math.max(0, Math.ceil(Math.log2(Math.max(g.W, g.H) / FX_KM)))
     let n = 0
     const visit = (cx: number, cy: number, s: number, depth: number) => {
       if (cx + s / 2 < -g.W / 2 || cx - s / 2 > g.W / 2 || cy + s / 2 < -g.H / 2 || cy - s / 2 > g.H / 2) return
       if (g.disc && Math.hypot(cx, cy) - s * 0.71 > g.W / 2) return
       const dx = Math.max(0, Math.abs(cam.x - cx) - s / 2), dy = Math.max(0, Math.abs(-cam.z - cy) - s / 2), d = Math.hypot(dx, dy, cam.y)
-      if (depth < 9 && d < s * 1.7) { const q = s / 4; visit(cx - q, cy - q, s / 2, depth + 1); visit(cx + q, cy - q, s / 2, depth + 1); visit(cx - q, cy + q, s / 2, depth + 1); visit(cx + q, cy + q, s / 2, depth + 1) }
+      if (depth < maxDepth && d < s * 1.7) { const q = s / 4; visit(cx - q, cy - q, s / 2, depth + 1); visit(cx + q, cy - q, s / 2, depth + 1); visit(cx - q, cy + q, s / 2, depth + 1); visit(cx + q, cy + q, s / 2, depth + 1) }
       else if (n < 4096) { out[n * 3] = cx - s / 2; out[n * 3 + 1] = cy - s / 2; out[n * 3 + 2] = s; n++ }
     }
     visit(0, 0, Math.max(g.W, g.H), 0)
@@ -921,7 +926,7 @@ export class MapScene {
     this.controls.update()
     const dist = this.camera.position.distanceTo(this.controls.target)
     if (g) {
-      const size = Math.max(g.W, g.H), e = g.exag / 1000
+      const size = Math.min(FX_KM, Math.max(g.W, g.H)), e = g.exag / 1000
       // keep the view over the map
       const c = this.controls.target, lim = (v: number, m: number) => Math.max(-m, Math.min(m, v))
       const dx = lim(c.x, g.W / 2) - c.x, dz = lim(c.z, g.H / 2) - c.z
@@ -970,6 +975,7 @@ export class MapScene {
         s.obj.position.set(s.x, 0.02 * sk, -s.y); s.obj.rotation.set(Math.sin(t * 1.3 + s.x) * 0.08, s.a, Math.sin(t + s.y) * 0.05); s.obj.scale.setScalar(sk)
       }
       if (this.birds) this.birds.visible = this.showLife && dist < size * 0.35
+      if (this.smoke) this.smoke.visible = this.showSmoke
       // lightning in storms
       const st = this.storm
       if (st) {

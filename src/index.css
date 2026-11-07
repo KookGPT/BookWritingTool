@@ -409,6 +409,9 @@ button.ghost.on { background: var(--accent-soft); color: var(--fg) }
 .maptest-page { position: relative; height: 100vh; overflow: hidden; background: #b9d3e6 }
 .maptest-page canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab }
 .maptest-page canvas:active { cursor: grabbing }
+.globe-page { background: #070b0d }
+.globe-page.cinematic .maptest-bar { opacity: .3; transition: opacity .4s }
+.globe-page.cinematic .maptest-bar:hover, .globe-page.cinematic .maptest-bar:focus-within { opacity: 1 }
 .maptest-bar { position: absolute; top: 1rem; left: 1rem; right: 1rem; width: fit-content; max-width: calc(100% - 2rem); display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .5rem .7rem; border-radius: var(--r-lg) }
 .maptest-bar strong { display: inline-flex; align-items: center; gap: .4rem; font-family: var(--serif, inherit); margin-right: .3rem }
 .maptest-bar label { display: inline-flex; align-items: center; gap: .3rem }

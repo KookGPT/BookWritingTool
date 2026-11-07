@@ -12,9 +12,8 @@ import {
 import { centroid, collectLabels, Hud, type Ref } from './hud'
 import { fillRegion, FOLLOW, route, type Follow } from './route'
 import { dressedImage, niceScale } from './dress'
-import { LIGHTS, MapScene, STYLES, type Built, type Light, type Style } from './scene'
-
-const RES = 1536 // samples along the long side; the two target machines are strong, phones would want ~900
+import { LIGHTS, MapScene, STYLES, type Light, type Style } from './scene'
+import { buildWorld, mainWorld, specOf } from './built'
 
 type Tool = 'select' | 'city' | 'landmark' | 'regions' | 'fill' | 'borders' | 'roads' | 'ruler'
 const TOOLS: [Tool, string, IconName, string][] = [
@@ -38,15 +37,12 @@ const itemOf = (w: FlatWorld | undefined, r?: Ref) => r && 'id' in r ? w?.layers
 const layerOf = (w: FlatWorld | undefined, r?: Ref) => r && 'id' in r ? w?.layers?.find((l) => l.id === r.layer) : undefined
 const typing = (e: Event) => { const t = e.target as HTMLElement; return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable }
 
-// Built worlds outlive the page, so coming back to the Map tab skips the rebuild (last two, by spec).
-const builtCache = new Map<string, Built>()
-
 export default function MapTestPage() {
   const { book, update } = useBook()
   const worlds = book.flatWorlds
   const [params] = useSearchParams()
   const [selWorld, setSelWorld] = useState<string | undefined>(params.get('w') ?? undefined)
-  const world = worlds.find((w) => w.id === selWorld) ?? worlds[0]
+  const world = worlds.find((w) => w.id === selWorld) ?? mainWorld(worlds)
   const canvas = useRef<HTMLCanvasElement>(null), hudCanvas = useRef<HTMLCanvasElement>(null), mini = useRef<HTMLCanvasElement>(null)
   const compass = useRef<HTMLButtonElement>(null), scaleEl = useRef<HTMLDivElement>(null)
   const scene = useRef<MapScene>(null)
@@ -55,6 +51,7 @@ export default function MapTestPage() {
   const [shown, setShown] = useState<string>() // spec of the world on screen
   const [clouds, setClouds] = useState(true)
   const [life, setLife] = useState(true)
+  const [smoke, setSmoke] = useState(true)
   const [light, setLight] = useState<Light>('day')
   const [style, setStyle] = useState<Style>('toon')
   const [labels, setLabels] = useState(true)
@@ -88,23 +85,13 @@ export default function MapTestPage() {
     ro.observe(canvas.current!)
     return () => { ro.disconnect(); s.dispose(); scene.current = null }
   }, [])
-  useEffect(() => { const s = scene.current; if (s) Object.assign(s, { showClouds: clouds, showLife: life, light, style }) }, [clouds, life, light, style])
+  useEffect(() => { const s = scene.current; if (s) Object.assign(s, { showClouds: clouds, showLife: life, showSmoke: smoke, light, style }) }, [clouds, life, smoke, light, style])
 
   // Rebuild the ground in a worker when the shape or features change; names, notes and layers never rebuild it.
-  const spec = world && JSON.stringify({ ...world, name: '', note: '', layers: undefined, features: world.features.map(({ name: _n, note: _o, ...f }) => f) })
+  const spec = world && specOf(world)
   useEffect(() => {
     if (!spec) return
-    const hit = builtCache.get(spec)
-    if (hit) { scene.current?.setWorld(hit); setGen(hit.gen); setShown(spec); return }
-    const w = new Worker(new URL('./gen.worker.ts', import.meta.url), { type: 'module' })
-    w.onmessage = (e: MessageEvent<{ built: Built }>) => {
-      builtCache.delete(spec); builtCache.set(spec, e.data.built)
-      if (builtCache.size > 2) builtCache.delete(builtCache.keys().next().value!)
-      scene.current?.setWorld(e.data.built); setGen(e.data.built.gen); setShown(spec); w.terminate()
-    }
-    w.onerror = (e) => { setMsg(`Build failed: ${e.message}`); setShown(spec) }
-    w.postMessage({ fw: JSON.parse(spec), res: RES, job: 0 })
-    return () => w.terminate()
+    return buildWorld(spec, (b) => { scene.current?.setWorld(b); setGen(b.gen); setShown(spec) }, (m) => { setMsg(`Build failed: ${m}`); setShown(spec) })
   }, [spec])
   const ready = !!gen && spec === shown
 
@@ -483,6 +470,7 @@ export default function MapTestPage() {
           <select value={style} onChange={(e) => setStyle(e.target.value as Style)} aria-label="Art style" title="Art style">{Object.entries(STYLES).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select>
           <label className="small"><input type="checkbox" checked={clouds} onChange={(e) => setClouds(e.target.checked)} /> Clouds</label>
           <label className="small" title="Ships and birds"><input type="checkbox" checked={life} onChange={(e) => setLife(e.target.checked)} /> Life</label>
+          <label className="small" title="Smoke from volcanoes"><input type="checkbox" checked={smoke} onChange={(e) => setSmoke(e.target.checked)} /> Smoke</label>
           <button className="ghost icon" onClick={remove} aria-label="Delete map" title="Delete map"><Icon name="trash" /></button>
         </>}
         {spec && !ready && <span className="muted small">Building…</span>}

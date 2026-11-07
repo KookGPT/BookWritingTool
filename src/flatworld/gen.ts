@@ -11,7 +11,8 @@ export const TEMPS = { frozen: 0, cold: 0.22, temperate: 0.5, warm: 0.72, hot: 0
 export type Temp = keyof typeof TEMPS
 export const WINDS = ['west', 'east', 'north', 'south'] as const
 /** Optional climate: unpainted land then picks its own biome from warmth (north to south, colder up high) and rain (wet near upwind coasts, dry behind mountains). */
-export interface Climate { north?: Temp; south?: Temp; wind?: typeof WINDS[number]; wet?: number }
+/** bands: [y km, temperature] from south to north, straight lines between them, overrides north/south (for a map whose warmth doesn't simply run edge to edge). */
+export interface Climate { north?: Temp; south?: Temp; wind?: typeof WINDS[number]; wet?: number; bands?: [number, Temp][] }
 
 export interface MapFeature {
   id: string; kind: FeatureKind; name?: string; note?: string
@@ -29,6 +30,7 @@ export interface FlatWorld {
   shape: 'rect' | 'disc'; size: [number, number] // km, width x height (a disc uses the width as its diameter)
   seed: string; relief?: number // height exaggeration multiplier, 1 = default
   wobble?: number // how far outlines are bent away from their points, 1 = default; ~0.3 for a map traced from a drawing
+  warpSize?: number // km the bending is scaled from, default the map's long side; set it to the old size when enlarging a map, so existing coasts don't move
   climate?: Climate
   edge?: 'wall' | 'waterfall' // the map's cut edge: rock strata, or the sea pouring off the world
   features: MapFeature[] // the ground: Claude writes these
@@ -163,6 +165,7 @@ export function validate(w: unknown): { errors: string[]; warnings: string[] } {
   if (o.relief !== undefined && !(typeof o.relief === 'number' && o.relief > 0 && o.relief <= 5)) errors.push('relief must be a number in (0, 5]')
   if (o.wobble !== undefined && !(typeof o.wobble === 'number' && o.wobble >= 0 && o.wobble <= 2)) errors.push('wobble must be a number in [0, 2]')
   if (o.edge !== undefined && o.edge !== 'wall' && o.edge !== 'waterfall') errors.push('edge must be "wall" or "waterfall"')
+  if (o.warpSize !== undefined && !(typeof o.warpSize === 'number' && o.warpSize > 0)) errors.push('warpSize must be a positive number of km')
   if (o.climate !== undefined) {
     const c = o.climate
     if (!c || typeof c !== 'object') errors.push('climate must be an object')
@@ -170,6 +173,7 @@ export function validate(w: unknown): { errors: string[]; warnings: string[] } {
       for (const k of ['north', 'south'] as const) if (c[k] !== undefined && !(c[k]! in TEMPS)) errors.push(`climate.${k} must be one of ${Object.keys(TEMPS).join(', ')}`)
       if (c.wind !== undefined && !WINDS.includes(c.wind)) errors.push(`climate.wind must be one of ${WINDS.join(', ')}`)
       if (c.wet !== undefined && !(typeof c.wet === 'number' && c.wet >= 0 && c.wet <= 1)) errors.push('climate.wet must be 0..1')
+      if (c.bands !== undefined && !(Array.isArray(c.bands) && c.bands.length >= 2 && c.bands.every((b, n) => Array.isArray(b) && typeof b[0] === 'number' && b[1] in TEMPS && (!n || b[0] > c.bands![n - 1][0])))) errors.push('climate.bands must be [y, temperature] pairs from south to north')
     }
   }
   if (!Array.isArray(o.features)) { errors.push('features must be an array'); return { errors, warnings } }
@@ -238,6 +242,7 @@ export interface Gen {
   rgba: Uint8Array // ground colour; alpha < 255 marks glowing lava
   data: Uint8Array // r: water depth under its surface (0..255 = 0..1200 m), g: 255 = lake, b: FX code * 16 + strength, a: ambient light (valleys darker)
   rough: Uint8Array // close-up detail strength (0 on water, rivers, flats; most on mountains)
+  warm: Uint8Array // the climate's warmth on land, 0..255 = -0.3..1.3 (0.5 without a climate); the Globe's seasons read it
   tree: Uint8Array // 1 + index into TREE_KINDS, 0 = none
   dens: Uint8Array // tree density 0..255
   rivers: RiverLine[]
@@ -306,7 +311,8 @@ export function generate(fw: FlatWorld, long = 1536): Gen {
   // Domain warp shared by every outline, so coasts, ranges and painted areas bend together and nothing is a clean circle or polygon.
   // Two scales: broad bends (peninsulas, bays) and a finer ragged edge.
   const wob = fw.wobble ?? 1
-  const a1 = size * 0.024 * wob, l1 = size / 6, a2 = size * 0.009 * Math.max(wob, 0.3), l2 = size / 28, wA = a1 + a2 + cell
+  const ws = fw.warpSize ?? size // keeps old outlines exactly where they were when a map is made bigger
+  const a1 = ws * 0.024 * wob, l1 = ws / 6, a2 = ws * 0.009 * Math.max(wob, 0.3), l2 = ws / 28, wA = a1 + a2 + cell
   const wx = coarse((x, y) => a1 * fbm(nA, x / l1, y / l1, 0.5, 3) + a2 * fbm(nA, x / l2, y / l2, 20.5, 4))
   const wy = coarse((x, y) => a1 * fbm(nA, x / l1, y / l1, 7.5, 3) + a2 * fbm(nA, x / l2, y / l2, 31.5, 4))
   const warp = (p: XY): XY => { const k = idx(Math.round(FI(p[0])), Math.round(FJ(p[1]))); return [p[0] - wx[k], p[1] - wy[k]] }
@@ -509,6 +515,13 @@ export function generate(fw: FlatWorld, long = 1536): Gen {
   const warm = new Float32Array(N).fill(0.5)
   if (cl) {
     const tN = TEMPS[cl.north ?? 'temperate'], tS = TEMPS[cl.south ?? 'temperate'], wet = cl.wet ?? 0.5
+    const bands = cl.bands, warmth = (y: number) => {
+      if (!bands) return mix(tS, tN, (y + H / 2) / H)
+      const n = bands.findIndex((b) => b[0] > y)
+      if (n < 0) return TEMPS[bands[bands.length - 1][1]]
+      if (n === 0) return TEMPS[bands[0][1]]
+      return mix(TEMPS[bands[n - 1][1]], TEMPS[bands[n][1]], (y - bands[n - 1][0]) / (bands[n][0] - bands[n - 1][0]))
+    }
     const moist = new Float32Array(N), tn = coarse((x, y) => fbm(nE, x / 220, y / 220, 9.1, 3)), mn = coarse((x, y) => fbm(nC, x / 180, y / 180, 19.3, 3))
     // rain comes in off the sea on the wind and rains out over land, most of all where the ground climbs
     const wind = cl.wind ?? 'west', alongX = wind === 'west' || wind === 'east', rev = wind === 'east' || wind === 'south'
@@ -526,7 +539,7 @@ export function generate(fw: FlatWorld, long = 1536): Gen {
     for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
       const k = j * w + i, z = ht[k]
       if (z < 0) continue
-      const t = mix(tS, tN, (Y(j) + H / 2) / H) + tn[k] * 0.07 - z / 1000 * 0.1
+      const t = warmth(Y(j)) + tn[k] * 0.07 - z / 1000 * 0.1
       const m = Math.min(1, Math.max(0, soft[k] * 0.75 + smooth(-220, 0, coast[k]) * 0.2 + (wet - 0.5) * 0.4 + mn[k] * 0.15 + 0.08))
       warm[k] = t
       const pick = t < 0.1 ? 'snow' : t < 0.27 ? (m < 0.35 ? 'tundra' : 'taiga')
@@ -853,7 +866,7 @@ export function generate(fw: FlatWorld, long = 1536): Gen {
     if (summits.length < 40 && summits.every((s) => Math.hypot(s[0] - x, s[1] - y) > size * 0.03)) summits.push([x, y])
   }
   return {
-    w, h, cell, W, H, disc, edge: fw.edge ?? 'wall', height: ht, rgba, data, rough, tree, dens, rivers, lakes, falls, vents, props, zones, whirls, summits, steam,
+    w, h, cell, W, H, disc, edge: fw.edge ?? 'wall', height: ht, rgba, data, rough, warm: Uint8Array.from(warm, (t) => Math.round(Math.max(0, Math.min(1, (t + 0.3) / 1.6)) * 255)), tree, dens, rivers, lakes, falls, vents, props, zones, whirls, summits, steam,
     exag: exagOf(fw), maxH, wx, wy, anchors, lines, snaps: new Float32Array(snaps),
   }
 }
@@ -1024,6 +1037,7 @@ export function brief(fw?: FlatWorld) {
     'FLAT WORLD FORMAT (Bookwright, New Map Test). One JSON object; the app generates the terrain from it.',
     '{ id, name, note?, shape: "rect" | "disc", size: [widthKm, heightKm], seed, relief?, wobble?, climate?, edge?, features: [...], layers?: [...] }',
     'wobble: how far the generator bends outlines away from their points (1 = default; about 0.3 when tracing a drawn map so shapes stay true).',
+    'Enlarging a map: keep every old coast in place by setting warpSize to the old long side, climate.bands to the old warmth, and relief so size x relief stays the same.',
     'Coordinates are [x, y] in km from the map centre: x east, y north. A rect spans x in +-width/2, y in +-height/2; a disc has radius width/2.',
     'Scale is stylised: from far away heights are drawn about size/120 times taller than life (relief multiplies that), easing to about 40% of that up close.',
     `climate: { north?, south? (${Object.keys(TEMPS).join(', ')}), wind? (${WINDS.join(', ')}: where rain comes from), wet? 0..1 }. With a climate, unpainted land picks forest, desert, tundra, jungle... by itself, with dry rain shadows behind ranges.`,
