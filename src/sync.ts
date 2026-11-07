@@ -96,10 +96,10 @@ const shas = async (f: Files): Promise<Shas> =>
 
 export type Mode = 'normal' | 'pull' | 'push' // pull/push = the other side is overwritten
 
-// Returns a message, or 'retry' if you typed while it was working (nothing was changed in that case).
+// Returns a message, or 'retry' if you typed while it was working or another device pushed first (nothing is lost in either case).
 export async function sync(s: Settings, mode: Mode = 'normal'): Promise<string> {
   const book0 = useBook.getState().book
-  const headSha: string = (await api(s, '/git/ref/heads/main')).object.sha
+  const headSha: string = (await api(s, '/git/ref/heads/main', { cache: 'no-store' })).object.sha // GitHub lets browsers reuse this for 60 s, and a stale head can't be pushed onto
   if (mode === 'normal' && headSha === localStorage.getItem(HKEY) && !useBook.getState().dirty) return 'In sync.'
 
   const treeSha: string = (await api(s, `/git/commits/${headSha}`)).tree.sha
@@ -145,7 +145,10 @@ export async function sync(s: Settings, mode: Mode = 'normal'): Promise<string> 
     for (const p of Object.keys(remote)) if (!(p in files)) entries.push({ path: p, mode: '100644', type: 'blob', sha: null })
     const newTree = await post(s, '/git/trees', { base_tree: treeSha, tree: entries })
     const commit = await post(s, '/git/commits', { message: `Sync ${new Date().toISOString()}`, tree: newTree.sha, parents: [headSha] })
-    await post(s, '/git/refs/heads/main', { sha: commit.sha }, 'PATCH')
+    try { await post(s, '/git/refs/heads/main', { sha: commit.sha }, 'PATCH') } catch (e) {
+      if (String(e).includes('GitHub 422')) return 'retry' // the head moved under us: start again from the new one
+      throw e
+    }
     head = commit.sha
   }
   localStorage.setItem(HKEY, head)
