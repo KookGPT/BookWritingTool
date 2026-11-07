@@ -64,5 +64,9 @@ A separate section (`/map-test`, `src/flatworld/`) that leaves the Globe alone. 
 - Gotchas: in the dev console the page's store is the module URL with its `?t=` stamp (see performance resource entries); a bare `/src/store.ts` import is a different, stale instance. Tile triangles must wind counter-clockwise seen from above (world z = -north) or the land is culled; the coast ink uses the smooth height (`vH0`), not the detailed one, or all land gets inked from far away.
 - Not yet: wiki/timeline/scene links and party route (planned later).
 
+## Timeline page
+
+`/timeline` has two parts. **Production Timeline** (`TimelinePage.tsx`, `timelineScale.ts`): dated events and periods on a rail; new items start on the selected event's day; the wheel is not hijacked so the page scrolls on to the plan. **Planning Timeline** (`PlanTimeline.tsx`, pure helpers in `plan.ts`): `book.plan` is a dateless ordered list (array order = order; synced as `plan/<id>.json` plus `planOrder` in `book.json`); drag to reorder, + between cards inserts, arrows for touch, "Move to Production Timeline" turns a card into an event. `merge.ts` merges events, periods, plan items and threads field by field when both devices edit one (`FIELDWISE`); only chapters, scenes, wiki and ideas still save an "(other device)" copy.
+
 ## Checks
 `npx tsc -b`, `npm test`, `npm run build`.

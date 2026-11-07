@@ -94,5 +94,10 @@ export function sampleBook(): Book {
       { id: 's5', title: 'The Truce Is Broken', summary: 'An old pact with the wood shatters.', pov: 'w2', location: 'w5', characters: ['w2'], status: 'planned', threads: ['t3'], date: { y: 312, m: 3, d: 1 } },
       { id: 's6', title: 'Undated twist', summary: 'Reveal who ordered the poison.', status: 'planned', threads: ['t1'] },
     ],
+    plan: [
+      { id: 'pl1', title: 'The poisoning is discovered', summary: 'Aldric finds the first sign.' },
+      { id: 'pl2', title: 'Mira and the wood', summary: 'She follows the glass.', color: '#7cc4a0' },
+      { id: 'pl3', title: 'The truce breaks', summary: '', kind: 'world' },
+    ],
   }
 }

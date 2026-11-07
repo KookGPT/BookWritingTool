@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import type { Calendar } from './calendar'
+import { type Calendar, yearLen } from './calendar'
 import { trashIt } from './history'
 import Icon from './Icon'
-import { calendarOf, type Period, type TDate, type TEvent, uid, useBook } from './store'
-import { lanes, layout } from './timelineScale'
+import { COLORS, PlanForm, PlanTimeline } from './PlanTimeline'
+import { calendarOf, type PlanItem, type Period, type TDate, type TEvent, uid, useBook } from './store'
+import { dayOf, lanes, layout } from './timelineScale'
 
 const U = 210 // px per unit (one card width plus breathing room)
-const COLORS = ['#7cc4a0', '#e2a94d', '#7aa7d9', '#b69cf0', '#e5796a', '#9aa7a0']
 
 const fmtDate = (c: Calendar, t: TDate) => {
   const m = t.m ? c.months[t.m - 1]?.name : undefined
@@ -15,28 +15,30 @@ const fmtDate = (c: Calendar, t: TDate) => {
 }
 
 function DateInput({ label, value, cal, onChange }: { label: string; value: TDate; cal: Calendar; onChange: (d: TDate) => void }) {
+  const maxDay = cal.months[(value.m ?? 1) - 1]?.days ?? 31
+  const clamp = (d: number | undefined, m: number | undefined) => (d === undefined ? undefined : Math.max(1, Math.min(d, cal.months[(m ?? 1) - 1]?.days ?? 31)))
+  const doy = value.m ? dayOf(cal, { y: value.y, m: value.m, d: value.d }) - dayOf(cal, { y: value.y }) + 1 : 0
   return (
     <div className="row" style={{ alignItems: 'end' }}>
       <label>{label ? `${label} year` : 'Year'}
         <input type="number" style={{ width: '6rem' }} value={value.y} onChange={(e) => onChange({ ...value, y: +e.target.value })} />
       </label>
       <label>Month
-        <select value={value.m ?? ''} onChange={(e) => onChange({ y: value.y, m: e.target.value ? +e.target.value : undefined, d: e.target.value ? value.d : undefined })}>
+        <select value={value.m ?? ''} onChange={(e) => { const m = e.target.value ? +e.target.value : undefined; onChange({ y: value.y, m, d: m ? clamp(value.d, m) : undefined }) }}>
           <option value="">-</option>
           {cal.months.map((m, i) => <option key={i} value={i + 1}>{m.name}</option>)}
         </select>
       </label>
-      {value.m && (
-        <label>Day
-          <input type="number" min={1} max={cal.months[value.m - 1]?.days} style={{ width: '4.5rem' }} value={value.d ?? ''} placeholder="-"
-            onChange={(e) => onChange({ ...value, d: e.target.value ? +e.target.value : undefined })} />
-        </label>
-      )}
+      <label>Day
+        <input type="number" min={1} max={maxDay} style={{ width: '4.5rem' }} value={value.d ?? ''} placeholder="-"
+          onChange={(e) => { const d = e.target.value ? clamp(+e.target.value, value.m) : undefined; onChange({ ...value, m: d && !value.m ? 1 : value.m, d }) }} />
+      </label>
+      {doy > 0 && <small className="muted" style={{ paddingBottom: '.55rem' }}>day {doy} of {yearLen(cal)}</small>}
     </div>
   )
 }
 
-function EventForm({ ev, cal, onClose }: { ev: TEvent; cal: Calendar; onClose: () => void }) {
+function EventForm({ ev, cal, onClose, onCopy }: { ev: TEvent; cal: Calendar; onClose: () => void; onCopy: () => void }) {
   const { book, update } = useBook()
   const patch = (p: Partial<TEvent>) => update((b) => ({ ...b, events: b.events.map((e) => (e.id === ev.id ? { ...e, ...p } : e)) }))
   const remove = () => {
@@ -73,6 +75,7 @@ function EventForm({ ev, cal, onClose }: { ev: TEvent; cal: Calendar; onClose: (
           </select>
         </label>
         {ev.wikiId && <Link className="chip" to={`/wiki/${ev.wikiId}`}>Wiki ›</Link>}
+        <button className="alt" onClick={onCopy}>Duplicate</button>
         <button className="danger" onClick={remove}>Delete</button>
       </div>
     </div>
@@ -120,7 +123,7 @@ export default function TimelinePage() {
   const { book, update } = useBook()
   const cal = calendarOf(book)
   const [params] = useSearchParams()
-  const [sel, setSel] = useState<{ kind: 'event' | 'period'; id: string } | null>(() => (params.get('e') ? { kind: 'event', id: params.get('e')! } : null))
+  const [sel, setSel] = useState<{ kind: 'event' | 'period' | 'plan'; id: string } | null>(() => (params.get('e') ? { kind: 'event', id: params.get('e')! } : null))
   const [q, setQ] = useState('')
   const [show, setShow] = useState({ party: true, world: true, periods: true })
   const scroller = useRef<HTMLDivElement>(null)
@@ -167,13 +170,11 @@ export default function TimelinePage() {
     if (next) select('event', next)
   }
 
-  // Mouse wheel scrolls sideways; dragging empty space pans. Needs a non-passive listener to cancel vertical scroll.
+  // Escape closes the editor. Dragging empty space pans; the wheel is left alone so the page can scroll down to the plan.
   useEffect(() => {
-    const el = scroller.current
-    if (!el) return
-    const wheel = (e: WheelEvent) => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { e.preventDefault(); el.scrollLeft += e.deltaY } }
-    el.addEventListener('wheel', wheel, { passive: false })
-    return () => el.removeEventListener('wheel', wheel)
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !(e.target as HTMLElement).closest?.('select')) setSel(null) }
+    addEventListener('keydown', esc)
+    return () => removeEventListener('keydown', esc)
   }, [])
   const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null)
   const down = (e: React.PointerEvent) => { drag.current = { x: e.clientX, left: scroller.current!.scrollLeft, moved: false } }
@@ -185,9 +186,18 @@ export default function TimelinePage() {
   }
   const click = (e: React.MouseEvent) => { if (drag.current?.moved) e.stopPropagation(); drag.current = null }
 
-  const last = [...book.events].sort((a, b) => b.date.y - a.date.y)[0]?.date ?? { y: 1 }
+  const ev = sel?.kind === 'event' ? book.events.find((e) => e.id === sel.id) : undefined
+  const per = sel?.kind === 'period' ? book.periods.find((p) => p.id === sel.id) : undefined
+  const planItem = sel?.kind === 'plan' ? book.plan.find((p) => p.id === sel.id) : undefined
+  // New things start on the selected event's day (so they sit right beside it), else on the latest day in the book.
+  const last = ev?.date ?? [...book.events].sort((a, b) => dayOf(cal, b.date) - dayOf(cal, a.date))[0]?.date ?? { y: 1 }
   const addEvent = (kind: TEvent['kind']) => {
     const e: TEvent = { id: uid(), kind, title: kind === 'party' ? 'New party event' : 'New world event', date: { ...last }, location: '', summary: '' }
+    update((b) => ({ ...b, events: [...b.events, e] }))
+    setSel({ kind: 'event', id: e.id })
+  }
+  const copyEvent = (src: TEvent) => {
+    const e: TEvent = { ...src, id: uid(), title: `${src.title} (copy)`, date: { ...src.date } }
     update((b) => ({ ...b, events: [...b.events, e] }))
     setSel({ kind: 'event', id: e.id })
   }
@@ -196,9 +206,12 @@ export default function TimelinePage() {
     update((b) => ({ ...b, periods: [...b.periods, p] }))
     setSel({ kind: 'period', id: p.id })
   }
+  const schedule = (p: PlanItem) => {
+    const e: TEvent = { id: uid(), kind: p.kind ?? 'party', title: p.title, date: { ...last }, location: '', summary: p.summary }
+    update((b) => ({ ...b, plan: b.plan.filter((x) => x.id !== p.id), events: [...b.events, e] }))
+    setSel({ kind: 'event', id: e.id })
+  }
 
-  const ev = sel?.kind === 'event' ? book.events.find((e) => e.id === sel.id) : undefined
-  const per = sel?.kind === 'period' ? book.periods.find((p) => p.id === sel.id) : undefined
   const toggle = (k: keyof typeof show, label: string) => (
     <label className="check"><input type="checkbox" checked={show[k]} onChange={(e) => setShow({ ...show, [k]: e.target.checked })} />{label}</label>
   )
@@ -221,7 +234,7 @@ export default function TimelinePage() {
   return (
     <div className="page wider tl">
       <div className="row" style={{ alignItems: 'center' }}>
-        <h1 className="grow">Timeline</h1>
+        <h1 className="grow">Production Timeline</h1>
         <input className="tl-search" type="search" aria-label="Search timeline" placeholder="Search events..." value={q} onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { const f = [...events].sort((a, b) => coord[a.id] - coord[b.id])[0]; if (f) select('event', f.id) } }} />
         {toggle('party', 'Party')}{toggle('world', 'World')}{toggle('periods', 'Periods')}
@@ -231,14 +244,15 @@ export default function TimelinePage() {
         <button onClick={() => addEvent('world')}><Icon name="plus" size={16} /> World event</button>
         <button className="alt" onClick={addPeriod}><Icon name="plus" size={16} /> Period</button>
       </div>
-      <p className="muted">Top: where the party is and what they do. Bottom: what the world is doing out of their sight. Bars on the rail are periods. Scroll, drag or use the arrows.</p>
+      <p className="muted">Top: where the party is and what they do. Bottom: what the world is doing out of their sight. Bars on the rail are periods. Drag or use the arrows to move along it. New items start on the selected event's day.</p>
       {needle && !events.length && !periods.length && <p className="muted">No events or periods match "{q}".</p>}
       {!book.events.length && !book.periods.length && (
         <div className="empty"><Icon name="timeline" size={32} /><p>Nothing on the timeline yet. Add where the party goes, or what the world is up to.</p></div>
       )}
-      {(ev || per) && (
+      {(ev || per || planItem) && (
         <aside className="drawer right tl-drawer" aria-label="Edit">
-          {ev && <EventForm key={ev.id} ev={ev} cal={cal} onClose={() => setSel(null)} />}
+          {ev && <EventForm key={ev.id} ev={ev} cal={cal} onClose={() => setSel(null)} onCopy={() => copyEvent(ev)} />}
+          {planItem && <PlanForm key={planItem.id} item={planItem} onClose={() => setSel(null)} onSchedule={schedule} />}
           {per && <PeriodForm key={per.id} per={per} cal={cal} onClose={() => setSel(null)} />}
         </aside>
       )}
@@ -262,6 +276,11 @@ export default function TimelinePage() {
           <div className="tl-bottom">{events.filter((e) => e.kind === 'world').map(card)}</div>
         </div>
       </div>
+      <div className="row" style={{ alignItems: 'center', marginTop: '1.4rem' }}>
+        <h1 className="grow">Planning Timeline</h1>
+      </div>
+      <p className="muted">No dates here. Lay out what happens in the order you want: drag cards to reorder, press + between cards to insert, and move a card to the Production Timeline once it has a date.</p>
+      <PlanTimeline selId={planItem?.id} onSelect={(id) => setSel({ kind: 'plan', id })} />
     </div>
   )
 }

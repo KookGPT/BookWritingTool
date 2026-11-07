@@ -11,6 +11,7 @@ export const toFiles = (b: Book): Files => {
       sceneOrder: b.scenes.map((s) => s.id),
       ideaOrder: b.ideas.map((i) => i.id),
       threadOrder: b.threads.map((t) => t.id),
+      planOrder: b.plan.map((p) => p.id),
     }, null, 2),
     'stats.json': JSON.stringify(b.stats, null, 2),
     'config.json': JSON.stringify(b.config, null, 2),
@@ -22,6 +23,7 @@ export const toFiles = (b: Book): Files => {
   for (const t of b.threads) f[`threads/${t.id}.json`] = JSON.stringify(t, null, 2)
   for (const e of b.events) f[`events/${e.id}.json`] = JSON.stringify(e, null, 2)
   for (const p of b.periods) f[`periods/${p.id}.json`] = JSON.stringify(p, null, 2)
+  for (const p of b.plan) f[`plan/${p.id}.json`] = JSON.stringify(p, null, 2)
   for (const m of b.maps) f[`maps/${m.id}.json`] = JSON.stringify(m)
   for (const w of b.worlds) f[`worlds/${w.id}.json`] = JSON.stringify(w, null, 2)
   for (const w of b.flatWorlds) f[`flatworlds/${w.id}.json`] = JSON.stringify(w, null, 2)
@@ -45,6 +47,7 @@ export const fromFiles = (f: Files): Book => {
     threads: ordered(dir('threads/'), meta.threadOrder),
     events: dir('events/'),
     periods: dir('periods/'),
+    plan: ordered(dir('plan/'), meta.planOrder),
     wiki: dir('wiki/'),
     maps: dir('maps/'),
     worlds: dir('worlds/'),
@@ -54,7 +57,7 @@ export const fromFiles = (f: Files): Book => {
   }
 }
 
-const isEmpty = (b: Book) => !(b.chapters.length || b.threads.length || b.wiki.length || b.ideas.length || b.scenes.length || b.maps.length || b.worlds.length || b.flatWorlds.length || b.events.length || b.periods.length)
+const isEmpty = (b: Book) => !(b.chapters.length || b.threads.length || b.wiki.length || b.ideas.length || b.scenes.length || b.maps.length || b.worlds.length || b.flatWorlds.length || b.events.length || b.periods.length || b.plan.length)
 
 export interface Settings { token: string; repo: string; auto?: boolean } // repo = "owner/name"
 const SKEY = 'sync-settings'

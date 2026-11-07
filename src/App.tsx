@@ -30,7 +30,8 @@ const stored = (k: string, d: string) => { try { return localStorage.getItem(k) 
 const keep = (k: string, v: string) => { try { localStorage.setItem(k, v) } catch { /* private mode */ } }
 
 export default function App() {
-  const { book, dirty, ready } = useBook()
+  const { book, dirty, ready, update } = useBook()
+  const [renaming, setRenaming] = useState(false)
   const nav = useNavigate()
   const [theme, setTheme] = useState(() => stored('theme', 'dark'))
   const [collapsed, setCollapsed] = useState(() => stored('nav-collapsed', '') === '1')
@@ -85,7 +86,22 @@ export default function App() {
       {palette && <Palette onClose={() => setPalette(false)} />}
       <button className="skip" onClick={() => document.getElementById('main')?.focus()}>Skip to content</button>
       <nav className="side" aria-label="Main">
-        <div className="brand"><Icon name="mountain" size={22} /><span className="label">{book.title}</span></div>
+        <div className="brand">
+          <Icon name="mountain" size={22} />
+          {renaming ? (
+            <input
+              className="brand-input" autoFocus aria-label="Book title" value={book.title} onFocus={(e) => e.target.select()}
+              onChange={(e) => update((b) => ({ ...b, title: e.target.value }))}
+              onBlur={() => { setRenaming(false); if (!book.title.trim()) update((b) => ({ ...b, title: 'Untitled Book' })) }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') e.currentTarget.blur() }}
+            />
+          ) : (
+            <>
+              <span className="label" title="Double-click to rename" onDoubleClick={() => setRenaming(true)}>{book.title}</span>
+              <button className="ghost icon brand-edit label" aria-label="Rename book" title="Rename book" onClick={() => setRenaming(true)}><Icon name="pen" size={14} /></button>
+            </>
+          )}
+        </div>
         <button className="cmdk" onClick={() => setPalette(true)} aria-label="Open command palette">
           <Icon name="search" /><span className="label">Search or jump...</span><kbd>Ctrl K</kbd>
         </button>

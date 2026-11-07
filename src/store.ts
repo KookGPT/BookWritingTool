@@ -50,6 +50,9 @@ export interface TEvent { id: string; kind: 'party' | 'world'; title: string; da
   locationId?: string } // wiki ids; `location` stays as free text for places not in the wiki
 export interface Period { id: string; title: string; color: string; start: TDate; end: TDate; startEvent?: string; endEvent?: string; summary?: string }
 
+// Planning Timeline: an ordered list with no dates (array order = order). Cards can later move onto the Production Timeline.
+export interface PlanItem { id: string; title: string; summary: string; color?: string; kind?: 'party' | 'world' }
+
 export interface Thread { id: string; name: string; resolved: boolean }
 
 export interface Book {
@@ -66,9 +69,10 @@ export interface Book {
   scenes: Scene[]
   events: TEvent[]
   periods: Period[]
+  plan: PlanItem[]
 }
 
-export const emptyBook = (): Book => ({ title: 'Untitled Book', threads: [], config: { types: {} }, stats: { goal: 500, days: {} }, maps: [], worlds: [], flatWorlds: [], chapters: [], wiki: [], ideas: [], scenes: [], events: [], periods: [] })
+export const emptyBook = (): Book => ({ title: 'Untitled Book', threads: [], config: { types: {} }, stats: { goal: 500, days: {} }, maps: [], worlds: [], flatWorlds: [], chapters: [], wiki: [], ideas: [], scenes: [], events: [], periods: [], plan: [] })
 export const plain = (html: string) => html.replace(/<[^>]+>/g, ' ')
 export const words = (html: string) => plain(html).split(/\s+/).filter(Boolean).length
 export const today = () => new Date().toLocaleDateString('en-CA') // YYYY-MM-DD, local time

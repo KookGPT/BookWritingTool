@@ -87,3 +87,18 @@ console.log('merge: all checks passed')
   assert.equal(r.conflicts, 0)
   assert.ok(!Object.keys(r.out).some((p) => p.includes('new')))
 }
+
+// Timeline items edited on both sides merge field by field: no "(other device)" copies.
+{
+  const ev = (o: object) => JSON.stringify({ id: 'e', title: 'T', summary: '', date: { y: 1 }, ...o })
+  const key = 'events/e.json'
+  blobs['s:' + ev({})] = ev({})
+  let r2 = await run({ [key]: ev({ title: 'Mine' }) }, { [key]: ev({ summary: 'Theirs' }) }, { [key]: ev({}) })
+  assert.equal(r2.conflicts, 0)
+  assert.deepEqual(Object.keys(r2.out), [key])
+  assert.deepEqual({ t: JSON.parse(r2.out[key]).title, s: JSON.parse(r2.out[key]).summary }, { t: 'Mine', s: 'Theirs' })
+  // the same field changed on both sides: mine wins, still no copy
+  r2 = await run({ [key]: ev({ title: 'Mine' }) }, { [key]: ev({ title: 'Theirs' }) }, { [key]: ev({}) })
+  assert.equal(JSON.parse(r2.out[key]).title, 'Mine')
+  assert.deepEqual(Object.keys(r2.out), [key])
+}

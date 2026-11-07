@@ -12,8 +12,9 @@ export interface MergeIn {
 }
 
 const LEGACY = ['ideas.json', 'scenes.json'] // old single-file layout, split into one file per item
-const ORDERS = ['chapterOrder', 'sceneOrder', 'ideaOrder', 'threadOrder']
-const labelField = (dir: string) => (dir === 'chapters' || dir === 'scenes' || dir === 'events' || dir === 'periods' ? 'title' : dir === 'ideas' ? 'text' : 'name')
+const ORDERS = ['chapterOrder', 'sceneOrder', 'ideaOrder', 'threadOrder', 'planOrder']
+const FIELDWISE = ['events', 'periods', 'plan', 'threads'] // small items: merge field by field instead of saving a copy
+const labelField = (dir: string) => (dir === 'chapters' || dir === 'scenes' || dir === 'events' || dir === 'periods' || dir === 'plan' ? 'title' : dir === 'ideas' ? 'text' : 'name')
 
 type Obj = Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
 const same = (x: unknown, y: unknown) => JSON.stringify(x) === JSON.stringify(y)
@@ -81,6 +82,11 @@ export async function merge(i: MergeIn): Promise<{ out: Files; conflicts: number
       let base: Obj | undefined
       try { base = b ? JSON.parse(await i.blob(b)) : undefined } catch { /* base no longer fetchable: merge without it */ }
       out[p] = JSON.stringify(mergeWorld(base, a, z), null, 2)
+    } else if (FIELDWISE.includes(p.split('/')[0])) {
+      // Same small item edited on both sides: what I changed wins field by field, the rest comes from theirs. No copies.
+      let base: Obj | undefined
+      try { base = b ? JSON.parse(await i.blob(b)) : undefined } catch { /* base no longer fetchable: mine wins on every field that differs */ }
+      out[p] = JSON.stringify(pick(base, a, z), null, 2)
     } else {
       // Same item edited on both devices: keep mine, keep theirs as a copy so nothing is lost.
       const dir = p.split('/')[0]
