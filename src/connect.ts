@@ -148,8 +148,13 @@ function build(b: Book): Map<string, Hit[]> {
   for (const e of b.events) if (e.locationId) for (const s of b.scenes) if (s.location === e.locationId) link({ kind: 'event', id: e.id }, scene(s.id), 'same place')
 
   // Then names in text. Case must match, so a character called Rose does not light up on "she rose".
+  // A character's first name counts too ("Kael" for "Kael Dren") unless another page owns that exact name or another character shares it.
+  const taken = new Set(b.wiki.flatMap((w) => namesOf(w).map((x) => x.trim())))
+  const firsts = b.wiki.filter((w) => w.type === 'character').map((w) => w.name.trim().split(/\s+/)[0])
+  const first = (w: Book['wiki'][number]) => { const f = w.type === 'character' ? w.name.trim().split(/\s+/)[0] : ''; return f && f !== w.name.trim() && !taken.has(f) && firsts.filter((x) => x === f).length === 1 ? [f] : [] }
+  const firstOf = new Map(b.wiki.map((w) => [w.id, first(w)]))
   const owners = new Map<string, Node[]>()
-  for (const n of nodes) for (const name of n.names) {
+  for (const n of nodes) for (const name of [...n.names, ...(n.kind === 'wiki' ? firstOf.get(n.id) ?? [] : [])]) {
     const key = name.trim()
     if (key.length < 3) continue
     const list = owners.get(key)

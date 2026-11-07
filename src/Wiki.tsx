@@ -48,8 +48,9 @@ function Entry({ entry }: { entry: WikiEntry }) {
   }
   const askRemove = (k: string) => (entry.fields[k]?.trim() || typeFields.includes(k) ? setRemoving(k) : dropField(k, false))
   const addAlias = () => {
-    const a = alias.trim()
-    if (a && !aliases.some((x) => x.toLowerCase() === a.toLowerCase())) patch({ aliases: [...aliases, a] })
+    const fresh: string[] = [] // "Kael, the Ward, Red" adds three
+    for (const a of alias.split(/[,;]/).map((x) => x.trim())) if (a && ![...aliases, ...fresh].some((x) => x.toLowerCase() === a.toLowerCase())) fresh.push(a)
+    if (fresh.length) patch({ aliases: [...aliases, ...fresh] })
     setAlias('')
   }
   const addField = () => {
@@ -71,7 +72,11 @@ function Entry({ entry }: { entry: WikiEntry }) {
   return (
     <>
       <div className="row">
-        <input className="grow title" value={entry.name} onChange={(e) => patch({ name: e.target.value })} />
+        <input className="grow title" value={entry.name} onFocus={(e) => { e.currentTarget.dataset.was = entry.name }} onChange={(e) => patch({ name: e.target.value })}
+          onBlur={(e) => { // finishing a longer name ("Kael" -> "Kael Dren") keeps the short one, so scenes using it stay connected
+            const was = (e.currentTarget.dataset.was ?? '').trim(), now = entry.name.trim()
+            if (was && was.toLowerCase() !== now.toLowerCase() && now.toLowerCase().includes(was.toLowerCase()) && !aliases.some((x) => x.toLowerCase() === was.toLowerCase())) patch({ aliases: [...aliases, was] })
+          }} />
         <select value={entry.type} onChange={(e) => patch({ type: e.target.value })}>
           {Object.keys(types).map((t) => <option key={t}>{t}</option>)}
         </select>
@@ -87,7 +92,7 @@ function Entry({ entry }: { entry: WikiEntry }) {
         <small className="muted">ALSO KNOWN AS (links and mentions work for these too)</small>
         <div className="row" style={{ alignItems: 'center' }}>
           {aliases.map((a) => <span key={a} className="chip">{a}<button className="ghost icon" aria-label={`Remove alias ${a}`} onClick={() => patch({ aliases: aliases.filter((x) => x !== a) })}>×</button></span>)}
-          <input aria-label="New alias" placeholder="Add alias, Enter" value={alias} onChange={(e) => setAlias(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addAlias()} />
+          <input aria-label="New alias" placeholder="Add alias, Enter" value={alias} onChange={(e) => setAlias(e.target.value)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ',') && (e.preventDefault(), addAlias())} onBlur={addAlias} />
         </div>
       </div>
       {GLOBE && entry.type === 'location' && (

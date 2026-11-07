@@ -253,6 +253,14 @@ const span = (id: string, note: string, text: string) => `<span data-comment="${
   assert.ok(claudeBrief(b, { kind: 'scene', id: 'a' }).includes('After this'))
 }
 
+{ // a character's first name connects scenes without an alias, unless two characters share it
+  const b = empty()
+  b.scenes = [{ id: 's1', title: 'One', body: '<p>Kael ran. Jon hid.</p>' } as Scene]
+  b.wiki = [{ id: 'k', type: 'character', name: 'Kael Dren', notes: '', fields: {} }, { id: 'j1', type: 'character', name: 'Jon Ash', notes: '', fields: {} }, { id: 'j2', type: 'character', name: 'Jon Bell', notes: '', fields: {} }]
+  assert.ok(connected(b, { kind: 'wiki', id: 'k' }).some((h) => h.id === 's1'))
+  assert.ok(!connected(b, { kind: 'wiki', id: 'j1' }).some((h) => h.id === 's1'))
+}
+
 { // spelling: only near-misses of common words, never names; one clear slip is auto-fixable
   const known = new Set(['the', 'which', 'witch', 'receive', 'was', 'there', 'three', 'definitely', 'because']), common: Map<string, number> = new Map([['the', 0], ['which', 0], ['witch', 2], ['receive', 0], ['was', 0], ['there', 0], ['three', 0], ['definitely', 1], ['because', 0]])
   const r = check('Teh wich recieve Eyaris was thre, and wich', known, common, new Set())
