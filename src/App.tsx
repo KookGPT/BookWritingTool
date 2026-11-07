@@ -162,6 +162,7 @@ export default function App() {
           <Route path="/search" element={<Search />} />
           <Route path="/trash" element={<Trash />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/today" replace />} />
         </Routes>
       </main>
     </div>

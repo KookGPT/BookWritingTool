@@ -264,7 +264,7 @@ export function useProse(p: Prose) {
   })
   // A sync, a replace or the other editor can change this text; show it instead of overwriting it on the next keystroke.
   useEffect(() => {
-    if (editor && p.body !== editor.getHTML()) editor.commands.setContent(p.body, { emitUpdate: false })
+    if (editor && !editor.isDestroyed && p.body !== editor.getHTML()) editor.commands.setContent(p.body, { emitUpdate: false })
   }, [p.body, editor])
   return { editor, scroller }
 }
