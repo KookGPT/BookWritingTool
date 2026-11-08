@@ -1,0 +1,51 @@
+{
+  "id": "kit-test",
+  "name": "Kit test range",
+  "note": "A test of every kit, not Stones Hold. Two inhabited peaks over a slum valley, joined by great bridges; a river falls off the north wall.",
+  "seed": "kit-test",
+  "size": 10000,
+  "base": 600,
+  "relief": 420,
+  "mood": "morning",
+  "terrain": [
+    {"id": "north-wall", "kind": "ridge", "path": [[-4800, 3300], [-1500, 3900], [1500, 3700], [4800, 3100]], "height": 2700, "width": 1500},
+    {"id": "peak-west", "kind": "peak", "at": [-1800, 600], "height": 1900, "radius": 2200},
+    {"id": "peak-east", "kind": "peak", "at": [1900, 300], "height": 1780, "radius": 2000, "sharp": 0.7},
+    {"id": "deep-valley", "kind": "valley", "path": [[-500, -5000], [-150, -1500], [0, 0], [250, 2500]], "height": 640, "width": 420},
+    {"id": "north-river", "kind": "river", "path": [[150, 3650], [220, 3100], [250, 2500], [60, 1200], [0, 0], [-150, -1500], [-450, -4900]], "width": 22, "depth": 4},
+    {"id": "west-shoulder", "kind": "plateau", "at": [-1800, 650], "radius": 140, "height": 1795, "edge": 500},
+    {"id": "east-shoulder", "kind": "plateau", "at": [1880, 260], "radius": 260, "height": 1740, "edge": 650},
+    {"id": "glacier-lake", "kind": "lake", "at": [-2900, 2350], "radius": 520, "depth": 60}
+  ],
+  "districts": [
+    {"id": "valley-floor", "area": [[-700, -3200], [250, -3200], [650, 2800], [-250, 2800]], "density": 0.9},
+    {"id": "west-mount", "at": [-1650, 450], "radius": 1350, "density": 1},
+    {"id": "east-mount", "at": [1750, 150], "radius": 1250, "density": 1},
+    {"id": "cliff-houses", "at": [-900, 2850], "radius": 380, "density": 0.9, "steep": true}
+  ],
+  "structures": [
+    {"id": "west-cathedral", "kind": "cathedral", "at": [-1800, 680], "facing": 180, "scale": 1.9},
+    {"id": "cathedral-square", "kind": "plaza", "at": [-1760, 330], "radius": 55, "centre": "fountain"},
+    {"id": "spire-basilica", "kind": "basilica", "at": [-950, 150], "facing": 120},
+    {"id": "great-colonnade", "kind": "colonnade", "at": [1880, 120], "facing": 180, "radius": 110},
+    {"id": "domed-basilica", "kind": "dome", "at": [1880, 410], "facing": 180},
+    {"id": "west-tower", "kind": "tower", "at": [-1250, 950], "facing": 160, "height": 95, "width": 14},
+    {"id": "east-tower", "kind": "tower", "at": [2250, -350], "facing": 220, "height": 80},
+    {"id": "colossus", "kind": "statue", "at": [650, 1300], "facing": 200, "height": 45, "color": "bronze"},
+    {"id": "valley-plaza", "kind": "plaza", "at": [-550, -1500], "radius": 50, "centre": "statue"},
+    {"id": "east-plaza", "kind": "plaza", "at": [1500, -650], "radius": 45, "centre": "obelisk"},
+    {"id": "high-bridge", "kind": "bridge", "at": [-1450, 470], "to": [1480, 330], "width": 18, "span": 70},
+    {"id": "low-bridge", "kind": "bridge", "at": [-1250, -1150], "to": [1250, -1250], "width": 12, "span": 50},
+    {"id": "lake-aqueduct", "kind": "aqueduct", "path": [[-2350, 2420], [-1400, 2420], [-400, 2300], [300, 2100]], "deck": [830, 800]},
+    {"id": "high-palace", "kind": "palace", "at": [-2250, 150], "facing": 150},
+    {"id": "cliff-monastery", "kind": "monastery", "at": [2650, 950], "facing": 200},
+    {"id": "east-wall", "kind": "wall", "path": [[669, -243], [869, -589], [1175, -846], [1550, -983], [1950, -983], [2325, -846], [2631, -589], [2831, -243]], "height": 15},
+    {"id": "lake-harbour", "kind": "harbour", "at": [-2380, 2300], "facing": 270, "width": 180}
+  ],
+  "views": [
+    {"name": "High bridge", "at": [300, -1400, 1900], "heading": 330, "pitch": -18},
+    {"name": "Cathedral peak", "at": [-1560, 280, 1960], "heading": 330, "pitch": -10},
+    {"name": "Colonnade and dome", "at": [1880, -450, 1980], "heading": 0, "pitch": -14},
+    {"name": "Up the valley", "at": [-300, -2600, 1500], "heading": 10, "pitch": -12}
+  ]
+}

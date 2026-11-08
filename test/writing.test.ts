@@ -10,7 +10,7 @@ import { check } from '../src/spell.ts'
 import type { Book, Scene } from '../src/store.ts'
 import { bookWords, setSceneBody, toText, words } from '../src/text.ts'
 
-const empty = (): Book => ({ title: 'T', threads: [], config: { types: {} }, stats: { goal: 500, days: {} }, maps: [], worlds: [], flatWorlds: [], chapters: [], wiki: [], ideas: [], scenes: [], events: [], periods: [], plan: [] })
+const empty = (): Book => ({ title: 'T', threads: [], config: { types: {} }, stats: { goal: 500, days: {} }, maps: [], worlds: [], flatWorlds: [], locations: [], chapters: [], wiki: [], ideas: [], scenes: [], events: [], periods: [], plan: [] })
 const wiki = (id: string, name: string, x: object = {}) => ({ id, type: 'character', name, fields: {}, notes: '', ...x })
 const scene = (id: string, x: Partial<Scene> = {}): Scene => ({ id, title: id, summary: '', ...x })
 const span = (id: string, note: string, text: string) => `<span data-comment="${id}" data-note="${encodeURIComponent(note)}">${text}</span>`

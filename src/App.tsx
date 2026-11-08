@@ -21,11 +21,12 @@ import { loadSettings, runSync, useSyncStatus } from './sync'
 // The old procedural Globe (src/world/) and image maps (MapView.tsx) are hidden on request; their code is kept. /globe is now a 3D view of the flat map.
 const MapTestPage = lazy(() => import('./flatworld/MapTestPage'))
 const GlobePage = lazy(() => import('./flatworld/GlobePage'))
+const LocationsPage = lazy(() => import('./locations/LocationsPage'))
 
 const NAV: { label: string; items: [path: string, name: string, icon: IconName][] }[] = [
   { label: 'Write', items: [['today', 'Today', 'clock'], ['write', 'Write', 'pen'], ['manuscript', 'Manuscript', 'book']] },
   { label: 'Plan', items: [['timeline', 'Timeline', 'timeline'], ['scenes', 'Scenes', 'list'], ['calendar', 'Calendar', 'calendar'], ['ideas', 'Ideas', 'idea']] },
-  { label: 'World', items: [['wiki', 'Wiki', 'wiki'], ['map-test', 'Map', 'mountain'], ['globe', 'Globe', 'globe']] },
+  { label: 'World', items: [['wiki', 'Wiki', 'wiki'], ['map-test', 'Map', 'mountain'], ['globe', 'Globe', 'globe'], ['locations', 'Locations', 'map']] },
   { label: 'Review', items: [['insights', 'Insights', 'insights'], ['search', 'Search', 'search']] },
 ]
 
@@ -156,6 +157,7 @@ export default function App() {
           <Route path="/timeline" element={<TimelinePage />} />
           <Route path="/scenes" element={<Scenes />} />
           <Route path="/globe" element={<Suspense fallback={null}><GlobePage /></Suspense>} />
+          <Route path="/locations" element={<Suspense fallback={null}><LocationsPage /></Suspense>} />
           <Route path="/map-test" element={<Suspense fallback={null}><MapTestPage /></Suspense>} />
           <Route path="/map" element={<Navigate to="/map-test" replace />} />
           <Route path="/insights" element={<Insights />} />

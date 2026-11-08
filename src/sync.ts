@@ -27,6 +27,7 @@ export const toFiles = (b: Book): Files => {
   for (const m of b.maps) f[`maps/${m.id}.json`] = JSON.stringify(m)
   for (const w of b.worlds) f[`worlds/${w.id}.json`] = JSON.stringify(w, null, 2)
   for (const w of b.flatWorlds) f[`flatworlds/${w.id}.json`] = JSON.stringify(w, null, 2)
+  for (const l of b.locations) f[`locations/${l.id}.json`] = JSON.stringify(l, null, 2)
   return f
 }
 
@@ -52,12 +53,13 @@ export const fromFiles = (f: Files): Book => {
     maps: dir('maps/'),
     worlds: dir('worlds/'),
     flatWorlds: dir('flatworlds/'),
+    locations: dir('locations/'),
     config: f['config.json'] ? JSON.parse(f['config.json']) : emptyBook().config,
     stats: f['stats.json'] ? JSON.parse(f['stats.json']) : emptyBook().stats,
   }
 }
 
-const isEmpty = (b: Book) => !(b.chapters.length || b.threads.length || b.wiki.length || b.ideas.length || b.scenes.length || b.maps.length || b.worlds.length || b.flatWorlds.length || b.events.length || b.periods.length || b.plan.length)
+const isEmpty = (b: Book) => !(b.chapters.length || b.threads.length || b.wiki.length || b.ideas.length || b.scenes.length || b.maps.length || b.worlds.length || b.flatWorlds.length || b.locations.length || b.events.length || b.periods.length || b.plan.length)
 
 export interface Settings { token: string; repo: string; auto?: boolean } // repo = "owner/name"
 const SKEY = 'sync-settings'

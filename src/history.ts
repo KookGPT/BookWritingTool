@@ -17,7 +17,7 @@ export async function snapshot(chapterId: string, body: string, label?: string) 
   await set(`hist:${chapterId}`, [{ t: Date.now(), body, label }, ...h].slice(0, MAX))
 }
 
-export type Kind = 'chapters' | 'wiki' | 'ideas' | 'scenes' | 'maps' | 'worlds' | 'flatWorlds' | 'threads' | 'events' | 'periods' | 'plan'
+export type Kind = 'chapters' | 'wiki' | 'ideas' | 'scenes' | 'maps' | 'worlds' | 'flatWorlds' | 'locations' | 'threads' | 'events' | 'periods' | 'plan'
 export interface Trashed { id: string; kind: Kind; name: string; at: number; data: unknown }
 
 export const getTrash = () => get<Trashed[]>('trash').then((t) => t ?? [])

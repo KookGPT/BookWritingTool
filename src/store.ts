@@ -3,6 +3,7 @@ import { get as idbGet, set as idbSet } from 'idb-keyval'
 import { type Calendar, DEFAULT_CAL, type SDate } from './calendar'
 import type { World } from './world/terrain.ts'
 import type { FlatWorld } from './flatworld/gen.ts'
+import type { LocationDoc } from './locations/city.ts'
 import { bookWords, mentions, mentionsEntry, namesOf, plain, sceneBlocks, setSceneBody, words } from './text.ts'
 
 export { bookWords, mentions, mentionsEntry, namesOf, plain, sceneBlocks, setSceneBody, words }
@@ -67,6 +68,7 @@ export interface Book {
   maps: MapDoc[]
   worlds: World[] // 3D globes; the planet is regenerated from seed + params, so these stay tiny
   flatWorlds: FlatWorld[] // New Map Test: flat (rectangle or disc) worlds built from named features
+  locations: LocationDoc[] // Locations: city-scale 3D places built from recipes
   chapters: Chapter[] // array order = book order
   wiki: WikiEntry[]
   ideas: Idea[]
@@ -76,7 +78,7 @@ export interface Book {
   plan: PlanItem[]
 }
 
-export const emptyBook = (): Book => ({ title: 'Untitled Book', threads: [], config: { types: {} }, stats: { goal: 500, days: {} }, maps: [], worlds: [], flatWorlds: [], chapters: [], wiki: [], ideas: [], scenes: [], events: [], periods: [], plan: [] })
+export const emptyBook = (): Book => ({ title: 'Untitled Book', threads: [], config: { types: {} }, stats: { goal: 500, days: {} }, maps: [], worlds: [], flatWorlds: [], locations: [], chapters: [], wiki: [], ideas: [], scenes: [], events: [], periods: [], plan: [] })
 export const today = () => new Date().toLocaleDateString('en-CA') // YYYY-MM-DD, local time
 const dayKey = (back: number) => { const d = new Date(); d.setDate(d.getDate() - back); return d.toLocaleDateString('en-CA') }
 // Consecutive days that met the goal; today does not break the streak until the day is over.
