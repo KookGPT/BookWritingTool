@@ -1,0 +1,958 @@
+{
+ "id": "showcase",
+ "name": "Showcase: from glacier to sea",
+ "note": "Everything the Locations tool can do, in one valley: a glacier feeding a lake, a gorge and a waterfall, a river winding through farmland and a walled town with canals, a cliff town, a mountain village, an eastern hill town, and a Mediterranean port on the sea. Not Stones Hold.",
+ "seed": "showcase-1",
+ "size": 14000,
+ "base": 280,
+ "relief": 480,
+ "sea": 0,
+ "climate": "temperate",
+ "culture": "central",
+ "mood": "morning",
+ "terrain": [
+  {
+   "id": "north-range",
+   "name": "North Range",
+   "kind": "ridge",
+   "path": [
+    [
+     -7200,
+     5600
+    ],
+    [
+     -3000,
+     6300
+    ],
+    [
+     1000,
+     6000
+    ],
+    [
+     5000,
+     6400
+    ],
+    [
+     7200,
+     5800
+    ]
+   ],
+   "height": 3000,
+   "width": 2200
+  },
+  {
+   "id": "great-peak",
+   "name": "Great Peak",
+   "kind": "peak",
+   "at": [
+    -4000,
+    4800
+   ],
+   "height": 3500,
+   "radius": 2400,
+   "sharp": 1.6
+  },
+  {
+   "id": "east-peak",
+   "name": "East Peak",
+   "kind": "peak",
+   "at": [
+    3800,
+    5200
+   ],
+   "height": 3300,
+   "radius": 2200
+  },
+  {
+   "id": "eastern-hills",
+   "name": "Eastern Hills",
+   "kind": "peak",
+   "at": [
+    5200,
+    -800
+   ],
+   "height": 900,
+   "radius": 2000,
+   "sharp": 0.9
+  },
+  {
+   "id": "the-glacier",
+   "name": "The Glacier",
+   "kind": "glacier",
+   "path": [
+    [
+     -3600,
+     5600
+    ],
+    [
+     -3000,
+     4600
+    ],
+    [
+     -2300,
+     3700
+    ],
+    [
+     -1750,
+     3050
+    ]
+   ],
+   "width": 360,
+   "height": 975
+  },
+  {
+   "id": "hanging-basin",
+   "name": "Hanging Basin",
+   "kind": "plateau",
+   "at": [
+    -1500,
+    2700
+   ],
+   "radius": 850,
+   "height": 950,
+   "edge": 800
+  },
+  {
+   "id": "glacier-lake",
+   "name": "Glacier Lake",
+   "kind": "lake",
+   "at": [
+    -1300,
+    2500
+   ],
+   "radius": 420,
+   "depth": 50
+  },
+  {
+   "id": "the-gorge",
+   "name": "The Gorge",
+   "kind": "gorge",
+   "path": [
+    [
+     -1100,
+     2050
+    ],
+    [
+     -700,
+     1500
+    ],
+    [
+     -350,
+     950
+    ]
+   ],
+   "depth": 90,
+   "width": 80
+  },
+  {
+   "id": "falls-step",
+   "name": "Falls Step",
+   "kind": "cliff",
+   "path": [
+    [
+     -2600,
+     800
+    ],
+    [
+     -300,
+     900
+    ],
+    [
+     2400,
+     700
+    ]
+   ],
+   "drop": 80,
+   "extent": 2500
+  },
+  {
+   "id": "west-coast",
+   "name": "West Coast",
+   "kind": "cliff",
+   "path": [
+    [
+     -7200,
+     -3600
+    ],
+    [
+     -4000,
+     -4000
+    ],
+    [
+     -1000,
+     -4300
+    ],
+    [
+     -350,
+     -4900
+    ],
+    [
+     -300,
+     -7200
+    ]
+   ],
+   "drop": 520,
+   "extent": 6000,
+   "meander": 1.8
+  },
+  {
+   "id": "east-coast",
+   "name": "East Coast",
+   "kind": "cliff",
+   "path": [
+    [
+     2150,
+     -7200
+    ],
+    [
+     2250,
+     -5300
+    ],
+    [
+     2700,
+     -4350
+    ],
+    [
+     5000,
+     -4000
+    ],
+    [
+     7200,
+     -3700
+    ]
+   ],
+   "drop": 520,
+   "extent": 6000,
+   "meander": 1.8
+  },
+  {
+   "id": "upper-vale",
+   "name": "Upper Vale",
+   "kind": "valley",
+   "path": [
+    [
+     -500,
+     700
+    ],
+    [
+     300,
+     -400
+    ]
+   ],
+   "height": 160,
+   "width": 800,
+   "edge": 200
+  },
+  {
+   "id": "middle-vale",
+   "name": "Middle Vale",
+   "kind": "valley",
+   "path": [
+    [
+     300,
+     -400
+    ],
+    [
+     700,
+     -1300
+    ],
+    [
+     400,
+     -2300
+    ]
+   ],
+   "height": 120,
+   "width": 700,
+   "edge": 380
+  },
+  {
+   "id": "lower-vale",
+   "name": "Lower Vale",
+   "kind": "valley",
+   "path": [
+    [
+     400,
+     -2300
+    ],
+    [
+     900,
+     -3300
+    ],
+    [
+     1100,
+     -4100
+    ]
+   ],
+   "height": 60,
+   "width": 700,
+   "edge": 350
+  },
+  {
+   "id": "estuary",
+   "name": "Estuary",
+   "kind": "valley",
+   "path": [
+    [
+     700,
+     -3400
+    ],
+    [
+     1100,
+     -4600
+    ],
+    [
+     1500,
+     -7200
+    ]
+   ],
+   "height": -25,
+   "width": 1300,
+   "edge": 250
+  },
+  {
+   "id": "the-river",
+   "name": "The River",
+   "kind": "river",
+   "path": [
+    [
+     -1150,
+     2150
+    ],
+    [
+     -700,
+     1500
+    ],
+    [
+     -350,
+     950
+    ],
+    [
+     -150,
+     400
+    ],
+    [
+     300,
+     -400
+    ],
+    [
+     700,
+     -1300
+    ],
+    [
+     400,
+     -2300
+    ],
+    [
+     900,
+     -3300
+    ],
+    [
+     1100,
+     -4300
+    ],
+    [
+     1300,
+     -5400
+    ],
+    [
+     1500,
+     -6900
+    ]
+   ],
+   "width": 30,
+   "meander": 1.2
+  },
+  {
+   "id": "vine-terraces",
+   "name": "Vine Terraces",
+   "kind": "fields",
+   "at": [
+    -1700,
+    -1100
+   ],
+   "radius": 650,
+   "crop": "terraces"
+  },
+  {
+   "id": "east-farms",
+   "name": "East Farms",
+   "kind": "fields",
+   "at": [
+    2400,
+    -1700
+   ],
+   "radius": 1150,
+   "crop": "mixed"
+  },
+  {
+   "id": "west-wheat",
+   "name": "West Wheat",
+   "kind": "fields",
+   "at": [
+    -2400,
+    -2800
+   ],
+   "radius": 850,
+   "crop": "wheat"
+  },
+  {
+   "id": "olive-groves",
+   "name": "Olive Groves",
+   "kind": "fields",
+   "at": [
+    -2300,
+    -3750
+   ],
+   "radius": 420,
+   "crop": "olives"
+  },
+  {
+   "id": "lavender",
+   "name": "Lavender",
+   "kind": "fields",
+   "at": [
+    3000,
+    -3500
+   ],
+   "radius": 420,
+   "crop": "lavender"
+  },
+  {
+   "id": "orchards",
+   "name": "Orchards",
+   "kind": "fields",
+   "at": [
+    3300,
+    1850
+   ],
+   "radius": 300,
+   "crop": "orchard"
+  },
+  {
+   "id": "high-pasture",
+   "name": "High Pasture",
+   "kind": "fields",
+   "at": [
+    2600,
+    3100
+   ],
+   "radius": 600,
+   "crop": "pasture"
+  }
+ ],
+ "districts": [
+  {
+   "id": "river-town",
+   "name": "River Town",
+   "at": [
+    600,
+    -2300
+   ],
+   "radius": 850,
+   "culture": "central",
+   "density": 0.92
+  },
+  {
+   "id": "mountain-village",
+   "name": "Mountain Village",
+   "at": [
+    3400,
+    2700
+   ],
+   "radius": 550,
+   "culture": "mountain",
+   "density": 0.8
+  },
+  {
+   "id": "cliff-town",
+   "name": "Cliff Town",
+   "at": [
+    1600,
+    820
+   ],
+   "radius": 380,
+   "culture": "mountain",
+   "steep": true,
+   "density": 0.95
+  },
+  {
+   "id": "eastern-hill",
+   "name": "Eastern Hill",
+   "at": [
+    4600,
+    -1300
+   ],
+   "radius": 820,
+   "culture": "eastern",
+   "density": 0.88
+  },
+  {
+   "id": "port-town",
+   "name": "Port Town",
+   "at": [
+    700,
+    -5300
+   ],
+   "radius": 1000,
+   "culture": "mediterranean",
+   "density": 0.9
+  }
+ ],
+ "structures": [
+  {
+   "id": "river-cathedral",
+   "name": "River Cathedral",
+   "kind": "cathedral",
+   "at": [
+    910,
+    -2380
+   ],
+   "facing": 270,
+   "scale": 1.9
+  },
+  {
+   "id": "cathedral-square",
+   "name": "Cathedral Square",
+   "kind": "plaza",
+   "at": [
+    770,
+    -2380
+   ],
+   "radius": 42,
+   "centre": "statue"
+  },
+  {
+   "id": "hill-palace",
+   "name": "Hill Palace",
+   "kind": "palace",
+   "at": [
+    -500,
+    -2000
+   ],
+   "facing": 90
+  },
+  {
+   "id": "town-canal",
+   "name": "Town Canal",
+   "kind": "canal",
+   "path": [
+    [
+     600,
+     -1950
+    ],
+    [
+     650,
+     -2250
+    ],
+    [
+     660,
+     -2550
+    ],
+    [
+     580,
+     -2850
+    ]
+   ],
+   "width": 12
+  },
+  {
+   "id": "town-wall-west",
+   "name": "Town Wall West",
+   "kind": "wall",
+   "path": [
+    [
+     -250,
+     -1950
+    ],
+    [
+     -380,
+     -2300
+    ],
+    [
+     -250,
+     -2700
+    ],
+    [
+     20,
+     -3050
+    ]
+   ],
+   "height": 13
+  },
+  {
+   "id": "town-wall-east",
+   "name": "Town Wall East",
+   "kind": "wall",
+   "path": [
+    [
+     1350,
+     -1650
+    ],
+    [
+     1530,
+     -2100
+    ],
+    [
+     1530,
+     -2600
+    ],
+    [
+     1350,
+     -3000
+    ]
+   ],
+   "height": 13
+  },
+  {
+   "id": "gorge-bridge",
+   "name": "Gorge Bridge",
+   "kind": "bridge",
+   "at": [
+    -1100,
+    1810
+   ],
+   "to": [
+    -880,
+    1958
+   ],
+   "width": 12,
+   "span": 40,
+   "deck": [
+    952,
+    952
+   ]
+  },
+  {
+   "id": "cliff-monastery",
+   "name": "Cliff Monastery",
+   "kind": "monastery",
+   "at": [
+    -2400,
+    2600
+   ],
+   "facing": 110
+  },
+  {
+   "id": "village-square",
+   "name": "Village Square",
+   "kind": "plaza",
+   "at": [
+    3400,
+    2700
+   ],
+   "radius": 28,
+   "centre": "fountain"
+  },
+  {
+   "id": "eastern-basilica",
+   "name": "Eastern Basilica",
+   "kind": "dome",
+   "at": [
+    4700,
+    -1100
+   ],
+   "facing": 225,
+   "scale": 0.8,
+   "roof": "#3a7a7a"
+  },
+  {
+   "id": "eastern-square",
+   "name": "Eastern Square",
+   "kind": "plaza",
+   "at": [
+    4450,
+    -1250
+   ],
+   "radius": 45,
+   "centre": "obelisk"
+  },
+  {
+   "id": "port-colonnade",
+   "name": "Port Colonnade",
+   "kind": "colonnade",
+   "at": [
+    300,
+    -5100
+   ],
+   "facing": 90,
+   "radius": 95
+  },
+  {
+   "id": "spire-basilica",
+   "name": "Spire Basilica",
+   "kind": "basilica",
+   "at": [
+    -700,
+    -3950
+   ],
+   "facing": 160,
+   "scale": 0.9
+  },
+  {
+   "id": "port-square",
+   "name": "Port Square",
+   "kind": "plaza",
+   "at": [
+    600,
+    -4950
+   ],
+   "radius": 40,
+   "centre": "fountain"
+  },
+  {
+   "id": "port",
+   "name": "Port",
+   "kind": "harbour",
+   "at": [
+    1350,
+    -4950
+   ],
+   "facing": 180,
+   "width": 220
+  },
+  {
+   "id": "watchtower",
+   "name": "Watchtower",
+   "kind": "tower",
+   "at": [
+    -3500,
+    -3770
+   ],
+   "facing": 180,
+   "height": 55,
+   "width": 10
+  },
+  {
+   "id": "colossus",
+   "name": "Colossus",
+   "kind": "statue",
+   "at": [
+    2900,
+    -4280
+   ],
+   "facing": 200,
+   "height": 40,
+   "color": "bronze"
+  },
+  {
+   "id": "valley-aqueduct",
+   "name": "Valley Aqueduct",
+   "kind": "aqueduct",
+   "path": [
+    [
+     1150,
+     -2050
+    ],
+    [
+     600,
+     -1800
+    ],
+    [
+     0,
+     -1650
+    ]
+   ],
+   "deck": [
+    196,
+    188
+   ],
+   "span": 26,
+   "width": 6
+  }
+ ],
+ "views": [
+  {
+   "name": "The whole valley",
+   "at": [
+    600,
+    -6600,
+    2300
+   ],
+   "heading": 0,
+   "pitch": -17,
+   "note": "From the sea to the glacier: one recipe, 14 km across."
+  },
+  {
+   "name": "Glacier and high basin",
+   "at": [
+    -500,
+    1100,
+    1350
+   ],
+   "heading": 320,
+   "pitch": -14,
+   "note": "A glacier spills into a hanging basin and feeds a lake held by its moraine. A bridge crosses the outlet."
+  },
+  {
+   "name": "The gorge",
+   "at": [
+    -80,
+    620,
+    470
+   ],
+   "heading": 325,
+   "pitch": -8,
+   "note": "The lake drains through a gorge and over the falls step into the upper vale."
+  },
+  {
+   "name": "Cliff town",
+   "at": [
+    2050,
+    450,
+    330
+   ],
+   "heading": 300,
+   "pitch": -14,
+   "note": "Whitewashed cliff houses stacked on the falls step: mountain culture in a steep district."
+  },
+  {
+   "name": "Mountain village",
+   "at": [
+    3950,
+    1900,
+    820
+   ],
+   "heading": 325,
+   "pitch": -14,
+   "note": "Rubble and timber houses with slab and shingle roofs above the high pasture."
+  },
+  {
+   "name": "Vineyard terraces",
+   "at": [
+    -1350,
+    -1500,
+    300
+   ],
+   "heading": 320,
+   "pitch": -20,
+   "note": "Terraces stepped into the hillside, with vines along the contours."
+  },
+  {
+   "name": "River town",
+   "at": [
+    1500,
+    -1200,
+    420
+   ],
+   "heading": 215,
+   "pitch": -14,
+   "note": "A Central European town on the river: walls, an aqueduct, the cathedral, a palace on the hill."
+  },
+  {
+   "name": "Cathedral square",
+   "at": [
+    560,
+    -2400,
+    95
+   ],
+   "heading": 92,
+   "pitch": -8,
+   "note": "A Cologne-sized cathedral above its square, among timber-framed, brick and plaster houses."
+  },
+  {
+   "name": "The aqueduct",
+   "at": [
+    750,
+    -1450,
+    190
+   ],
+   "heading": 215,
+   "pitch": -6,
+   "note": "Stacked arches carry water across the town."
+  },
+  {
+   "name": "Along the river",
+   "at": [
+    750,
+    -3050,
+    175
+   ],
+   "heading": 355,
+   "pitch": -9,
+   "note": "The river winds through town past the canal quarter."
+  },
+  {
+   "name": "Eastern hill town",
+   "at": [
+    3900,
+    -2200,
+    820
+   ],
+   "heading": 35,
+   "pitch": -13,
+   "note": "Byzantine hill town: whitewash and banded stone, flat roofs, domes on the rich houses, a domed basilica on top."
+  },
+  {
+   "name": "Spire basilica",
+   "at": [
+    -350,
+    -4280,
+    470
+   ],
+   "heading": 315,
+   "pitch": -7,
+   "note": "A Sagrada-style basilica among olive groves and cypress lanes."
+  },
+  {
+   "name": "Port and fjord",
+   "at": [
+    2100,
+    -4500,
+    320
+   ],
+   "heading": 235,
+   "pitch": -12,
+   "note": "A Mediterranean port on the fjord: harbour, colonnade, beaches with breaking waves."
+  },
+  {
+   "name": "Sea cliffs",
+   "at": [
+    3250,
+    -5150,
+    260
+   ],
+   "heading": 335,
+   "pitch": -8,
+   "note": "Sea cliffs, with a bronze colossus on the headland."
+  },
+  {
+   "name": "River town in the rain",
+   "at": [
+    1500,
+    -1200,
+    420
+   ],
+   "heading": 215,
+   "pitch": -14,
+   "note": "Rain: wet roofs and streets, low cloud.",
+   "hour": 14,
+   "weather": "rain"
+  },
+  {
+   "name": "Mountain village in winter",
+   "at": [
+    3950,
+    1900,
+    820
+   ],
+   "heading": 325,
+   "pitch": -14,
+   "note": "Winter: snow on every upward face, bare trees.",
+   "hour": 11,
+   "weather": "snow",
+   "season": "winter"
+  },
+  {
+   "name": "Port at night",
+   "at": [
+    1400,
+    -5700,
+    190
+   ],
+   "heading": 330,
+   "pitch": -6,
+   "note": "Night: lit windows and lamps, reflected in the bay.",
+   "hour": 21.3
+  }
+ ]
+}

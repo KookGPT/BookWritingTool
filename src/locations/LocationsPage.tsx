@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { get as idbGet, set as idbSet } from 'idb-keyval'
 import Icon from '../Icon'
 import { useBook } from '../store'
-import { brief, MOOD_NAMES, SEASONS, validate, WEATHERS, type CityBuilt, type LocationDoc, type MoodName, type Season, type Weather } from './city'
-import { LocScene, MOODS, type Stats } from './scene'
-import exampleRaw from '../../examples/location-test.json?raw'
+import { brief, BUILD_VERSION, MOOD_NAMES, SEASONS, validate, WEATHERS, type CityBuilt, type LocationDoc, type MoodName, type Season, type View, type Weather } from './city'
+import { LocScene, MOODS, STYLES, type Stats, type StyleName } from './scene'
+import { useLocal } from '../ui'
+import exampleRaw from '../../examples/showcase.json?raw'
 
 const EXAMPLE: LocationDoc = JSON.parse(exampleRaw)
 /** What the terrain and buildings depend on: names, notes, views and mood never trigger a rebuild. */
@@ -28,9 +30,11 @@ export default function LocationsPage() {
   const [season, setSeason] = useState<Season>(doc.season ?? 'summer')
   const [mist, setMist] = useState(MOODS[doc.mood ?? 'morning'].mist)
   const [playing, setPlaying] = useState(false)
+  const [style, setStyle] = useLocal<StyleName>('loc-look', 'real')
   const [stats, setStats] = useState<Stats>()
   const [msg, setMsg] = useState('Building…')
   const [busy, setBusy] = useState(true)
+  const [tour, setTour] = useState(-1)
   const spec = useMemo(() => specOf(doc), [doc])
 
   const save = (d: LocationDoc) => update((b) => ({ ...b, locations: b.locations.some((x) => x.id === d.id) ? b.locations.map((x) => (x.id === d.id ? d : x)) : [...b.locations, d] }))
@@ -47,27 +51,57 @@ export default function LocationsPage() {
   }, [])
   useEffect(() => {
     setBusy(true); setMsg('Building…')
-    const w = new Worker(new URL('./city.worker.ts', import.meta.url), { type: 'module' })
-    const sameDoc = shownSpec.current.startsWith(doc.id + '|')
-    w.onmessage = (e: MessageEvent<{ built?: CityBuilt; error?: string }>) => {
-      w.terminate()
-      if (e.data.error || !e.data.built) { setMsg(`Build failed: ${e.data.error}`); setBusy(false); return }
-      const b = e.data.built, s = scene.current
+    let w: Worker | null = null, live = true
+    const sameDoc = shownSpec.current.startsWith(doc.id + '|'), key = `loc-build:${BUILD_VERSION}:${doc.id}`
+    const show = (b: CityBuilt, cached: boolean) => {
+      if (!live) return
+      const s = scene.current
       s?.setBuilt(b, sameDoc, doc.snowline)
-      const v = params.get('view'), view = doc.views?.find((x) => x.name === v)
+      const v = params.get('view'), view = doc.views?.find((x) => x.name === v) ?? doc.views?.[0] // open on the first saved view
       if (view && !sameDoc) s?.goto(view, false)
       shownSpec.current = doc.id + '|' + spec
-      setMsg(`${b.counts.buildings.toLocaleString()} buildings · ${b.counts.structures} structures · ${b.counts.roads.toLocaleString()} streets · ${(b.size / 1000).toFixed(0)} km · built in ${(b.ms / 1000).toFixed(1)} s`)
+      setMsg(`${b.counts.buildings.toLocaleString()} buildings · ${b.counts.structures} structures · ${b.counts.roads.toLocaleString()} streets · ${b.counts.trees.toLocaleString()} trees · ${(b.size / 1000).toFixed(0)} km · ${cached ? 'from the last build' : `built in ${(b.ms / 1000).toFixed(1)} s`}`)
       setBusy(false)
     }
-    w.postMessage({ doc, job: 1 })
-    return () => w.terminate()
+    // the last build of this location is kept in the browser, so opening it again is instant
+    idbGet(key).then((c: { spec: string; built: CityBuilt } | undefined) => {
+      if (!live) return
+      if (c?.spec === spec) { show(c.built, true); return }
+      w = new Worker(new URL('./city.worker.ts', import.meta.url), { type: 'module' })
+      w.onmessage = (e: MessageEvent<{ built?: CityBuilt; error?: string; stage?: string }>) => {
+        if (e.data.stage) { setMsg(`${e.data.stage}…`); return }
+        w?.terminate()
+        if (e.data.error || !e.data.built) { setMsg(`Build failed: ${e.data.error}`); setBusy(false); return }
+        show(e.data.built, false)
+        idbSet(key, { spec, built: e.data.built }).catch(() => {})
+      }
+      w.postMessage({ doc, job: 1 })
+    }).catch(() => setMsg('Could not read the saved build'))
+    return () => { live = false; w?.terminate() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spec, doc.id])
   useEffect(() => { const m = MOODS[doc.mood ?? 'morning']; setMood(doc.mood ?? 'morning'); setHour(doc.hour ?? m.hour); setWeather(doc.weather ?? m.weather); setMist(m.mist); setSeason(doc.season ?? 'summer') }, [doc.id, doc.mood, doc.hour, doc.weather, doc.season])
   useEffect(() => { if (!playing) scene.current?.setAtmos({ hour }) }, [hour, playing])
   useEffect(() => scene.current?.setAtmos({ weather, season, mist }), [weather, season, mist])
   useEffect(() => { if (scene.current) scene.current.playing = playing ? 0.4 : 0 }, [playing])
+  useEffect(() => scene.current?.setStyle(STYLES[style] ? style : 'real'), [style])
+  // tour: glide through the saved views in order, showing each one's note
+  useEffect(() => {
+    const views = doc.views ?? []
+    if (tour < 0 || !views.length) return
+    if (tour >= views.length) { setTour(-1); return }
+    showView(views[tour])
+    const t = setTimeout(() => setTour((k) => (k < 0 ? k : k + 1)), 9000)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- showView is new each render; only a new stop should move on
+  }, [tour, doc.views])
+  // a view brings its own hour, weather and season; anything it leaves out goes back to the location's mood
+  function showView(v: View) {
+    const m = MOODS[doc.mood ?? 'morning']
+    scene.current?.goto(v)
+    setPlaying(false); setMood(v.hour == null && !v.weather ? (doc.mood ?? 'morning') : '')
+    setHour(v.hour ?? doc.hour ?? m.hour); setWeather(v.weather ?? doc.weather ?? m.weather); setSeason(v.season ?? doc.season ?? 'summer'); setMist(m.mist)
+  }
   const pickMood = (m: MoodName) => { const p = MOODS[m]; setMood(m); setPlaying(false); setHour(p.hour); setWeather(p.weather); setMist(p.mist) }
 
   const saveView = () => {
@@ -103,11 +137,13 @@ export default function LocationsPage() {
         <label className="small loc-time" title="Time of day"><input type="range" min={0} max={24} step={0.05} value={hour} onChange={(e) => { setPlaying(false); setMood(''); setHour(Number(e.target.value)) }} aria-label="Time of day" /> {hhmm(hour)}</label>
         <button className="alt" aria-pressed={playing} title="Let the day pass" onClick={() => { setPlaying(!playing); setMood('') }}>{playing ? 'Pause' : 'Play'}</button>
         <select value={weather} onChange={(e) => { setWeather(e.target.value as Weather); setMood('') }} aria-label="Weather">{WEATHERS.map((w) => <option key={w} value={w}>{w[0].toUpperCase() + w.slice(1)}</option>)}</select>
+        <select value={style} onChange={(e) => setStyle(e.target.value as StyleName)} aria-label="Style" title="How the scene is painted">{(Object.keys(STYLES) as StyleName[]).map((k) => <option key={k} value={k}>{STYLES[k].label}</option>)}</select>
         <select value={season} onChange={(e) => setSeason(e.target.value as Season)} aria-label="Season">{SEASONS.map((w) => <option key={w} value={w}>{w[0].toUpperCase() + w.slice(1)}</option>)}</select>
-        <select value="" onChange={(e) => { const v = doc.views?.find((x) => x.name === e.target.value); if (v) scene.current?.goto(v) }} aria-label="Go to a saved view" disabled={!doc.views?.length}>
+        <select value="" onChange={(e) => { const v = doc.views?.find((x) => x.name === e.target.value); if (v) showView(v) }} aria-label="Go to a saved view" disabled={!doc.views?.length}>
           <option value="">{doc.views?.length ? 'Views…' : 'No views yet'}</option>
           {doc.views?.map((v) => <option key={v.name} value={v.name}>{v.name}</option>)}
         </select>
+        <button className="alt" aria-pressed={tour >= 0} onClick={() => setTour(tour >= 0 ? -1 : 0)} disabled={!doc.views?.length} title="Glide through the saved views">{tour >= 0 ? 'Stop tour' : 'Tour'}</button>
         <button className="alt" onClick={saveView} title="Remember where the camera is">Save view</button>
         <button className="alt" onClick={() => scene.current?.frameAll()} title="See the whole place">Overview</button>
         <button className="alt" onClick={forClaude} title="Copy the recipe format and this location, to paste to Claude">For Claude</button>
@@ -121,7 +157,8 @@ export default function LocationsPage() {
         <span className="muted">Drag: slide · Right-drag: orbit · Scroll: glide · Double-click: fly to · WASD QE: fly, Shift faster · Arrows: turn</span>
         {stats && <span> · <b>{stats.fps}</b> fps · {(stats.tris / 1e6).toFixed(1)}M tris</span>}
       </div>
-      {busy && <div className="loc-busy glass small">Building {doc.name}…</div>}
+      {busy && <div className="loc-busy glass small">{doc.name}: {msg}</div>}
+      {tour >= 0 && doc.views?.[tour] && <div className="loc-caption glass"><b>{doc.views[tour].name}</b>{doc.views[tour].note && <span>{doc.views[tour].note}</span>}<span className="muted small">{tour + 1} of {doc.views.length}</span></div>}
     </div>
   )
 }

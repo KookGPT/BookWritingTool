@@ -252,7 +252,7 @@ export function roadMask(g: Grid, roads: Road[]) {
 }
 
 /** Cut a bench into the grid along every road (lanes gently, main roads with a wider shoulder). */
-export function carve(g: Grid, roads: Road[]) {
+export function carve(g: Grid, roads: Road[], skip?: (x: number, z: number) => boolean) {
   const { N, size, heights } = g, c = size / N, w = N + 1
   const best = new Float32Array(heights.length).fill(0), target = new Float32Array(heights.length)
   for (const r of roads) {
@@ -260,6 +260,7 @@ export function carve(g: Grid, roads: Road[]) {
     const half = r.width / 2, sh = r.kind === 'main' ? 9 : 3
     for (let k = 0; k < r.pts.length; k++) {
       const [x, y, z] = r.pts[k], rad = half + sh
+      if (skip?.(x, z)) continue // over a river the road goes on a bridge, not a dam
       for (let j = Math.max(0, Math.floor((z - rad + size / 2) / c)); j <= Math.min(N, Math.ceil((z + rad + size / 2) / c)); j++)
         for (let i = Math.max(0, Math.floor((x - rad + size / 2) / c)); i <= Math.min(N, Math.ceil((x + rad + size / 2) / c)); i++) {
           const d = Math.hypot(-size / 2 + i * c - x, -size / 2 + j * c - z), wt = 1 - sstep(half + 1, rad, d), a = j * w + i
