@@ -354,7 +354,7 @@ These block or shape items. Answer any time; write the answer into section 7.
 
 ## 8. Session log (newest first)
 
-**2026-11-09: FIX-6 rivers never vanish** (not committed yet).
+**2026-11-09: `c594e35` FIX-6 rivers never vanish.**
 - Measured in the browser, not guessed: rays cast down onto every river point as it is drawn, from each saved view. The height grid was fine (new audit line "hidden or thinned by the ground": 0% everywhere); the volume ground was not. Its coarse levels sample the grid only at cube corners, so any channel narrower than a cube (about distance/150) closed over: from "The whole valley" 79 of 246 river points were under the ground, 21 by over 2 m, all 5-10 km away. (First count said 224: the raycaster also hits hidden LOD meshes; count visible ones only.)
 - Fix for any water (`volume.ts` `Hv`): the build marks every grid vertex under water (`volume.wet`: river channels, lakes, plunge pools); a coarse column whose footprint holds water takes the lowest underwater ground in it, so water keeps an opening at least one cube wide at every level of detail. Now 0-1 of 241 points covered from every saved view. Test: a 10 m channel on an 8 m grid meshed with 32 m cubes closes without the mask and stays open with it.
 - Rivers keep at least ~1.5 px on screen (`water.ts`: ribbon vertices carry their offset from the centre line, `across`; far away they move out to 0.75 px * distance, inside that opening), so a distant river is a line, not dashes. Up close nothing changes.
