@@ -357,7 +357,7 @@ These block or shape items. Answer any time; write the answer into section 7.
 
 ## 8. Session log (newest first)
 
-**2026-11-09: GFX-1a weathering and cut stone** (not committed yet).
+**2026-11-09: `c768189` GFX-1a weathering and cut stone.**
 - GFX-1 split into 1a (this), 1b surface detail up close, 1c built ground.
 - `shaders.ts`: shared `WEATHER` for everything built (great-structure stone, roof, dark and metal; house walls, roofs and parts), switched on by `atmo(..., { weather: true })`. It only reads where a surface is: height above the real ground (the height texture, now shared as `tGround`), its facing (the smooth geometric normal), and the climate's dampness (`DAMP` by climate, `uDamp`). Rising damp and splash at the foot, rain streaks, moss on faces turned from the sun and on ledges in damp climates, bleaching in dry ones, varied roughness. The house walls' own foot grime and streaks went into it.
 - `STONE` (great structures): courses laid in each face's own frame (level along any wall, paving on tops), blocks of varied length and tint, recessed mortar, worn arrises, drums only on curved surfaces (columns, statues), all fading out once a joint is under a pixel.
