@@ -15,7 +15,7 @@ import { PART, PART_COUNT, PSTRIDE, ROOF_PARTS } from './buildings.ts'
 import { MATS, type Mat } from './kit.ts'
 import { Fly, type Pose } from './fly.ts'
 import { Fx } from './fx.ts'
-import { atmo, GLOW, MOTTLE, ROAD, ROCK, ROCK_POST, ROOF, ROOF_FH, ROOF_V, ROOF_VH, SKY_F, SKY_V, STONE, STYLE_F, TERRAIN, TERRAIN_FH, TERRAIN_POST, TERRAIN_V, TERRAIN_VH, TREE, TREE_FH, TREE_V, TREE_VH, U, WALL, WALL_FH, WALL_V, WALL_VH } from './shaders.ts'
+import { atmo, DAMP, GLOW, MOTTLE, ROAD, ROCK, ROCK_POST, ROOF, ROOF_FH, ROOF_V, ROOF_VH, SKY_F, SKY_V, STONE, STYLE_F, TERRAIN, TERRAIN_FH, TERRAIN_POST, TERRAIN_V, TERRAIN_VH, TREE, TREE_FH, TREE_V, TREE_VH, U, WALL, WALL_FH, WALL_V, WALL_VH } from './shaders.ts'
 import { chunks, gridMesh, partGeometries, rockGeo, skirtMesh, terrainTiles, treeGeometries } from './geometry.ts'
 import { heightTexture, Reflection, WATER_U, waterMaterial } from './water.ts'
 import { VolumeLod } from './volumeLod.ts'
@@ -99,9 +99,9 @@ export class LocScene {
   private sunDir = new THREE.Vector3(0, 1, 0); private lightDir = new THREE.Vector3(0, 1, 0)
   private mats = {} as Record<Mat, THREE.MeshStandardMaterial>
   private terrainMat = atmo(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }), { surface: TERRAIN, post: TERRAIN_POST, vertex: TERRAIN_V, vhead: TERRAIN_VH, fhead: TERRAIN_FH, emissive: 'totalEmissiveRadiance += atmoGlow * vec3(1.0, 0.3, 0.05) * (6.0 + uNight * 10.0);' })
-  private wallMat = atmo(new THREE.MeshStandardMaterial({ roughness: 0.9 }), { surface: WALL, emissive: GLOW, vertex: WALL_V, vhead: WALL_VH, fhead: WALL_FH, snow: 0.4 })
-  private roofMat = atmo(new THREE.MeshStandardMaterial({ roughness: 0.75, vertexColors: true }), { surface: ROOF, vertex: ROOF_V, vhead: ROOF_VH, fhead: ROOF_FH })
-  private partMat = atmo(new THREE.MeshStandardMaterial({ roughness: 0.85, vertexColors: true }), { surface: MOTTLE + 'atmoBump = anoise(vAtmoPos * 2.0) * 0.03;' })
+  private wallMat = atmo(new THREE.MeshStandardMaterial({ roughness: 0.9 }), { surface: WALL, emissive: GLOW, vertex: WALL_V, vhead: WALL_VH, fhead: WALL_FH, snow: 0.4, weather: true })
+  private roofMat = atmo(new THREE.MeshStandardMaterial({ roughness: 0.75, vertexColors: true }), { surface: ROOF, vertex: ROOF_V, vhead: ROOF_VH, fhead: ROOF_FH, weather: true })
+  private partMat = atmo(new THREE.MeshStandardMaterial({ roughness: 0.85, vertexColors: true }), { surface: MOTTLE + 'atmoBump = anoise(vAtmoPos * 2.0) * 0.03;', weather: true })
   private treeMat = atmo(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }), { surface: TREE, vertex: TREE_V, vhead: TREE_VH, fhead: TREE_FH })
   private rockMat = atmo(new THREE.MeshStandardMaterial({ color: 0x8a857c, roughness: 0.95, flatShading: true }), { surface: MOTTLE + 'atmoBump = afbm(vAtmoPos * 0.9) * 0.25;' })
   private lakeMat = waterMaterial(0, '#3c9c9a', '#0c3a4a')
@@ -135,7 +135,7 @@ export class LocScene {
     this.sun.shadow.mapSize.set(4096, 4096)
     for (const m of MATS) {
       const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: m === 'metal' ? 0.35 : m === 'glass' ? 0.1 : m === 'water' ? 0.05 : m === 'roof' ? 0.7 : m === 'rock' ? 0.95 : 0.88, metalness: m === 'metal' ? 0.85 : 0, side: m === 'cloth' || m === 'leaf' || m === 'rock' ? THREE.DoubleSide : THREE.FrontSide })
-      this.mats[m] = atmo(mat, { surface: m === 'stone' ? STONE : m === 'roof' ? MOTTLE : m === 'road' ? ROAD : m === 'rock' ? ROCK : '', post: m === 'rock' ? ROCK_POST : '', emissive: m === 'stained' ? 'totalEmissiveRadiance += diffuseColor.rgb * (0.35 + uNight * 1.6);' : '' })
+      this.mats[m] = atmo(mat, { surface: m === 'stone' ? STONE : m === 'roof' ? MOTTLE : m === 'road' ? ROAD : m === 'rock' ? ROCK : '', post: m === 'rock' ? ROCK_POST : '', emissive: m === 'stained' ? 'totalEmissiveRadiance += diffuseColor.rgb * (0.35 + uNight * 1.6);' : '', weather: m === 'stone' || m === 'roof' || m === 'dark' || m === 'metal' })
     }
     this.composer = new EffectComposer(r, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }))
     this.composer.addPass(new RenderPass(this.scene, this.camera))
@@ -190,6 +190,7 @@ export class LocScene {
     U.tField.value = this.fieldTex; U.tMarks.value = this.marksTex; U.uMapSize.value = b.size
     this.heightTex = heightTexture(b.heights, b.N)
     WATER_U.tHeight.value = this.heightTex; WATER_U.uGrid.value.set(b.size, b.N)
+    U.tGround.value = this.heightTex; U.uGroundGrid.value.set(b.size, b.N) // weathering knows how high a surface stands
     const water: THREE.Object3D[] = []
     if (b.water.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(b.water, 3)); g.setAttribute('flow', new THREE.BufferAttribute(new Float32Array((b.water.length / 3) * 2), 2)); g.computeVertexNormals(); const m = new THREE.Mesh(g, this.lakeMat); m.renderOrder = 1; water.push(m) }
     if (b.rivers.pos.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(b.rivers.pos, 3)); g.setAttribute('flow', new THREE.BufferAttribute(b.rivers.uv, 2)); g.computeVertexNormals(); const m = new THREE.Mesh(g, this.riverMat); m.renderOrder = 1; water.push(m) }
@@ -323,6 +324,7 @@ export class LocScene {
     const n = (p: 'sunI' | 'hemiI' | 'exposure' | 'night' | 'haze' | 'sat') => k0[p] + (k1[p] - k0[p]) * t
     const grey = (col: THREE.Color, g: number) => { const l = col.r * 0.3 + col.g * 0.59 + col.b * 0.11; return col.lerp(new THREE.Color(l, l, l * 1.04), g) }
     const night = n('night')
+    U.uDamp.value = DAMP[this.doc?.climate ?? 'temperate'] ?? 0.7
     this.sunDir.setFromSphericalCoords(1, (90 - el) * DEG, (180 - az) * DEG)
     // at night the moon lights the land from high in the south-west
     if (el < -6) this.lightDir.setFromSphericalCoords(1, 55 * DEG, (180 - 215) * DEG)

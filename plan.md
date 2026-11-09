@@ -3,7 +3,7 @@
 The plan, status and session log for the **Locations** tab (`/locations`, `src/locations/`).
 CLAUDE.md explains how the code works. This file covers what the tool is for, where it stands, and what comes next.
 
-Last updated: 2026-11-09, FIX-1 (rivers stay in their banks).
+Last updated: 2026-11-09, GFX-1a (weathering and cut stone).
 
 ---
 
@@ -13,6 +13,7 @@ Last updated: 2026-11-09, FIX-1 (rivers stay in their banks).
 1. Read this file and the Locations section of CLAUDE.md.
 2. Work on **one item**: either the ID the user names, or the top unblocked item in "Next up" (section 5). Before writing code, say which one it is, what its "Done when" check is, and which of the three pillars it advances (realism, graphical quality, detail where needed; see section 1).
 3. Keep the end goal in mind: the tool should be able to recreate **any** environment with a lot of detail, realism and graphical quality. Prefer general solutions (a better material system, a better erosion model) over fixes that only work for one demo.
+   - **Every fix must fix the situation wherever it comes up.** No coordinates, ids or per-demo tuning. Thresholds scale with what they measure (river width, scene size, relief), not absolute numbers picked to make one demo pass. Each fix gets a synthetic test (a made-up case built in the test, like the staircase river in `test/locations.test.ts`), not only a demo audit. Ask: would it hold for a 2 km scene and a 30 km one, a creek and a great river?
 4. If the item turns out bigger than one session, split it here first. Then do the first part.
 
 **During the session:**
@@ -168,7 +169,7 @@ Each problem has an ID. Fix items refer to these IDs.
 | P12 | No quays along town shores | missing feature | low |
 | P13 | Editing a location on two devices keeps an "(other device)" copy instead of merging | `merge.ts` | low |
 | P15 | Houses are tier 0 in every scene, so small scenes are as plain as big ones | `buildings.ts` has no detail tiers (DET-1) | high |
-| P16 | Most surfaces are flat colours with little texture or surface detail up close (stone, plaster, roofs, wood) | materials in `kit.ts`, `buildings.ts`, `shaders.ts` (GFX-1) | high |
+| P16 | Up close, kit wood, metal, glass and cloth are still flat colours (stone and weathering done in GFX-1a) | materials in `kit.ts`, `shaders.ts` (GFX-1b) | high |
 | P17 | Trees, ground cover and props are simple up close; no undergrowth, grass or scattered stones | `city.ts` trees, no ground-cover pass (GFX-4) | medium |
 | P18 | Light and render pipeline are basic: no bloom, no screen-space AO, limited shadow range, plain sky | `scene.ts` (GFX-5, ATM-4) | medium |
 | P19 | Port Town's square (showcase, shot `town-port-town`): bare levelled sand under a big dark slab overhead, rock wall behind, no market in view | the core sits on a slope (ground 10..63 m round it); the square's levelling vs the volume ground, maybe an overhang | medium |
@@ -180,6 +181,7 @@ Each problem has an ID. Fix items refer to these IDs.
 | P25 | Deltas are a simple fan: channels from one apex, no real branching, no levees or bars (active-lands) | `carveDelta` in `hydro.ts`; see ENV-5 | medium |
 | P26 | Jade River reaches the sea over a cliff fall, so its delta starts under a plunge pool | the coast cliff is cut after the river's valley; the river does not cut its own way through the cliff | low |
 | P27 | A short flat ribbon ledge sticks out past the rock at the top of a fall | the last ribbon segment above the lip is drawn at full width | low |
+| P28 | (user, 2026-11-09) Rivers get very thin and drop out in places | the ribbon is `wid * 1.16` wide and sits 0.3 m over the carved surface: where the bed is narrow or the banks crowd in, the ground covers it. The user suggests wider and deeper channels. The FIX-1 fall thresholds (10 m, 250 m) also don't scale with river width yet | high |
 
 ---
 
@@ -189,8 +191,9 @@ Milestones are in order. Each milestone lists its items in order. An item is siz
 
 ### Next up (the short queue)
 
-1. **GFX-1** Real materials (P16)
-2. **DET-1** Detail tiers by scene size (P15)
+1. **FIX-6** Rivers never vanish (P28; the user saw them get very thin and drop out)
+2. **GFX-1b** Surface detail up close (P16)
+3. **DET-1** Detail tiers by scene size (P15)
 3. **FIX-2** Glacier sits in its valley (P3)
 4. **PERF-1** Lighter volume ground (P6)
 5. **SH-0** Stones Hold reference pack (needs the user)
@@ -218,14 +221,18 @@ Makes every later session targeted: change, re-shoot, compare.
   - Done when: low shots along all four map edges show no crack or step.
 - **DEMO-1 Cold/arid demo** (P11). Fjord, mesas, canyon and dunes, with one town each. Fix what it reveals as new FIX items.
   - Done when: it builds, the audit is clean, and the shots have been looked at.
+- **FIX-6 Rivers never vanish** (P28). Find every place a river ribbon gets thin or disappears under the ground (an audit check: share of the course where the drawn ribbon is under the ground beside it, or narrower than the river's width). Fix it for every river: a channel cut wide and deep enough for the ribbon everywhere (the user suggests wider and deeper), the ribbon matched to the carved bed, and the FIX-1 fall thresholds scaled with river width.
+  - Done when: the new audit check is 0 on every demo, and low passes along each river show it unbroken.
 
 ### M3 Graphical quality
 Raises the look of every scene at once. Each item is done when the standard shots are clearly better side by side, with no fps loss over 15%.
 
-- **GFX-1 Real materials.** A material system shared by kits, houses and ground:
-  - procedural, triplanar stone, brick, plaster, roof tile, slate, wood, metal, glass, ice, sand and mud;
-  - surface detail (normal and roughness) that fades in with distance;
-  - weathering: dirt in creases, moss on the shaded and wet sides, streaks under ledges, sun-bleaching.
+- **GFX-1 Real materials.** A material system shared by kits, houses and ground. Split into three sessions (2026-11-09):
+  - ~~GFX-1a Weathering and cut stone~~ (done 2026-11-09, see the log).
+  - **GFX-1b Surface detail up close.** Every kit material, not only stone: wood (grain, planks, end grain), metal (hammered sheet, rust and patina by climate), glass (reflections of the sky, leaded panes on great windows, dirt at the edges), cloth, ice. Detail normals and roughness that fade in under ~60 m and out with distance, the same way stone does. Kits need to say which material a surface is beyond colour: add a material id per vertex where `kit.ts` mixes several under one `Mat` (e.g. `dark` doors vs openings).
+    - Done when: close shots of a door, a copper roof, a cathedral window and a market stall look like their materials, fps within 15%.
+  - **GFX-1c Built ground.** Paving, steps, cobbles and kerbs in the same system (road and plaza surfaces), worn where feet go (centres of streets, thresholds), weeds in the joints by climate.
+    - Done when: street-height shots in every town show paving with wear, fps within 15%.
 - **GFX-2 Stone that reads as built.** Masonry courses and blocks on great structures (on the carving tier); ashlar vs rubble by wealth and culture; mortar lines; worn edges.
 - **GFX-3 Ground close up.** Terrain texture at metre scale: soil, grass, scree, gravel, mud, snow, rock strata, blended by slope, wetness and wear (paths worn where streets and roads run).
 - **GFX-4 Vegetation.** Better trees by species and climate, with real crowns and up-close leaves; grass, shrubs, undergrowth and scattered stones as ground cover near the camera; forest edges and clearings that follow terrain and settlement.
@@ -313,6 +320,7 @@ Each kit is done when: three seeds look different, they sit correctly on uneven 
 Quays along town shores (P12); a field-wise merge for locations (P13); showing locations on the Map or Globe; scene and wiki pins.
 - Braided rivers: wide gravel beds with shifting channels and bars below glaciers (the showcase's upper valley would have one).
 - Shot sheets that score each pair by pixel difference, so the sheet opens on what changed most.
+- Age as a recipe knob: a place (or one structure) says how old and how kept it is, and weathering, moss, missing render and broken tiles follow (feeds ENV-3 ruins).
 - Rivers in winter: ice along the banks, frozen falls as hanging icicle curtains, snow on the gravel bars (the season switch already exists).
 
 ---
@@ -348,6 +356,15 @@ These block or shape items. Answer any time; write the answer into section 7.
 ---
 
 ## 8. Session log (newest first)
+
+**2026-11-09: GFX-1a weathering and cut stone** (not committed yet).
+- GFX-1 split into 1a (this), 1b surface detail up close, 1c built ground.
+- `shaders.ts`: shared `WEATHER` for everything built (great-structure stone, roof, dark and metal; house walls, roofs and parts), switched on by `atmo(..., { weather: true })`. It only reads where a surface is: height above the real ground (the height texture, now shared as `tGround`), its facing (the smooth geometric normal), and the climate's dampness (`DAMP` by climate, `uDamp`). Rising damp and splash at the foot, rain streaks, moss on faces turned from the sun and on ledges in damp climates, bleaching in dry ones, varied roughness. The house walls' own foot grime and streaks went into it.
+- `STONE` (great structures): courses laid in each face's own frame (level along any wall, paving on tops), blocks of varied length and tint, recessed mortar, worn arrises, drums only on curved surfaces (columns, statues), all fading out once a joint is under a pixel.
+- Learned: masks built from the bumped normal speckle (a tiny normal wobble times world coordinates of ~1 km jumps the noise); use the geometric normal and frame-free noise. Cost was +16% on the cathedral view at first; cut to +9% (street +2%, overview none) by sharing noise lookups (four in weathering, three in stone). Timing method: render 20 frames with a 1-pixel `readPixels` after each (gl.finish does not wait in the pane).
+- Shots: `gfx1-` sets for all three demos vs `fix1-`; close shots `gfx1-close-*` (cathedral base, bridge pier, a street).
+- The user saw rivers get very thin and drop out in places: P28, new item FIX-6 at the top of the queue.
+- Next: FIX-6, then GFX-1b.
 
 **2026-11-09: `adc4a36` FIX-1 rivers stay in their banks.**
 - Measured first. Most of the "bank below the water" was the audit: it read the nearest grid vertex (13.7 m cells; on a steep reach that is a step down the slope, metres lower), counted samples off the map edge (cliff-test's river starts off the map) and counted lakebed inside lakes and plunge pools as bank. The audit now samples the drawn (bilinear) ground and skips those; a cascade of steps counts as one fall.

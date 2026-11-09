@@ -9,7 +9,11 @@ export const U = {
   uSun: { value: new THREE.Vector3(0, 1, 0) }, uFogCol: { value: new THREE.Color() }, uGlowCol: { value: new THREE.Color() },
   uFogD: { value: 0.0005 }, uFogFall: { value: 1 / 300 }, uFogBase: { value: 0 }, uHaze: { value: 0.00003 }, uNight: { value: 0 }, uTime: { value: 0 },
   uSnow: { value: 0 }, uSnowLine: { value: 1e5 }, uWet: { value: 0 }, uFoliage: { value: new THREE.Color() }, uBare: { value: 0 }, uSky: { value: new THREE.Color() },
+  // weathering: the ground's height (for how high a surface stands above it) and how damp the climate is (0 desert .. 1 rainforest)
+  tGround: { value: null as THREE.Texture | null }, uGroundGrid: { value: new THREE.Vector2(1, 1) }, uDamp: { value: 0.7 },
 }
+/** How damp each climate keeps stone and wood: moss, algae and rain streaks grow with it; dry climates bleach instead. */
+export const DAMP: Record<string, number> = { tropical: 1, temperate: 0.8, boreal: 0.75, alpine: 0.6, mediterranean: 0.35, arid: 0.1 }
 export const HEAD = /* glsl */ `
 uniform vec3 uSun; uniform vec3 uFogCol; uniform vec3 uGlowCol; uniform float uFogD; uniform float uFogFall; uniform float uFogBase; uniform float uHaze; uniform float uNight; uniform float uTime;
 uniform float uSnow; uniform float uSnowLine; uniform float uWet; uniform vec3 uFoliage; uniform float uBare; uniform vec3 uSky;
@@ -45,7 +49,42 @@ const POST = (extra: string) => /* glsl */ `
   roughnessFactor = mix(roughnessFactor, 0.25, uWet * smoothstep(0.3, 0.9, wN.y) * 0.8);
 }
 `
-export interface AtmoOpts { surface?: string; emissive?: string; vertex?: string; vhead?: string; fhead?: string; snow?: number; post?: string }
+// Weathering, shared by everything built (great structures, house walls and roofs, parts): it reads only where the
+// surface is (height above the real ground, which way it faces, the climate), so it is right for anything anywhere.
+// - rising damp and splash at the foot of walls, darker and greener in damp climates
+// - rain streaks running down vertical faces, broken up along the face
+// - moss and lichen on faces turned from the sun (north here: world -z) and on ledges, only where it is damp
+// - sun bleaching on tops and sunny faces in dry climates
+// - roughness that varies: rough grime and moss, smoother streaks
+const WEATHER_H = /* glsl */ `
+uniform sampler2D tGround; uniform vec2 uGroundGrid; uniform float uDamp;
+float wGround(vec2 xz) { vec2 g = (xz + uGroundGrid.x * 0.5) / uGroundGrid.x; return all(greaterThan(g, vec2(0.0))) && all(lessThan(g, vec2(1.0))) ? texture2D(tGround, g).r : -1e5; }
+`
+const WEATHER = /* glsl */ `
+{
+  // the facing comes from the smooth geometric normal, not the bumped one (bump detail would make every mask speckle),
+  // and the noise needs no frame along the face (stretched upright for streaks), so it holds on any shape
+  vec3 p = vAtmoPos, gN = inverseTransformDirection(normalize(vNormal), viewMatrix);
+  float above = max(0.0, p.y - wGround(p.xz)), vert = 1.0 - smoothstep(0.55, 0.85, abs(gN.y)), ledge = smoothstep(0.6, 0.9, gN.y);
+  // four noise lookups in all (it runs on every built pixel): a coarse one shapes the damp line, the streak runs and the
+  // moss patches; a fine upright one draws the streaks and varies the roughness
+  float big = anoise(vec3(p.x * 0.35, p.y * 0.02, p.z * 0.35 + 9.0)), fine = anoise(vec3(p.x * 2.6, p.y * 0.09, p.z * 2.6));
+  float foot = (1.0 - smoothstep(0.15, 0.9 + 1.4 * big * (0.4 + uDamp), above)) * vert;
+  float streak = smoothstep(0.58, 0.82, fine) * smoothstep(0.35, 0.65, big) * vert;
+  float shade = smoothstep(0.1, -0.7, gN.z) * (1.0 - smoothstep(0.85, 1.0, gN.y));
+  float mn = anoise(p * 0.45 + 3.0) * 0.65 + anoise(p * 1.6) * 0.35, patchy = smoothstep(0.45, 0.75, mn);
+  float moss = uDamp * uDamp * clamp(foot * 0.9 + shade * 0.45 + ledge * 0.55, 0.0, 1.0) * patchy;
+  float bleach = (1.0 - uDamp) * max(ledge, smoothstep(0.2, 0.9, gN.z) * vert) * 0.6;
+  vec3 c = diffuseColor.rgb;
+  c *= 1.0 - foot * (0.18 + 0.22 * uDamp);
+  c *= 1.0 - streak * (0.1 + 0.2 * uDamp);
+  c = mix(c, mix(vec3(0.17, 0.2, 0.09), vec3(0.32, 0.33, 0.22), smoothstep(0.55, 0.9, mn)), moss * 0.75);
+  c = mix(c, vec3(dot(c, vec3(0.3, 0.55, 0.15))) * 1.12, bleach * 0.35);
+  diffuseColor.rgb = c;
+  roughnessFactor = clamp(roughnessFactor + (fine - 0.5) * 0.12 + moss * 0.1 + foot * 0.05 - streak * 0.08, 0.04, 1.0);
+}
+`
+export interface AtmoOpts { surface?: string; emissive?: string; vertex?: string; vhead?: string; fhead?: string; snow?: number; post?: string; weather?: boolean }
 /** Adds the atmosphere, relief, snow and wet to a built-in material, with optional surface and emissive work. */
 export function atmo<T extends THREE.Material>(m: T, o: AtmoOpts = {}): T {
   m.onBeforeCompile = (sh) => {
@@ -57,14 +96,14 @@ export function atmo<T extends THREE.Material>(m: T, o: AtmoOpts = {}): T {
       #endif
       vAtmoPos = (modelMatrix * atmoW).xyz;
       ${o.vertex ?? ''}`)
-    sh.fragmentShader = HEAD + (o.fhead ?? '') + sh.fragmentShader
+    sh.fragmentShader = HEAD + (o.weather ? WEATHER_H : '') + (o.fhead ?? '') + sh.fragmentShader
       .replace('void main() {', `void main() {\n  float atmoGlow = 0.0, atmoBump = 0.0, atmoSnow = ${(o.snow ?? 1).toFixed(2)};`)
       .replace('#include <color_fragment>', '#include <color_fragment>\n' + (o.surface ?? ''))
-      .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + POST(o.post ?? ''))
+      .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n' + POST((o.post ?? '') + (o.weather ? WEATHER : '')))
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n' + (o.emissive ?? ''))
       .replace('#include <fog_fragment>', FOG)
   }
-  m.customProgramCacheKey = () => (o.surface ?? '') + (o.post ?? '') + (o.vertex ?? '')
+  m.customProgramCacheKey = () => (o.surface ?? '') + (o.post ?? '') + (o.vertex ?? '') + (o.weather ? 'w' : '')
   return m
 }
 
@@ -130,10 +169,31 @@ export const TERRAIN_POST = /* glsl */ `
   diffuseColor.rgb = mix(diffuseColor.rgb, rock, steepRock * 0.7);
 `
 
-export const STONE = MOTTLE + `
-  { vec3 q = vAtmoPos * vec3(1.6, 2.6, 1.6); vec3 cell = floor(vec3(q.x + floor(q.y) * 0.5, q.y, q.z + floor(q.y) * 0.5));
-    atmoBump = anoise(vAtmoPos * 1.4) * 0.05 - smoothstep(0.92, 1.0, max(fract(q.y), max(fract(q.x + floor(q.y) * 0.5), fract(q.z + floor(q.y) * 0.5)))) * 0.03;
-    diffuseColor.rgb *= 0.94 + 0.1 * ahash(cell); }
+// Cut stone for anything built of it, laid in the face's own frame: courses run level along each wall whichever way it
+// turns, blocks vary in length per course and in tint, mortar joints are recessed, arrises a little worn. Paving on
+// level tops. On curved surfaces (columns, statues, domes) only the course joints remain, as drums. All of it fades to
+// the average colour once a joint is under a pixel, so far views stay calm.
+export const STONE = /* glsl */ `
+  { vec3 p = vAtmoPos, n = inverseTransformDirection(normalize(vNormal), viewMatrix);
+    float curved = smoothstep(0.25, 0.9, length(fwidth(n)) / max(length(fwidth(p)), 1e-4)); // turn of the normal per metre
+    vec2 q; // the face's own frame: along the wall and up, or across a level top
+    if (abs(n.y) > 0.75) q = p.xz; else { vec2 t2 = normalize(vec2(-n.z, n.x) + 1e-5); q = vec2(dot(p.xz, t2), p.y); }
+    float ch = 0.42, ri = floor(q.y / ch), rh = ch * (0.8 + 0.45 * ahash(vec3(ri, 2.0, 7.0)));
+    ri = floor(q.y / rh); float rf = fract(q.y / rh);
+    float bl = mix(0.75, 1.5, ahash(vec3(ri, 5.0, 1.0))), cu = q.x / bl + ahash(vec3(ri, 9.0, 3.0)), ci = curved > 0.5 ? 0.0 : floor(cu), cf = fract(cu); // a drum is one block all round
+    float jy = min(rf, 1.0 - rf) * rh, jx = min(cf, 1.0 - cf) * bl * (1.0 - curved); // distance to the nearest joint, metres
+    float joint = min(jy, mix(jx, 1.0, curved)), fade = 1.0 - smoothstep(0.012, 0.05, fwidth(q.y));
+    float mortar = 1.0 - smoothstep(0.006, 0.016, joint), arris = 1.0 - smoothstep(0.016, 0.06, joint);
+    float tint = 0.9 + 0.16 * ahash(vec3(ci, ri, 4.0)), hue = ahash(vec3(ci, ri, 8.0)) - 0.5;
+    vec3 c = diffuseColor.rgb * tint * vec3(1.0 + hue * 0.05, 1.0, 1.0 - hue * 0.06);
+    float tool = anoise(p * 3.1); // tooling and grain (three noise lookups in all)
+    c *= 0.9 + 0.15 * tool;
+    c = mix(c, c * 0.92, arris * (1.0 - mortar));
+    c = mix(c, diffuseColor.rgb * vec3(0.86, 0.84, 0.8), mortar);
+    float broad = anoise(p * 0.35);
+    diffuseColor.rgb = mix(diffuseColor.rgb * (0.9 + 0.12 * broad), c, fade);
+    diffuseColor.rgb *= 0.92 + 0.1 * anoise(p * 0.05);
+    atmoBump = (tool * 0.006 - mortar * 0.014 - arris * 0.004) * fade; }
 `
 // natural rock: bedding planes that wander, vertical joints, grain; lichen and grass on ledges (in ROCK_POST)
 export const ROCK = /* glsl */ `
@@ -208,9 +268,8 @@ export const WALL = /* glsl */ `
       base *= mix(1.0, (0.8 + 0.3 * ahash(vec3(bi, sd, 2.0))) * mix(0.55, 1.0, smoothstep(0.0, 0.08, min(bf, 1.0 - bf))) * (0.9 + 0.2 * anoise(vec3(u * 30.0, h * 0.6, sd))), fade);
       bump = smoothstep(0.0, 0.08, min(bf, 1.0 - bf)) * 0.02 * fade;
     }
-    // weathering: streaks down from the windows, grime at the foot
-    base *= 0.9 + 0.1 * anoise(vec3(u * 1.7, h * 0.07, sd));
-    base *= 0.74 + 0.26 * smoothstep(0.0, 6.0, h);
+    // (rain streaks and grime at the foot come from the shared weathering)
+    base *= 0.94 + 0.06 * anoise(vec3(u * 1.7, h * 0.07, sd));
     if (h < 0.0) { base *= 0.52 + 0.12 * anoise(vAtmoPos * vec3(1.2, 2.4, 1.2)); bump = anoise(vAtmoPos * vec3(1.6, 3.2, 1.6)) * 0.06; diffuseColor.rgb = base; }
     else if (fh > 50.0) diffuseColor.rgb = base;
     else {
