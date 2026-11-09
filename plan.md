@@ -352,7 +352,7 @@ These block or shape items. Answer any time; write the answer into section 7.
 
 ## 8. Session log (newest first)
 
-**2026-11-09: GFX-1b surface detail up close** (not committed yet).
+**2026-11-09: `e5a970e` GFX-1b surface detail up close.**
 - A `wood` material (`kit.ts` `MATS`): doors, belfry louvres, brackets, pier decks and piles, hulls, masts, stall posts and counters were all drawn as `roof`. A new kind of surface gets its own `Mat` rather than a hidden id per vertex.
 - `shaders.ts`, all in the face's own frame (`faceUV` in `FACE_H`: along and up the slope, or x and z on level faces, plus how curved the surface is) and fading once their detail is under a pixel: `WOOD` (boards, grain along them, joints, silvering less in damp climates), `METAL` + `METAL_POST` (hammered; iron rusts and bronze greens by climate, metalness drops where it does; gold tarnishes a little; family from the colour), `GLASS` for stained windows (diamond quarries in lead; pane shades stay visible further out than the lead lines), `CLOTH` (weave, folds, sun-faded tops), `ROOF_K` for the great buildings' roofs (clay tiles, slate or lead plates, copper with standing seams, by colour family; courses only on curved domes).
 - Shared weathering: rain streaks thinned (sparse runs, not a curtain of stripes) after the cathedral front looked like a barcode.
