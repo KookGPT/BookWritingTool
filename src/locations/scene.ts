@@ -9,7 +9,8 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
-import { TSTRIDE, type CityBuilt, type MoodName, type Season, type View, type Weather } from './city.ts'
+import { standardShots } from './shots.ts'
+import { TSTRIDE, type CityBuilt, type LocationDoc, type MoodName, type Season, type View, type Weather } from './city.ts'
 import { PART, PART_COUNT, PSTRIDE, ROOF_PARTS } from './buildings.ts'
 import { MATS, type Mat } from './kit.ts'
 import { Fly, type Pose } from './fly.ts'
@@ -85,6 +86,8 @@ export class LocScene {
   envRT: THREE.WebGLRenderTarget | null = null
   world = new THREE.Group()
   built: CityBuilt | null = null
+  /** The recipe on show (set by the page), for the standard shots. */
+  doc: LocationDoc | null = null
   atmos: Atmos = { hour: 7.6, weather: 'clear', season: 'summer', mist: 0.35 }
   style: StyleName = 'real'
   snowline = 1e5
@@ -364,8 +367,10 @@ export class LocScene {
     this.scene.environmentIntensity = night > 0.5 ? 0.25 : 0.6 * (1 - wx.grey * 0.3)
   }
 
+  /** While shooting: draw at this size (pixel ratio 1) whatever the window, so shots from any session line up. */
+  private shotSize: [number, number] | null = null
   resize() {
-    const w = this.canvas.clientWidth, h = this.canvas.clientHeight
+    const [w, h] = this.shotSize ?? [this.canvas.clientWidth, this.canvas.clientHeight]
     if (!w || !h) return
     this.renderer.setSize(w, h, false); this.composer.setSize(w, h); this.composer.setPixelRatio(this.renderer.getPixelRatio())
     this.camera.aspect = w / h; this.camera.updateProjectionMatrix()
@@ -395,7 +400,7 @@ export class LocScene {
   }
   private frame(dt: number) {
     U.uTime.value += dt
-    if (this.canvas.width !== Math.floor(this.canvas.clientWidth * this.renderer.getPixelRatio())) this.resize()
+    if (this.canvas.width !== (this.shotSize?.[0] ?? Math.floor(this.canvas.clientWidth * this.renderer.getPixelRatio()))) this.resize()
     if (this.playing) { this.atmos.hour = (this.atmos.hour + this.playing * dt) % 24; this.applyAtmos(); this.onHour?.(this.atmos.hour) }
     this.fly.update(dt)
     this.vlod?.update(this.camera.position)
@@ -424,19 +429,28 @@ export class LocScene {
     if (a.t > 0.5) { this.onStats?.({ fps: Math.round(a.n / a.t), calls: this.renderer.info.render.calls, tris: this.renderer.info.render.triangles }); a.t = 0; a.n = 0 }
   }
 
-  /** Dev: save a shot from each [name, [x, y, alt], heading, pitch]; a negative alt is metres above the ground. */
-  async shots(prefix: string, list: [string, [number, number, number], number, number][], atmos: Partial<Atmos> = {}) {
-    const keep = { ...this.atmos }
-    for (const [name, at, heading, pitch] of list) {
-      const alt = at[2] < 0 ? this.heightAt(at[0], -at[1]) - at[2] : at[2]
-      this.goto({ name, at: [at[0], at[1], alt], heading, pitch }, false)
-      this.setAtmos({ hour: 10, weather: 'clear', season: 'summer', mist: 0.15, ...atmos })
-      this.frame(0.016)
-      await this.vlod?.settle(this.camera.position) // the ground in full detail before the picture
-      await this.shot(prefix + name)
-    }
-    this.setAtmos(keep)
+  /** Dev: save a 1280 x 720 shot from each [name, [x, y, alt], heading, pitch, atmosphere?]; a negative alt is metres above the ground. */
+  async shots(prefix: string, list: [string, [number, number, number], number, number, Partial<Atmos>?][], atmos: Partial<Atmos> = {}) {
+    const keep = { ...this.atmos }, pr = this.renderer.getPixelRatio()
+    this.shotSize = [1280, 720]; this.renderer.setPixelRatio(1); this.resize()
+    try {
+      for (const [name, at, heading, pitch, own = {}] of list) {
+        const alt = at[2] < 0 ? this.heightAt(at[0], -at[1]) - at[2] : at[2]
+        this.goto({ name, at: [at[0], at[1], alt], heading, pitch }, false)
+        const set = Object.fromEntries(Object.entries({ ...atmos, ...own }).filter(([, v]) => v !== undefined))
+        this.setAtmos({ hour: 10, weather: 'clear', season: 'summer', mist: 0.15, ...set })
+        this.frame(0.016)
+        await this.vlod?.settle(this.camera.position) // the ground in full detail before the picture
+        await this.shot(prefix + name)
+      }
+    } finally { this.shotSize = null; this.renderer.setPixelRatio(pr); this.resize(); this.setAtmos(keep) }
     return list.length
+  }
+  /** Dev: the standard set (saved views, overview, low pass, each structure, each town at street height) as
+   * test/out/shots/<prefix><location id>-<shot>.jpg; `node scripts/loc-sheet.ts before- after-` puts two sets side by side. */
+  async standard(prefix: string) {
+    if (!this.doc) throw new Error('no location shown')
+    return this.shots(`${prefix}${this.doc.id}-`, standardShots(this.doc, (x, y) => this.heightAt(x, -y)))
   }
   /** Dev: draw this frame and save it as test/out/shots/<name>.jpg through the dev server, for Claude to look at. */
   async shot(name: string) {

@@ -87,6 +87,7 @@ export default function LocationsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spec, doc.id])
   useEffect(() => { const m = MOODS[doc.mood ?? 'morning']; setMood(doc.mood ?? 'morning'); setHour(doc.hour ?? m.hour); setWeather(doc.weather ?? m.weather); setMist(m.mist); setSeason(doc.season ?? 'summer') }, [doc.id, doc.mood, doc.hour, doc.weather, doc.season])
+  useEffect(() => { if (scene.current) scene.current.doc = doc }, [doc])
   useEffect(() => { if (!playing) scene.current?.setAtmos({ hour }) }, [hour, playing])
   useEffect(() => scene.current?.setAtmos({ weather, season, mist }), [weather, season, mist])
   useEffect(() => { if (scene.current) scene.current.playing = playing ? 0.4 : 0 }, [playing])

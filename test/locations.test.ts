@@ -8,6 +8,7 @@ import { pathNear, pathNearFast, resample, type XY } from '../src/locations/terr
 import { carveRiver, makeLake } from '../src/locations/hydro.ts'
 import { volumeField, volumeTerrain } from '../src/locations/volume.ts'
 import { rng } from '../src/world/noise.ts'
+import { standardShots } from '../src/locations/shots.ts'
 
 // the showcase is the example the page opens with: it must stay clean
 const show: LocationDoc = JSON.parse(readFileSync(new URL('../examples/showcase.json', import.meta.url), 'utf8'))
@@ -151,5 +152,14 @@ assert.ok(idx.near(roads[0].pts[3][0], roads[0].pts[3][2]).d < 0, 'a point on th
   const fld = volumeField(fin), big = fld.mesh(-200, -200, 32, 8)!, small = fld.mesh(-200, -200, 64, 4)!
   const meanY = (m: typeof big) => { let s = 0; for (let k = 1; k < m.pos.length; k += 3) s += m.pos[k]; return s / (m.pos.length / 3) }
   assert.ok(Math.abs(meanY(big) - meanY(small)) < 3, 'levels of detail agree')
+}
+{
+  // standard shots: every view, overview, low pass, every structure and town, unique names, compass headings
+  const shots = standardShots(show, () => 100), names = shots.map((s) => s[0])
+  assert.equal(new Set(names).size, names.length, 'shot names are unique')
+  assert.equal(shots.length, show.views!.length + 2 + show.structures.length + show.districts.length, 'one shot per view, structure and town')
+  assert.ok(shots.every(([, at, h, p]) => at.every(Number.isFinite) && h >= 0 && h < 360 && p > -90 && p < 90), 'poses are sane')
+  const bridge = shots.find((s) => s[0] === 'structure-old-bridge')!
+  assert.ok(Math.hypot(bridge[1][0] - 520, bridge[1][1] + 2500) < 400, 'the bridge is shot from close by')
 }
 console.log('locations ok')

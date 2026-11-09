@@ -3,7 +3,7 @@
 The plan, status and session log for the **Locations** tab (`/locations`, `src/locations/`).
 CLAUDE.md explains how the code works. This file covers what the tool is for, where it stands, and what comes next.
 
-Last updated: 2026-11-09, after `69b21b6` (volume ground by default).
+Last updated: 2026-11-09, TOOL-1 (standard shots and contact sheet).
 
 ---
 
@@ -22,7 +22,10 @@ Last updated: 2026-11-09, after `69b21b6` (volume ground by default).
 **End of a session (before committing):**
 1. Run `npx tsc -b`, `npm test`, `npm run build`.
 2. Run `node scripts/loc.ts check` on every demo and update the numbers in section 3.
-3. Take the standard shots (once TOOL-1 exists; until then, take shots of the views you changed) and look at them. Compare them with the previous shots: nothing may look worse in realism, graphical quality or detail. If something does, fix it or write it down as a problem.
+3. Take the standard shots and compare them with the last set (the newest tag in the session log; the first is `base-`, 2026-11-09):
+   - In the browser pane, open each demo (`#/locations?l=<id>`) and run `locScene.standard('<tag>-')`, where `<tag>` is new for this session (e.g. `s1110-`). It saves 1280 x 720 JPEGs as `test/out/shots/<tag>-<demo>-<shot>.jpg`. In a hidden pane it takes about 1 min (cliff-test), 4 min (active-lands) and 8 min (showcase); `javascript_tool` gives up after 45 s, so start it with `.then(n => window.__std = n)` and poll.
+   - `node scripts/loc-sheet.ts <old>-<demo>- <tag>-<demo>- test/out/sheet-<demo>.html`, then open `http://localhost:5173/BookWritingTool/test/out/sheet-<demo>.html` (or Read the single JPEGs).
+   - Nothing may look worse in realism, graphical quality or detail. If something does, fix it or write it down as a problem. `test/out/` is not in git, so the sets only live on this machine.
 4. Update this file:
    - add at least one new idea for something the tool can't make yet (to section 5 or "Later / ideas"), so the catalogue keeps growing;
    - mark the item done in section 5 (move it to the log);
@@ -121,7 +124,7 @@ Stones Hold is the hardest test of the end goal and the first big place to build
 | Look | moods (morning..night), weather, seasons, clouds, mist, steam, lava glow, baked AO | `scene.ts`, `shaders.ts`, `fx.ts` |
 | Flying | fly controls; views saved in the recipe | `fly.ts` |
 | Checking | `audit`: needles, uncovered steps, flat area, stranded sea, river banks, lake shape, glacier, town shape, streets, houses off street, road grades | `check.ts` |
-| Pictures | `locScene.shots(...)` in dev saves JPEGs to `test/out/shots/` | `scene.ts`, `vite.config.ts` |
+| Pictures | `locScene.shots(...)` and the standard set `locScene.standard(tag)` (saved views, overview, low pass, every structure, every town at street height; 1280 x 720) save JPEGs to `test/out/shots/`; `scripts/loc-sheet.ts` makes a before/after contact sheet | `shots.ts`, `scene.ts`, `vite.config.ts` |
 | Demos | `showcase` (glacier to sea, 5 towns, bridge, aqueduct), `active-lands` (volcanic tropical coast), `cliff-test` (2 km cliffs, stack, arch, gorge) | `examples/` |
 
 ---
@@ -164,11 +167,15 @@ Each problem has an ID. Fix items refer to these IDs.
 | P11 | No cold/arid demo: fjords, mesas, canyons and dunes have never been looked at | no demo | medium |
 | P12 | No quays along town shores | missing feature | low |
 | P13 | Editing a location on two devices keeps an "(other device)" copy instead of merging | `merge.ts` | low |
-| P14 | Sessions can't measure "looks better": no standard shot set, no before/after | missing tooling (TOOL-1) | high |
 | P15 | Houses are tier 0 in every scene, so small scenes are as plain as big ones | `buildings.ts` has no detail tiers (DET-1) | high |
 | P16 | Most surfaces are flat colours with little texture or surface detail up close (stone, plaster, roofs, wood) | materials in `kit.ts`, `buildings.ts`, `shaders.ts` (GFX-1) | high |
 | P17 | Trees, ground cover and props are simple up close; no undergrowth, grass or scattered stones | `city.ts` trees, no ground-cover pass (GFX-4) | medium |
 | P18 | Light and render pipeline are basic: no bloom, no screen-space AO, limited shadow range, plain sky | `scene.ts` (GFX-5, ATM-4) | medium |
+| P19 | Port Town's square (showcase, shot `town-port-town`): bare levelled sand under a big dark slab overhead, rock wall behind, no market in view | the core sits on a slope (ground 10..63 m round it); the square's levelling vs the volume ground, maybe an overhang | medium |
+| P20 | Triangular rock facets on smooth grass slopes (showcase, below the aqueduct) | volume rock where the grid is steep, `volume.ts` | medium |
+| P21 | The build cache misses for showcase and active-lands: they rebuild on every visit in the pane (cliff-test hits) | `idbSet` in `LocationsPage.tsx` failing on big builds? | medium |
+| P22 | A thin straight horizontal line across the far cliffs (cliff-test `view-sea-cliffs`, both grounds) | maybe the backdrop skirt or the sea plane edge (see P8) | low |
+| P23 | Floating grey quads near the river cathedral's base (showcase `structure-river-cathedral`) | a kit part or detail-tier chunk placed off the ground | low |
 
 ---
 
@@ -178,21 +185,19 @@ Milestones are in order. Each milestone lists its items in order. An item is siz
 
 ### Next up (the short queue)
 
-1. **TOOL-1** Standard shots and contact sheet
-2. **FIX-1** Rivers stay in their banks (P1, P2)
-3. **GFX-1** Real materials (P16)
-4. **DET-1** Detail tiers by scene size (P15)
-5. **FIX-2** Glacier sits in its valley (P3)
-6. **PERF-1** Lighter volume ground (P6)
-7. **SH-0** Stones Hold reference pack (needs the user)
+1. **FIX-1** Rivers stay in their banks (P1, P2)
+2. **GFX-1** Real materials (P16)
+3. **DET-1** Detail tiers by scene size (P15)
+4. **FIX-2** Glacier sits in its valley (P3)
+5. **PERF-1** Lighter volume ground (P6)
+6. **SH-0** Stones Hold reference pack (needs the user)
 
 The rule for picking order: keep alternating between fixing what's wrong (realism), raising the look (quality and detail) and **adding new kinds of things** (environments, structures, details), so none of them falls behind. If no "new kind of thing" item was done in the last three sessions, the next one should be.
 
 ### M1 Measure first (tooling)
 Makes every later session targeted: change, re-shoot, compare.
 
-- **TOOL-1 Standard shots and contact sheet.** One command in the pane (e.g. `await locScene.standard('before-')`) shoots every view of the open demo plus a fixed set (overview, low pass, each great structure close up, each town at street height). A node script then writes a side-by-side before/after contact sheet (one PNG or an HTML page in `test/out/`).
-  - Done when: one call produces the full set for all three demos, and the contact sheet shows before vs after for one change.
+- ~~TOOL-1 Standard shots and contact sheet~~ (done 2026-11-09, see the log).
 - **TOOL-2 Audit score and history.** `loc.ts check --json`, plus a `test/out/audit-history.json` that sessions append to, so numbers are compared and not remembered.
   - Done when: the end-of-session step writes it and prints the change since last time.
 - **TOOL-3 Perf readout.** A dev overlay or `locScene.stats()`: fps, triangles, draw calls, pending squares, build stage times.
@@ -302,6 +307,8 @@ Each kit is done when: three seeds look different, they sit correctly on uneven 
 
 ### Later / ideas (not planned)
 Quays along town shores (P12); a field-wise merge for locations (P13); showing locations on the Map or Globe; scene and wiki pins.
+- Braided rivers: wide gravel beds with shifting channels and bars below glaciers (the showcase's upper valley would have one).
+- Shot sheets that score each pair by pixel difference, so the sheet opens on what changed most.
 
 ---
 
@@ -336,6 +343,15 @@ These block or shape items. Answer any time; write the answer into section 7.
 ---
 
 ## 8. Session log (newest first)
+
+**2026-11-09: TOOL-1 standard shots and contact sheet** (not committed yet).
+- `shots.ts` (pure): `standardShots(doc, groundAt)` = every saved view (with its hour, weather, season), overview, low pass, each recipe structure (lines from the side, others three-quarters from the front, raised until the sight line clears hills, from the other side if that is much lower), each town at street height from the end of its square (or, when the recipe gave the town its own plaza, from that plaza towards the nearest great building). Tested in `locations.test.ts`.
+- `locScene.standard(tag)` shoots it; `shots` now draws at a fixed 1280 x 720, so sets from any window size line up.
+- `scripts/loc-sheet.ts` pairs two sets into one HTML page (images embedded).
+- Shot sets: `base-` for all three demos (the baseline); `grid-cliff-test-` (the old height-grid ground) as the first before/after sheet.
+- Audit numbers unchanged (no build change).
+- Learned: the shots found five new problems at once (P19-P23). Shooting is slow in a hidden pane (about 15 s a shot on the showcase).
+- Next: FIX-1, then compare its shots with `base-`.
 
 **2026-11-09: planning** (no code).
 - Wrote this plan and recorded the baseline audit.
