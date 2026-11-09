@@ -349,7 +349,7 @@ These block or shape items. Answer any time; write the answer into section 7.
 
 ## 8. Session log (newest first)
 
-**2026-11-09: FIX-1 rivers stay in their banks** (not committed yet).
+**2026-11-09: `adc4a36` FIX-1 rivers stay in their banks.**
 - Measured first. Most of the "bank below the water" was the audit: it read the nearest grid vertex (13.7 m cells; on a steep reach that is a step down the slope, metres lower), counted samples off the map edge (cliff-test's river starts off the map) and counted lakebed inside lakes and plunge pools as bank. The audit now samples the drawn (bilinear) ground and skips those; a cascade of steps counts as one fall.
 - Real faults fixed in `hydro.ts`: the delta apex sat a fixed 3.6 km back from the mouth, so its channels cut a sea-level trench beside a river still 70 m up (active-lands: also most of its 30 inland sea cells); now the apex is where the river reaches the sea, and the fan grows out from there with a rounded lobed front and wandering channels. The water profile reads banks in 18 directions (turned up and down stream) instead of 2. The running-minimum staircase is smoothed: steps over 10 m are falls (the biggest one per 250 m), the rest wear back into a steady incline no steeper than 1.3x the reach's own grade (falls left out of that grade). Water still only goes down and only cuts deeper.
 - Drawing (`city.ts`, `water.ts`): plunge pools are filled with water (they were dry pits); a fall run is one curtain along a throw curve (out with time, down with time squared), a little narrower than the river, with streaks sliding down it, see-through between streaks and at the edges; the ribbon gives way to the pool at its foot. Flow texture coordinates are metres along the water, down the falls too.
