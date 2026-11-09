@@ -344,7 +344,7 @@ These block or shape items. Answer any time; write the answer into section 7.
 
 ## 8. Session log (newest first)
 
-**2026-11-09: TOOL-1 standard shots and contact sheet** (not committed yet).
+**2026-11-09: `1109287` TOOL-1 standard shots and contact sheet.**
 - `shots.ts` (pure): `standardShots(doc, groundAt)` = every saved view (with its hour, weather, season), overview, low pass, each recipe structure (lines from the side, others three-quarters from the front, raised until the sight line clears hills, from the other side if that is much lower), each town at street height from the end of its square (or, when the recipe gave the town its own plaza, from that plaza towards the nearest great building). Tested in `locations.test.ts`.
 - `locScene.standard(tag)` shoots it; `shots` now draws at a fixed 1280 x 720, so sets from any window size line up.
 - `scripts/loc-sheet.ts` pairs two sets into one HTML page (images embedded).
