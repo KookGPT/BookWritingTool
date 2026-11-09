@@ -1,0 +1,363 @@
+# Locations plan
+
+The plan, status and session log for the **Locations** tab (`/locations`, `src/locations/`).
+CLAUDE.md explains how the code works. This file covers what the tool is for, where it stands, and what comes next.
+
+Last updated: 2026-11-09, after `69b21b6` (volume ground by default).
+
+---
+
+## 0. How to use this file (read first, every session)
+
+**Start of a session:**
+1. Read this file and the Locations section of CLAUDE.md.
+2. Work on **one item**: either the ID the user names, or the top unblocked item in "Next up" (section 5). Before writing code, say which one it is, what its "Done when" check is, and which of the three pillars it advances (realism, graphical quality, detail where needed; see section 1).
+3. Keep the end goal in mind: the tool should be able to recreate **any** environment with a lot of detail, realism and graphical quality. Prefer general solutions (a better material system, a better erosion model) over fixes that only work for one demo.
+4. If the item turns out bigger than one session, split it here first. Then do the first part.
+
+**During the session:**
+- Stay on the item. If you notice a different problem, add it to "Known problems" (section 4) instead of fixing it now, unless it blocks the item.
+- If a judgement call belongs to the user (looks, scale, story), ask. Don't guess.
+
+**End of a session (before committing):**
+1. Run `npx tsc -b`, `npm test`, `npm run build`.
+2. Run `node scripts/loc.ts check` on every demo and update the numbers in section 3.
+3. Take the standard shots (once TOOL-1 exists; until then, take shots of the views you changed) and look at them. Compare them with the previous shots: nothing may look worse in realism, graphical quality or detail. If something does, fix it or write it down as a problem.
+4. Update this file:
+   - add at least one new idea for something the tool can't make yet (to section 5 or "Later / ideas"), so the catalogue keeps growing;
+   - mark the item done in section 5 (move it to the log);
+   - add or close problems in section 4;
+   - add a decision to section 7 if one was made;
+   - add a short entry to the Session log (section 8): date, commit, what changed, what you learned, what's next.
+5. If the code changed how something works, update CLAUDE.md too. Keep the two from repeating each other: CLAUDE.md says how things work, this file says what to do.
+
+**How the user can start a session** (paste one):
+- `Locations: do FIX-2 from plan.md.`
+- `Locations: next item from plan.md.`
+- `Locations: here are reference images for <thing>; update plan.md and do the first step.`
+- `Locations: planning only. Revise plan.md with: <notes>.` (no code)
+
+---
+
+## 1. What the tool is for
+
+### The end goal
+
+**The tool should be able to recreate any environment with a lot of detail, real-world realism and high graphical quality.** Claude writes a recipe; the tool builds the place and you fly over it on a desktop.
+
+"Any environment" covers:
+- any landform and climate;
+- any water;
+- any kind of settlement, from a single ruin, a farm or a mountain pass up to a whole mountain-range city.
+
+Every place should look like it could exist and should hold up when you fly close.
+
+Every session pushes on three pillars and never makes any of them worse:
+
+1. **Realism.** Things look and behave like the real world.
+   - Landforms come from natural processes.
+   - Water runs downhill and stays in its banks.
+   - Towns follow town logic, buildings follow real construction, plants follow climate.
+   - Nothing is random or round.
+   - It's checked by `audit` and compared with real reference photos, not just eyeballed.
+2. **Graphical quality.** The look of a good modern game or a matte painting: rich materials (stone, plaster, tile, wood, metal, ice, water), convincing light, shadow, haze and sky, clean edges, no seams, popping or flicker.
+   - The style is **grounded realism**: detailed and varied, not photoreal and not cartoon. It was chosen from mock-ups on 2026-11-08.
+3. **Detail where it's needed.**
+
+**And always grow what can be made.** The range of things the tool can create should keep getting bigger: new kinds of environments, landforms, climates, water, plants, structures, building cultures, props and details. Fixing and polishing what exists is necessary, but the catalogue must never stand still. Whenever a session has room, or finds a gap, it adds something new, and every few sessions at least one item should be a brand-new kind of thing (ENV, KIT or DET items, or a new idea added to the roadmap). This follows the detail hierarchy below.
+
+### The detail hierarchy
+
+Detail is a budget. It goes where the eye goes, and it depends on the size of the scene and the distance to the camera.
+
+- **Small scenes** (roughly under 2 km across: a village, a castle, a cliff, a ruin, a single cathedral square) get **high detail everywhere**:
+  - houses with doors, window frames, shutters, chimneys, roof tiles and trim;
+  - ground at metre scale or finer;
+  - single rocks, ground cover and close-up trees;
+  - props such as fences, carts, barrels, market stalls and steps.
+- **Big scenes** (a city or a range) put the detail on the **focal points**:
+  - the megastructures (cathedrals, bridges, aqueducts, palaces, squares, statues);
+  - landmarks;
+  - whatever the saved views look at.
+
+  Ordinary houses stay cheap massing with good silhouettes and colour variety, because thousands of them read as texture.
+- **Always by distance.** Every kind of thing has levels of detail (massing, then ornament, then carving), so close-ups are rich and far views stay fast. Detail that can't be seen from where the camera can be is wasted.
+- **Scale decides the tier, not the kind.** A house in a small scene gets the detail a cathedral gets in a big one. Today houses are fixed at tier 0 in every scene; DET-1 fixes that.
+
+### Stones Hold: the flagship
+
+Stones Hold is the hardest test of the end goal and the first big place to build. It is not the only purpose of the tool.
+
+**Stones Hold**, the main city of Eyaris, is in the Dematrus Mountains:
+- A whole mountain range turned into a city, spread across valleys and peaks.
+- The higher you go, the wealthier it gets: palaces and cathedrals on the peaks, slums in the valley floors.
+- Glacial lakes, and aqueducts everywhere.
+- Enormous bridges from peak to peak.
+- Rival families compete to build the biggest cathedral (references: Cologne, Sagrada Família).
+- A St Peter's-style colonnade square, and statues and plazas everywhere.
+
+### How it works with the user
+- **The user describes, Claude builds.** The user isn't artsy; they name things and give references. Claude writes and fixes the recipe, checks it, and shows pictures.
+- **Variety:** building cultures (four now; more as needed), climates, and seeded variation in every great structure. Two of anything should never look copied.
+- **The quality bar is the real world.** For any visual item, compare the shots side by side with reference photos of the real thing (an alpine valley, a fjord, Cologne Cathedral, the Pont du Gard). Write down what still differs.
+
+**Not goals (unless the user changes this):** interiors, walking or first-person view, phones and tablets, AI inside the app, uniform detail on every house in a big scene, putting places on the Map or Globe (later, maybe).
+
+---
+
+## 2. What exists now (capability inventory)
+
+| Area | What works | Main files |
+|---|---|---|
+| Recipe | `LocationDoc` JSON, `brief` prints the format, `validate`, `describe` | `city.ts`, `scripts/loc.ts` |
+| Landforms | peak, island, ridge, valley, coast, fjord, cliff, gorge, canyon, mesa, plateau, glacier, volcano, crater, dunes, geyser, rock forms; glacial cirques; winding valleys | `terrain.ts` |
+| Ground surface | Volume ground (SDF + surface nets, quadtree LOD in workers, real overhangs and undercuts), the default. Old height grid plus rock sheets still available | `volume.ts`, `volumeLod.ts`, `rock.ts`, `geometry.ts` |
+| Water | stream-power erosion, droplet erosion, lakes at contour level, routed and meandering rivers, falls, deltas, sea, canals | `hydro.ts`, `erode.ts`, `water.ts` |
+| Living ground | lava flows and fields, spring terraces, geysers, marshes, steam | `city.ts`, `fx.ts` |
+| Towns | grow over cost (valleys, shores, contours), tensor-field streets, stairs, walls, squares, parish churches, harbours, farmland patchwork | `town.ts`, `roads.ts`, `city.ts` |
+| Houses | 4 cultures, instanced parts, wealth by zone | `buildings.ts` |
+| Great structures | cathedral (high variety), basilica, church, market, colonnade, dome, palace, monastery, tower, plaza, statue, bridge (roman/gothic/renaissance/inhabited), aqueduct (roman/segovia/moorish), wall, harbour | `kit.ts` |
+| Detail tiers | 0 massing / 1 ornament (≤2.6 km) / 2 carving (≤800 m), chunked LOD; small places get finer grids | `kit.ts`, `scene.ts` |
+| Look | moods (morning..night), weather, seasons, clouds, mist, steam, lava glow, baked AO | `scene.ts`, `shaders.ts`, `fx.ts` |
+| Flying | fly controls; views saved in the recipe | `fly.ts` |
+| Checking | `audit`: needles, uncovered steps, flat area, stranded sea, river banks, lake shape, glacier, town shape, streets, houses off street, road grades | `check.ts` |
+| Pictures | `locScene.shots(...)` in dev saves JPEGs to `test/out/shots/` | `scene.ts`, `vite.config.ts` |
+| Demos | `showcase` (glacier to sea, 5 towns, bridge, aqueduct), `active-lands` (volcanic tropical coast), `cliff-test` (2 km cliffs, stack, arch, gorge) | `examples/` |
+
+---
+
+## 3. Baseline numbers (update every session)
+
+Audit on 2026-11-09 (`node scripts/loc.ts check examples/<demo>.json`):
+
+| Demo | Warnings | Notable |
+|---|---|---|
+| showcase | 4 | river 12% bank below water, 18 falls; **glacier 18% above banks (bad)**; port-town 16% and eastern-hill 20% houses off street |
+| active-lands | 2 | 30 inland sea cells; jade-river 20% bank below water, 23 falls; karst-village 63% dead ends (passes, but high) |
+| cliff-test | 1 | gorge-river 45% bank below water |
+
+Performance (showcase, preview pane, volume ground):
+- Build: about 25 s in node, about 50 s in the pane. It is cached in IndexedDB.
+- About 15M triangles including shadows; about 30 fps.
+- Detail takes a few seconds to arrive after flying somewhere new.
+
+Targets: 0 bad, ≤1 warning per demo, ≥50 fps while flying the showcase, detail within 1 s.
+
+---
+
+## 4. Known problems
+
+Each problem has an ID. Fix items refer to these IDs.
+
+| ID | Problem | Likely cause / where | Severity |
+|---|---|---|---|
+| P1 | Rivers stand above a bank in steep gorges and at their source (cliff-test 45%, active 20%, showcase 12%) | the routing grid is coarser than the gorge floor; `carveRiver` levels in `hydro.ts` | high |
+| P2 | Too many small falls; white "plank" falls in the gorge | running-minimum profile in `carveRiver`; fall drawing in `water.ts` | high |
+| P3 | Glacier tongue stands above its banks (18%) | glacier bed vs valley floor, `terrain.ts` glacier | high |
+| P4 | Inland cells below sea level show as sea (active-lands 30) | `drySeaPuddles` misses some; volcano/crater basins | medium |
+| P5 | 16-21% of houses not on a street in some towns | `placeAll` vs `townStreets` density on slopes | medium |
+| P6 | Heavy ground mesh: about 15M triangles, about 30 fps | volume squares are 64 cubes even on flat ground; shadow casters | high |
+| P7 | Detail arrives late when flying | 2 workers, nearest-first queue, no prefetch along the flight direction | medium |
+| P8 | The seam between the volume map edge and the backdrop skirt is unchecked | `volumeLod.ts` vs `skirtMesh` | low |
+| P9 | Build time 25-50 s; a mountain-range city will be much bigger | single-threaded build, `city.ts` stages | high for Stones Hold |
+| P10 | Karst village has 63% dead ends | streets on tower karst; maybe fine | low |
+| P11 | No cold/arid demo: fjords, mesas, canyons and dunes have never been looked at | no demo | medium |
+| P12 | No quays along town shores | missing feature | low |
+| P13 | Editing a location on two devices keeps an "(other device)" copy instead of merging | `merge.ts` | low |
+| P14 | Sessions can't measure "looks better": no standard shot set, no before/after | missing tooling (TOOL-1) | high |
+| P15 | Houses are tier 0 in every scene, so small scenes are as plain as big ones | `buildings.ts` has no detail tiers (DET-1) | high |
+| P16 | Most surfaces are flat colours with little texture or surface detail up close (stone, plaster, roofs, wood) | materials in `kit.ts`, `buildings.ts`, `shaders.ts` (GFX-1) | high |
+| P17 | Trees, ground cover and props are simple up close; no undergrowth, grass or scattered stones | `city.ts` trees, no ground-cover pass (GFX-4) | medium |
+| P18 | Light and render pipeline are basic: no bloom, no screen-space AO, limited shadow range, plain sky | `scene.ts` (GFX-5, ATM-4) | medium |
+
+---
+
+## 5. Roadmap
+
+Milestones are in order. Each milestone lists its items in order. An item is sized for **one session**. "Done when" is the check that closes it.
+
+### Next up (the short queue)
+
+1. **TOOL-1** Standard shots and contact sheet
+2. **FIX-1** Rivers stay in their banks (P1, P2)
+3. **GFX-1** Real materials (P16)
+4. **DET-1** Detail tiers by scene size (P15)
+5. **FIX-2** Glacier sits in its valley (P3)
+6. **PERF-1** Lighter volume ground (P6)
+7. **SH-0** Stones Hold reference pack (needs the user)
+
+The rule for picking order: keep alternating between fixing what's wrong (realism), raising the look (quality and detail) and **adding new kinds of things** (environments, structures, details), so none of them falls behind. If no "new kind of thing" item was done in the last three sessions, the next one should be.
+
+### M1 Measure first (tooling)
+Makes every later session targeted: change, re-shoot, compare.
+
+- **TOOL-1 Standard shots and contact sheet.** One command in the pane (e.g. `await locScene.standard('before-')`) shoots every view of the open demo plus a fixed set (overview, low pass, each great structure close up, each town at street height). A node script then writes a side-by-side before/after contact sheet (one PNG or an HTML page in `test/out/`).
+  - Done when: one call produces the full set for all three demos, and the contact sheet shows before vs after for one change.
+- **TOOL-2 Audit score and history.** `loc.ts check --json`, plus a `test/out/audit-history.json` that sessions append to, so numbers are compared and not remembered.
+  - Done when: the end-of-session step writes it and prints the change since last time.
+- **TOOL-3 Perf readout.** A dev overlay or `locScene.stats()`: fps, triangles, draw calls, pending squares, build stage times.
+  - Done when: the numbers in section 3 come from it.
+
+### M2 Fix what's wrong
+- **FIX-1 Rivers stay in their banks** (P1, P2). Route on the finest grid in steep ground. Make the river profile a smoothed monotone curve, not a running minimum. Merge small falls into fewer real ones. Draw falls as curtains, not planks.
+  - Done when: every demo river has ≤3% bank below water, the showcase has ≤6 falls, and the gorge shots look right.
+- **FIX-2 Glacier sits in its valley** (P3).
+  - Done when: the glacier audit is ≤3%, and shots show ice between moraines.
+- **FIX-3 No inland sea** (P4).
+  - Done when: stranded sea is ≤2 cells on every demo.
+- **FIX-4 Houses face streets** (P5). Adds lanes or courtyards where blocks are deep, and drops houses with no access.
+  - Done when: houses off street are ≤10% everywhere.
+- **FIX-5 Edge seam** (P8).
+  - Done when: low shots along all four map edges show no crack or step.
+- **DEMO-1 Cold/arid demo** (P11). Fjord, mesas, canyon and dunes, with one town each. Fix what it reveals as new FIX items.
+  - Done when: it builds, the audit is clean, and the shots have been looked at.
+
+### M3 Graphical quality
+Raises the look of every scene at once. Each item is done when the standard shots are clearly better side by side, with no fps loss over 15%.
+
+- **GFX-1 Real materials.** A material system shared by kits, houses and ground:
+  - procedural, triplanar stone, brick, plaster, roof tile, slate, wood, metal, glass, ice, sand and mud;
+  - surface detail (normal and roughness) that fades in with distance;
+  - weathering: dirt in creases, moss on the shaded and wet sides, streaks under ledges, sun-bleaching.
+- **GFX-2 Stone that reads as built.** Masonry courses and blocks on great structures (on the carving tier); ashlar vs rubble by wealth and culture; mortar lines; worn edges.
+- **GFX-3 Ground close up.** Terrain texture at metre scale: soil, grass, scree, gravel, mud, snow, rock strata, blended by slope, wetness and wear (paths worn where streets and roads run).
+- **GFX-4 Vegetation.** Better trees by species and climate, with real crowns and up-close leaves; grass, shrubs, undergrowth and scattered stones as ground cover near the camera; forest edges and clearings that follow terrain and settlement.
+- **GFX-5 Render pipeline.** Tone mapping and colour grading per mood, screen-space ambient occlusion, cascaded shadows over the whole view, anti-aliasing without shimmer, bloom (shared with ATM-4).
+- **GFX-6 Water quality.** Reflections, refraction and depth colour, foam at rocks and falls, wet shore bands, ripples by wind, ice on cold lakes.
+
+### M4 Detail hierarchy
+Makes detail follow scene size and focus, as section 1 says.
+
+- **DET-1 Detail tiers by scene size.** Houses get tiers too: doors, window frames, shutters, sills, chimneys, eaves, balconies and signs on tier 1, and fine trim on tier 2. Small scenes switch them on everywhere; big scenes only near focal points and the camera.
+  - Done when: a village close-up in a small demo looks hand-built, and the showcase fps doesn't drop.
+- **DET-2 Focal points.** The recipe can mark things as focal (and the saved views mark what they look at automatically); focal things get more detail budget and stay detailed further out.
+- **DET-3 Street props for small scenes.** Fences, walls, carts, barrels, stalls, wells, steps, lamps, washing lines, placed by town logic (market, harbour, farmyard).
+- **DET-4 A small showcase.** A demo under 2 km (a castle village on a crag, or a harbour town) that shows the top of the hierarchy.
+  - Done when: the close-up shots hold up next to reference photos.
+
+### M5 Any environment (realism breadth)
+The end goal is any environment, so every kind has to be built, looked at and compared with reference photos.
+
+- **ENV-1 Environment matrix.** A table in this file: every landform, climate, water kind and settlement kind, with columns for "built", "in a demo", "checked against references" and "looks real". It lists what's missing.
+- **ENV-2 onward: one demo per missing row.** Examples: cold or arid (DEMO-1), desert oasis town, arctic coast, rainforest river, steppe, wetlands and marsh, high pass with a fortress, mining valley, coastal ruins. Each finds its own FIX and KIT items.
+- **ENV-3 Ruins and age.** Any structure can be ruined or aged: collapsed roofs, broken arches, overgrowth, rubble. Old places need this to look real.
+- **ENV-4 More building cultures** as the user asks (for example Nordic timber, desert mud brick, East Asian), each with houses, a church or temple, and a market.
+
+### M6 Performance for a mountain-range city
+Stones Hold is maybe 15-30 km across, with tens of thousands of buildings and dozens of megastructures. The current numbers won't carry that.
+
+- **PERF-1 Lighter volume ground** (P6). Fewer cubes on flat or low-relief squares (adaptive C), cheaper shadow casters, merge distant squares.
+  - Done when: showcase fly-through is ≥50 fps with the same look in the standard shots.
+- **PERF-2 Faster detail arrival** (P7). Prefetch along the flight direction, more workers on big machines, and prioritise what's on screen.
+  - Done when: detail appears within 1 s.
+- **PERF-3 Faster builds** (P9). Run stages in parallel workers (ground, towns, kits), cache stages separately so a recipe edit only rebuilds what changed.
+  - Done when: a structure edit rebuilds in ≤3 s and a full showcase build in ≤15 s in the pane.
+- **PERF-4 Scale test.** A synthetic 25 km place with 50k houses and 30 great structures.
+  - Done when: it builds and flies at an acceptable rate, or the limits are written down here.
+
+### M7 Megastructures for Stones Hold
+Each kit gets variety from a seed and a few named `style`s, uses the detail tiers, and is checked against the ground (footings, spans, grades).
+
+- **KIT-1 Peak-to-peak bridges.** Very long spans across deep valleys: multi-tier stone viaducts, chained arches between rock pylons, and possibly bridges carrying streets and houses. Needs the decision in Q3.
+- **KIT-2 Valley aqueducts.** Multi-tier aqueducts that follow a real gradient from glacial lakes, with siphon towers, distribution castles (castellum) and fountains. They should be routed, not just placed: water must flow downhill along the whole line.
+- **KIT-3 Organic cathedral** (Sagrada Família family): clustered spindle towers, tree-like columns, sculpted façades. A second family next to the Gothic `cathedral`.
+- **KIT-4 Colossal cathedral scale.** Let `cathedral` grow to 2-3x Cologne: more bays, double aisles, tower clusters, flying buttress tiers.
+- **KIT-5 St Peter's square.** Elliptical colonnade with statues on the attic, an obelisk, fountains and a dome church behind (extends `colonnade` + `dome`).
+- **KIT-6 Colossal statues and monuments.** Statues of 30-100 m on peaks and at bridge heads, triumphal arches, columns.
+- **KIT-7 Dams and glacial lake works.** Masonry dams, spillways, cisterns, lake-edge terraces.
+- **KIT-8 Vertical city pieces.** Grand staircases, ramps, lifts or funiculars, cliff-hung houses, terraces cut into rock, tunnels and gates through ridges.
+- **KIT-9 Peak palaces and family compounds.** Palace complexes on summits with walls, gardens, towers and a family church.
+
+Each kit is done when: three seeds look different, they sit correctly on uneven ground in the shots, and they are in a demo.
+
+### M8 The mountain city itself (town logic at range scale)
+- **CITY-1 Wealth by altitude.** Districts take their wealth from height and view, not just distance from the core. Slums go in the valley floors and along rivers; palaces go on the peaks. Houses, streets and density follow.
+- **CITY-2 Many districts, one city.** Several cores on different peaks and valleys, joined by main roads, bridges and stairs into one network. Shared walls where it makes sense.
+- **CITY-3 Building on steep ground.** Houses stepping down slopes, built onto cliffs, terraces with retaining walls (today steep ground is mostly avoided).
+- **CITY-4 Civic network.** Plazas at junctions, statues in plazas, fountains fed by the aqueducts, market streets.
+- **CITY-5 Districts by character.** Cathedral quarter, guild quarter, harbour or lake quarter, slum. Each has its own house mix and street pattern.
+
+### M9 Atmosphere
+- **ATM-1 Valley fog and cloud seas.** Clouds below the peaks, fog pooled in valleys at dawn.
+- **ATM-2 City at night.** Lit windows by wealth, lanterns on bridges, fires in the slums, glowing cathedral windows.
+- **ATM-3 Smoke and life.** Chimney smoke by district, birds around peaks, banners.
+- **ATM-4 Light quality.** Bloom, better sky and haze with distance, sun shafts through valleys, water reflections.
+- **ATM-5 Weather on stone.** Wet stone in rain, snow on roofs and ledges in winter.
+
+### M10 Flying and presentation
+- **FLY-1 Better flight.** Smooth speed by altitude, collision with the volume ground, orbit-a-structure mode.
+- **FLY-2 Tours.** Camera paths through saved views, exported as a sequence of stills or a video.
+- **FLY-3 Photo mode.** Hide UI, set mood/time/weather, export a high-res still.
+- **FLY-4 Views in the page.** Save the current camera as a named view in the recipe, from the page.
+
+### M11 Authoring loop
+- **AUTH-1 Description to recipe checklist.** A written procedure in `brief`: reference images → landforms → water → districts → megastructures → views → audit → shots.
+- **AUTH-2 Structure audit.** Add checks for great structures: footings in the ground, bridge ends on land, aqueduct gradient, nothing in water that shouldn't be, overlaps between structures.
+- **AUTH-3 Book links.** Link a location to wiki pages and scenes (later, like the Globe's places).
+
+### M12 Stones Hold
+- **SH-0 Reference pack** (user). Images and notes for: the range's shape, the cathedrals, bridges, aqueducts, the square, the slums, the mood. Put them in `refs/stones-hold/`, and answer the questions in section 6.
+- **SH-1 Blockout.** A first recipe from existing parts only: the range, lakes, districts and placeholder megastructures. Its main output is a **gap list** added to this plan.
+- **SH-2 onward.** Fill the gaps in the order the user cares about most. Each session adds one megastructure or one district and re-shoots.
+
+### Later / ideas (not planned)
+Quays along town shores (P12); a field-wise merge for locations (P13); showing locations on the Map or Globe; scene and wiki pins.
+
+---
+
+## 6. Open questions for the user
+
+These block or shape items. Answer any time; write the answer into section 7.
+
+- **Q1 Size of Stones Hold.** How big is the range, roughly (10 km? 30 km?), and how many people live there? This drives PERF-4 and CITY-*.
+- **Q2 Engineering realism.** Eyaris has no fantasy features. Should megastructures stay within what pre-modern masonry could build (spans up to about 100 m per arch, viaducts many arches long), or are they allowed to be "heroic" beyond real engineering?
+- **Q3 Peak-to-peak bridges.** Should they be stone arches (many tiers deep, valley gets filled with piers), chain or suspension bridges, or both?
+- **Q4 Era and technology.** Medieval, Renaissance, or early modern? This affects glass, iron, lifts and lighting.
+- **Q5 Cultures in the city.** Which of the four building cultures, or a new Stones Hold style of its own?
+- **Q6 Families.** How many rival families or cathedrals are there, and does each have a different style?
+- **Q7 Performance floor.** What fps is acceptable while flying on your machine (30? 60?)?
+- **Q8 Priority after the fixes.** Megastructure kits first, or atmosphere first?
+
+---
+
+## 7. Decisions (keep; add with date)
+
+- 2026-11-08: The goal is massive cityscapes; Stones Hold comes first, but is not built until reference images arrive.
+- 2026-11-08: Style is **Grounded realism**. The PBR street style of Phase 0 was rejected.
+- 2026-11-08: Desktop only, no interiors, no walking view; flying matters.
+- 2026-11-08: Everything placed needs a natural or town-logic cause, checked by `audit`.
+- 2026-11-09: Detail hierarchy: great structures get ornament and carving tiers; small places get finer grids.
+- 2026-11-09 (later): **End goal stated: recreate any environment with a lot of detail, realism and graphical quality.** Every session pushes realism, graphical quality and detail where needed. Detail follows scene size and focus: small scenes get high detail everywhere (houses included), big scenes put it on focal points and megastructures. This replaces "houses always stay at tier 0".
+- 2026-11-09: **Always grow the catalogue.** Sessions keep adding new kinds of environments, structures and details, alongside fixes and polish.
+- 2026-11-09: The map is only a small margin wider than the place (`margin` 0.35 x size).
+- 2026-11-09: **Volume ground is the default** (one SDF surface for ground and rock). Reason: the height grid can't do overhangs, and the cliff sheets left seams. The grid stays available with `volume: false`.
+- 2026-11-09: Sessions are driven by this plan, one item each, with measurable "done when" checks.
+
+---
+
+## 8. Session log (newest first)
+
+**2026-11-09: planning** (no code).
+- Wrote this plan and recorded the baseline audit.
+- The user set the end goal: any environment, with a lot of detail, realism and graphical quality, and the detail hierarchy by scene size.
+- Added milestones M3 Graphical quality, M4 Detail hierarchy and M5 Any environment.
+- Added the "always grow what can be made" rule: new environments, structures and details are added steadily, not only fixes.
+- Next: TOOL-1.
+
+**2026-11-09: `69b21b6` volume ground by default.**
+- Ground and rock became one SDF surface, meshed by surface nets in a quadtree LOD in 2 workers.
+- Added the Ground switch on the page, the `cliff-test` demo and the volume tests.
+- Learned: it fixed the coast cones and cliff seams and gave real undercuts. The cost is about 15M triangles and late detail (P6, P7).
+
+**2026-11-09: `9b303a1` detail tiers, cathedral and bridge variety, terrain pass.**
+- Builder tiers 0/1/2 with chunked LOD.
+- The cathedral is now varied (spires, transepts, chevet, west front).
+- Bridge styles: roman, gothic, renaissance, inhabited. Aqueduct styles: roman, segovia, moorish.
+- Terrain: cirques and winding valleys. Rivers: banks widen with the cut. The backdrop is a small margin.
+- Learned: the height grid with rock sheets kept producing seams, which led to the volume prototype.
+
+**2026-11-08: `29b0c74` natural terrain, water, towns, audit.** The realism pass: landforms with causes, stream-power erosion, routed rivers and glaciers, towns with streets, squares, walls and farmland, and `audit`. Added the `active-lands` demo.
+
+**2026-11-08: `1bbcb35` cultures, terrain, water, showcase.** Four building cultures, the glacier-to-sea showcase.
+
+**2026-11-08: `191a31f` Locations tab.** City-scale 3D places built from recipes.
