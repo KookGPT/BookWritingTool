@@ -8,9 +8,10 @@ import { LocScene, MOODS, STYLES, type Stats, type StyleName } from './scene'
 import { useLocal } from '../ui'
 import exampleRaw from '../../examples/showcase.json?raw'
 import activeRaw from '../../examples/active-lands.json?raw'
+import cliffRaw from '../../examples/cliff-test.json?raw'
 
 /** Bundled demos: shown beside the book's own locations, saved into the book only if you change one (a view, an import). */
-const DEMOS: LocationDoc[] = [JSON.parse(exampleRaw), JSON.parse(activeRaw)]
+const DEMOS: LocationDoc[] = [JSON.parse(exampleRaw), JSON.parse(activeRaw), JSON.parse(cliffRaw)]
 /** What the terrain and buildings depend on: names, notes, views and mood never trigger a rebuild. */
 const specOf = (d: LocationDoc) => JSON.stringify(d, (k, v) => (['name', 'note', 'views', 'mood', 'hour', 'weather', 'season'].includes(k) ? undefined : v))
 const hhmm = (h: number) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')}`
@@ -37,7 +38,10 @@ export default function LocationsPage() {
   const [msg, setMsg] = useState('Building…')
   const [busy, setBusy] = useState(true)
   const [tour, setTour] = useState(-1)
-  const spec = useMemo(() => specOf(doc), [doc])
+  // the ground: as the recipe says, or forced to the volume prototype or the height grid (to compare the two; per device)
+  const [ground, setGround] = useLocal<'recipe' | 'volume' | 'grid'>('loc-ground', 'recipe')
+  const run = useMemo(() => (ground === 'recipe' ? doc : { ...doc, volume: ground === 'volume' }), [doc, ground])
+  const spec = useMemo(() => specOf(run), [run])
 
   const save = (d: LocationDoc) => update((b) => ({ ...b, locations: b.locations.some((x) => x.id === d.id) ? b.locations.map((x) => (x.id === d.id ? d : x)) : [...b.locations, d] }))
 
@@ -54,7 +58,7 @@ export default function LocationsPage() {
   useEffect(() => {
     setBusy(true); setMsg('Building…')
     let w: Worker | null = null, live = true
-    const sameDoc = shownSpec.current.startsWith(doc.id + '|'), key = `loc-build:${BUILD_VERSION}:${doc.id}`
+    const sameDoc = shownSpec.current.startsWith(doc.id + '|'), key = `loc-build:${BUILD_VERSION}:${doc.id}${run.volume === false ? ':grid' : ''}`
     const show = (b: CityBuilt, cached: boolean) => {
       if (!live) return
       const s = scene.current
@@ -77,7 +81,7 @@ export default function LocationsPage() {
         show(e.data.built, false)
         idbSet(key, { spec, built: e.data.built }).catch(() => {})
       }
-      w.postMessage({ doc, job: 1 })
+      w.postMessage({ doc: run, job: 1 })
     }).catch(() => setMsg('Could not read the saved build'))
     return () => { live = false; w?.terminate() }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -153,6 +157,7 @@ export default function LocationsPage() {
         <button className="alt" onClick={() => file.current?.click()}>Import</button>
         <input ref={file} type="file" accept=".json,application/json" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) importJson(f); e.target.value = '' }} />
         <button className="alt" title="Fill the screen (Esc to leave)" onClick={() => (document.fullscreenElement ? document.exitFullscreen() : page.current?.requestFullscreen())}>Full screen</button>
+        <select value={ground} onChange={(e) => setGround(e.target.value as 'recipe' | 'volume' | 'grid')} aria-label="Ground" title="How the ground is drawn: one 3D surface with its rock (the default), or the old height grid with rock faces laid over it"><option value="recipe">Ground: as the recipe</option><option value="volume">Ground: volume</option><option value="grid">Ground: height grid</option></select>
         <span className="muted small">{msg}</span>
       </div>
       <div className="loc-stats glass small" aria-live="off">

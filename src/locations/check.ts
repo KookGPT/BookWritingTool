@@ -8,7 +8,7 @@ import { glacierWidth, pathNearFast, type Glacier, type Wall } from './terrain.t
 
 export interface AuditIn {
   N: number; size: number; heights: Float32Array; sea: number | null
-  rivers: River[]; lakes: Lake[]; towns: Town[]; roads: Road[]; glaciers: Glacier[]; walls: Wall[]
+  rivers: River[]; lakes: Lake[]; towns: Town[]; roads: Road[]; glaciers: Glacier[]; walls: Wall[]; volume?: boolean
   /** house walls: x, z, width, depth (world) */
   houses: number[]
 }
@@ -29,7 +29,7 @@ export function audit(o: AuditIn): string[] {
     let hi = -Infinity, lo = Infinity, sl = 0
     for (const d of [1, -1, w, -w]) { hi = Math.max(hi, h[a + d]); lo = Math.min(lo, h[a + d]); sl = Math.max(sl, Math.abs(h[a + d] - v)) }
     if (v - hi > 25) spikes++
-    if (sl / c > 3 && !nearWall[a]) seams++
+    if (sl / c > 3 && !nearWall[a] && !o.volume) seams++ // the volume ground turns every steep face into rock by itself
     if (hi - lo < 0.05) flat++
   }
   say(spikes > land * 0.0005 ? 'bad' : 'ok', `terrain: ${spikes} needle spikes (single cells 25 m above all neighbours)`)

@@ -17,6 +17,7 @@ import { Fx } from './fx.ts'
 import { atmo, GLOW, MOTTLE, ROAD, ROCK, ROCK_POST, ROOF, ROOF_FH, ROOF_V, ROOF_VH, SKY_F, SKY_V, STONE, STYLE_F, TERRAIN, TERRAIN_FH, TERRAIN_POST, TERRAIN_V, TERRAIN_VH, TREE, TREE_FH, TREE_V, TREE_VH, U, WALL, WALL_FH, WALL_V, WALL_VH } from './shaders.ts'
 import { chunks, gridMesh, partGeometries, rockGeo, skirtMesh, terrainTiles, treeGeometries } from './geometry.ts'
 import { heightTexture, Reflection, WATER_U, waterMaterial } from './water.ts'
+import { VolumeLod } from './volumeLod.ts'
 
 // ---------- sky keyframes by sun elevation, and the mood presets ----------
 interface Key { el: number; sun: string; sunI: number; zenith: string; horizon: string; glow: string; hemi: string; ground: string; hemiI: number; exposure: number; night: number; haze: number; sat: number; tint: string }
@@ -110,6 +111,8 @@ export class LocScene {
   private fieldTex: THREE.Texture | null = null
   private marksTex: THREE.Texture | null = null
   private disposed = false
+  /** The volume ground's levels of detail (when the build has one). */
+  vlod: VolumeLod | null = null
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -168,7 +171,9 @@ export class LocScene {
     this.built = b
     this.noReflect = []
     this.snowline = snowline ?? b.snowline ?? b.maxH - (b.maxH - b.minH) * 0.18
-    this.world.add(terrainTiles(b, this.terrainMat))
+    this.vlod?.dispose(); this.vlod = null
+    if (b.volume) { this.vlod = new VolumeLod(b, this.terrainMat); this.world.add(this.vlod.group) } // the ground and its rock as one surface, fine near the camera
+    else this.world.add(terrainTiles(b, this.terrainMat))
     const outer = new THREE.Mesh(gridMesh(b.outer.n, b.outer.size, b.outer.heights, b.outer.colors), this.terrainMat)
     outer.receiveShadow = true
     this.world.add(outer, new THREE.Mesh(skirtMesh(b.outer.n, b.outer.size, b.outer.heights, b.outer.colors, FAR), this.terrainMat))
@@ -393,6 +398,7 @@ export class LocScene {
     if (this.canvas.width !== Math.floor(this.canvas.clientWidth * this.renderer.getPixelRatio())) this.resize()
     if (this.playing) { this.atmos.hour = (this.atmos.hour + this.playing * dt) % 24; this.applyAtmos(); this.onHour?.(this.atmos.hour) }
     this.fly.update(dt)
+    this.vlod?.update(this.camera.position)
     this.fx.update(dt, U.uTime.value, this.camera.position, this.canvas.clientHeight * this.renderer.getPixelRatio())
     const flash = this.fx.flash
     this.sky.material.uniforms.uFlash.value = flash
@@ -425,6 +431,8 @@ export class LocScene {
       const alt = at[2] < 0 ? this.heightAt(at[0], -at[1]) - at[2] : at[2]
       this.goto({ name, at: [at[0], at[1], alt], heading, pitch }, false)
       this.setAtmos({ hour: 10, weather: 'clear', season: 'summer', mist: 0.15, ...atmos })
+      this.frame(0.016)
+      await this.vlod?.settle(this.camera.position) // the ground in full detail before the picture
       await this.shot(prefix + name)
     }
     this.setAtmos(keep)
@@ -440,7 +448,7 @@ export class LocScene {
   dispose() {
     this.disposed = true
     cancelAnimationFrame(this.raf)
-    this.fly.dispose(); this.fx.dispose()
+    this.fly.dispose(); this.fx.dispose(); this.vlod?.dispose()
     this.world.traverse((c) => (c as THREE.Mesh).geometry?.dispose())
     for (const m of [...Object.values(this.mats), this.terrainMat, this.wallMat, this.roofMat, this.partMat, this.treeMat, this.rockMat, this.lakeMat, this.seaMat, this.riverMat]) m.dispose()
     this.heightTex?.dispose(); this.fieldTex?.dispose(); this.marksTex?.dispose(); this.reflection.rt.dispose()

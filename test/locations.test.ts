@@ -6,6 +6,7 @@ import { RoadIndex, planRoads } from '../src/locations/roads.ts'
 import { MATS } from '../src/locations/kit.ts'
 import { pathNear, pathNearFast, resample, type XY } from '../src/locations/terrain.ts'
 import { carveRiver, makeLake } from '../src/locations/hydro.ts'
+import { volumeField, volumeTerrain } from '../src/locations/volume.ts'
 import { rng } from '../src/world/noise.ts'
 
 // the showcase is the example the page opens with: it must stay clean
@@ -68,7 +69,7 @@ assert.ok(a.counts.buildings > 400, `towns fill with buildings (${a.counts.build
 for (const m of MATS) assert.ok(a.geo[m].pos.every(Number.isFinite) && a.geo[m].nor.every(Number.isFinite), `${m} has no NaN`)
 assert.ok(a.parts.every(Number.isFinite), 'parts have no NaN')
 assert.ok(a.geo.stone.pos.length > 100000, 'structures are detailed')
-assert.ok(a.geo.rock.pos.length > 3000, 'the cliffs and the stack are real rock')
+assert.ok(a.volume && a.volume.rocks.some((r) => r.kind === 'stack') && a.geo.rock.pos.length === 0, 'the volume ground carries the rock: the stack is carved, no rock sheets')
 assert.ok(a.audit.length > 5 && a.audit.every((l) => /^(ok|warn|bad) /.test(l)), 'the realism audit runs')
 assert.ok(!a.audit.some((l) => l.startsWith('bad')), `nothing is badly wrong:\n${a.audit.filter((l) => !l.startsWith('ok')).join('\n')}`)
 
@@ -129,4 +130,26 @@ for (let k = 1; k < roads[0].pts.length; k++) { const p = roads[0].pts[k - 1], q
 const idx = new RoadIndex(15, 30)
 idx.add(roads[0], 0)
 assert.ok(idx.near(roads[0].pts[3][0], roads[0].pts[3][2]).d < 0, 'a point on the road is on the road')
+// the volume ground (prototype): one surface for land and rock, finite, on the height grid where it is flat, with
+// overhangs where the rock is undercut, and no separate rock sheets
+{
+  const vd: LocationDoc = { id: 'v', name: 'V', seed: 'vol', size: 800, sea: 0, base: 60, relief: 40, volume: true, roads: false, farms: false,
+    terrain: [{ id: 'c', kind: 'coast', path: [[-500, -150], [500, -170]], style: 'cliffs', height: 45 }, { id: 's', kind: 'stack', at: [100, -280], height: 35, radius: 12 }], districts: [], structures: [] }
+  const vb = buildCity(vd), fin = { N: vb.N, size: vb.size, heights: vb.heights, colors: vb.colors, surf: vb.surf, sea: vb.sea, ...vb.volume! }, ch = volumeTerrain(fin)
+  assert.ok(ch.length > 0 && ch.every((c) => c.pos.every(Number.isFinite) && c.nor.every(Number.isFinite)), 'the volume ground is built and finite')
+  assert.ok(ch.every((c) => c.idx.every((i) => i < c.pos.length / 3)), 'its triangles point at its own vertices')
+  let flatOff = 0, flatN = 0, under = 0
+  const w = vb.N + 1, cell = vb.size / vb.N
+  for (const c of ch) for (let p = 0; p < c.pos.length / 3; p++) {
+    if (c.nor[p * 3 + 1] < -0.2) under++
+    if (c.nor[p * 3 + 1] > 0.97) { const i = Math.round((c.pos[p * 3] + 400) / cell), j = Math.round((c.pos[p * 3 + 2] + 400) / cell); flatN++; if (Math.abs(vb.heights[j * w + i] - c.pos[p * 3 + 1]) > 1.2) flatOff++ }
+  }
+  assert.ok(flatOff < flatN * 0.02, `flat ground lies on the height grid (${flatOff} of ${flatN} off)`)
+  assert.ok(under > 50, `the rock is undercut in places (${under} downward faces)`)
+  assert.equal(vb.geo.rock.pos.length, 0, 'no rock sheets: the volume is the rock')
+  // a coarse square and the fine squares inside it describe the same ground
+  const fld = volumeField(fin), big = fld.mesh(-200, -200, 32, 8)!, small = fld.mesh(-200, -200, 64, 4)!
+  const meanY = (m: typeof big) => { let s = 0; for (let k = 1; k < m.pos.length; k += 3) s += m.pos[k]; return s / (m.pos.length / 3) }
+  assert.ok(Math.abs(meanY(big) - meanY(small)) < 3, 'levels of detail agree')
+}
 console.log('locations ok')

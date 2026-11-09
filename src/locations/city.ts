@@ -10,11 +10,12 @@ import { AQUEDUCT_STYLES, arcade, basilica, BRIDGE_STYLES, BRONZE, Builder, cath
 import { carve, planRoads, RoadIndex, sampler, type Road } from './roads.ts'
 import { CULTURES, farmstead, Occ, PART, placeAll, PSTRIDE, type Culture, type DistrictIn, type Out } from './buildings.ts'
 import { erode } from './erode.ts'
-import { areaDist, bboxOf, clamp, footprint, glacierWidth, gridN, inPoly, lerp, pathNearFast, polyLen, resample, rockHex, ROCKS, simplify, sstep, STRUCTURE_SCALE, terrainOf, type TerrainFn, type XY } from './terrain.ts'
+import { areaDist, bboxOf, clamp, footprint, glacierWidth, gridN, inPoly, lerp, pathNearFast, polyLen, resample, rockHex, ROCKS, simplify, sstep, STRUCTURE_SCALE, terrainOf, type Rock, type TerrainFn, type XY } from './terrain.ts'
 import { growTown, townStreets, zoneOutline } from './town.ts'
 import { carveDelta, carveRiver, drySeaPuddles, fluvial, makeLake, type Lake, type River } from './hydro.ts'
 import { rockForms, rockWalls, springPools } from './rock.ts'
 import { audit } from './check.ts'
+
 
 export { terrainOf, inPoly, footprint, gridN, type TerrainFn, type XY, type River, type Lake }
 export const TERRAIN_KINDS = ['peak', 'ridge', 'valley', 'cliff', 'coast', 'fjord', 'gorge', 'glacier', 'river', 'lake', 'marsh', 'plateau', 'fields', 'volcano', 'lavafield', 'crater', 'springs', 'geyser', 'mesa', 'canyon', 'dunes', 'island', 'stack', 'arch', 'spire', 'karst', 'hoodoos', 'columns'] as const
@@ -57,11 +58,13 @@ export interface LocationDoc {
   id: string; name: string; seed: string; size: number; note?: string
   base?: number; relief?: number; snowline?: number; sea?: number; climate?: Climate; culture?: Culture | 'mixed'; erosion?: number; rock?: string
   wealth?: [number, number]; roads?: boolean; forest?: number; farms?: boolean
+  /** The ground and its rock are one volume surface (volume.ts), the default; false draws the old height grid with rock sheets. */
+  volume?: boolean
   mood?: MoodName; hour?: number; weather?: Weather; season?: Season
   terrain: TerrainFeature[]; districts: District[]; structures: Structure[]; views?: View[]
 }
 /** Bump when the generator changes, so builds saved in the browser are redone. */
-export const BUILD_VERSION = 23
+export const BUILD_VERSION = 25
 export const TSTRIDE = 6 // trees: x y z scale kind shade
 export const TREE = { broadleaf: 0, spruce: 1, pine: 2, cypress: 3, larch: 4, orchard: 5, bush: 6, olive: 7, palm: 8 } as const
 const DEG = Math.PI / 180
@@ -135,6 +138,9 @@ export interface CityBuilt {
   detail: Record<Mat, { pos: Float32Array; nor: Float32Array; col: Float32Array }>[]
   water: Float32Array; rivers: { pos: Float32Array; uv: Float32Array }; falls: Float32Array; waterLevels: number[]
   counts: { buildings: number; structures: number; roads: number; trees: number }; ms: number; stages: Record<string, number>
+  /** For the volume ground (volume.ts): the free-standing rocks it carves, and the rock colour under each grid vertex
+   * (sRGB). Absent when the recipe draws the old height grid. */
+  volume?: { rocks: Rock[]; rockMap: Uint8Array; seed: number }
   /** The realism audit (check.ts): one line per finding. */
   audit: string[]
 }
@@ -168,7 +174,7 @@ export function withTownCentres(doc: LocationDoc): LocationDoc {
 }
 
 export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void): CityBuilt {
-  const t0 = Date.now(), seed = hash(doc0.seed), doc = withTownCentres(doc0), T = terrainOf(doc), size = doc.size, N = gridN(size), cellM = size / N, w1 = N + 1
+  const t0 = Date.now(), seed = hash(doc0.seed), doc = withTownCentres(doc0), T = terrainOf(doc), size = doc.size, N = gridN(size), cellM = size / N, w1 = N + 1, vol = doc.volume !== false
   const stages: Record<string, number> = {}, lap = (k: string, next?: string) => { stages[k] = Date.now() - t0 - Object.values(stages).reduce((a, c) => a + c, 0); if (next) onStage?.(next) }
   onStage?.('Shaping the ground')
   const heights = new Float32Array(w1 * w1)
@@ -685,7 +691,7 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
   // structures, then roads and canals drawn on the ground
   const b = new Builder(), gW = (x: number, z: number) => Hw(x, z), cliffMask = new Uint8Array(w1 * w1)
   for (const st of structs) structure(b, st, T, gW, seed, roads, lakes, (x, z) => wetR(x, -z))
-  { // rock faces sit on the triangles as drawn; the grid's own steep face is sunk a little behind them
+  if (!vol) { // rock faces sit on the triangles as drawn; the grid's own steep face is sunk a little behind them
     const Htri = (x: number, y: number) => {
       const fx = clamp((x + size / 2) / cellM, 0, N - 1e-6), fz = clamp((size / 2 - y) / cellM, 0, N - 1e-6), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j, a = j * w1 + i
       const ha = heights[a], hb2 = heights[a + 1], hc = heights[a + w1], hd = heights[a + w1 + 1]
@@ -695,7 +701,7 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
     rockWalls(b, T.walls, Htri, T.sea, size / 2, seed, (x, y, r, bot, top) => sinks.push([x, y, r, bot, top]))
     for (const [x, y, r, bot, top] of sinks) stamp(x, y, r + cellM * 2, (a, d) => { cliffMask[a] = 1; if (d < r && heights[a] > Math.max(bot + 0.5, (T.sea ?? -1e9) + 4.5) && heights[a] < top - 2.5) heights[a] -= 3.5 })
   }
-  rockForms(b, T.rocks, seed)
+  rockForms(b, vol ? T.rocks.filter((r) => r.kind === 'hoodoo' || r.kind === 'columns') : T.rocks, seed) // the volume carves stacks, spires and arches itself
   for (const f of doc.terrain) if (f.kind === 'springs' && (f.area || f.at)) springPools(b, (x, y) => areaDist(f, x, y), bboxOf(f), H, seed ^ hash(f.id))
   const lamps: number[] = [...b.lamps]
   drawRoads(b, roads, lamps, Hw, (x, z) => overRiver(x, -z))
@@ -737,13 +743,21 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
   lap('water')
   const houses: number[] = []
   for (let k = 0; k < out.parts.length; k += PSTRIDE) if (out.parts[k] === PART.wall && out.parts[k + 12] < 50) houses.push(out.parts[k + 1], out.parts[k + 3], out.parts[k + 5], out.parts[k + 7])
-  const auditLines = audit({ N, size, heights, sea: T.sea, rivers, lakes, towns, roads: [...roads, ...fronts], glaciers: T.glaciers, walls: T.walls, houses })
+  let volume: CityBuilt['volume']
+  if (vol) { // the rock under each vertex: the place's own, and near each cliff that cliff's
+    const rockMap = new Uint8Array(w1 * w1 * 3), put = (a: number, hex: string) => { const cc = mix(lin(hex), lin('#5a5650'), 0.18); for (let q = 0; q < 3; q++) rockMap[a * 3 + q] = Math.round(255 * clamp(cc[q]) ** (1 / 2.2)) }
+    const base = doc.rock ? rockHex(doc.rock, 'limestone') : climate === 'alpine' || climate === 'boreal' ? ROCKS.granite : ROCKS.limestone
+    for (let a = 0; a < w1 * w1; a++) put(a, base)
+    for (const wl of T.walls) for (const p of resample(wl.pts, 8)) stamp(p[0], p[1], wl.face + 40, (a) => put(a, wl.rock))
+    volume = { rocks: T.rocks, rockMap, seed }
+  }
+  const auditLines = audit({ N, size, heights, sea: T.sea, rivers, lakes, towns, roads: [...roads, ...fronts], glaciers: T.glaciers, walls: T.walls, houses, volume: vol })
   lap('audit')
   const parts = new Float32Array(out.parts)
   return {
     size, N, heights, colors, surf, minH, maxH, sea: T.sea, outer: { size: os, n: on, heights: oh, colors: ocol }, fields: { n: FT, tex: fieldTex }, cliffMask, marks: { n: MT, tex: marks }, steam: new Float32Array(steam), snowline: snow,
     parts, chimneys: new Float32Array(out.chimneys), trees: new Float32Array(trees), rocks: new Float32Array(rocks), lamps: new Float32Array(lamps),
-    geo, detail, water: new Float32Array(wp), rivers: { pos: new Float32Array(rp), uv: new Float32Array(ruv) }, falls: new Float32Array(falls), waterLevels: levels,
+    geo, detail, volume, water: new Float32Array(wp), rivers: { pos: new Float32Array(rp), uv: new Float32Array(ruv) }, falls: new Float32Array(falls), waterLevels: levels,
     counts: { buildings: out.count, structures: structs.length, roads: roads.length, trees: trees.length / TSTRIDE }, ms: Date.now() - t0, stages, audit: auditLines,
   }
 }
@@ -1026,7 +1040,9 @@ export function brief() {
 A location is JSON: { id, name, seed, size (metres, square), base?, relief?, snowline?, sea? (sea level altitude), climate? (${CLIMATES.join('|')}),
 culture? (default building culture: ${CULTURES.join('|')}|mixed), rock? (default rock: ${Object.keys(ROCKS).join('|')} or a hex colour),
 erosion? (0..2, default 1), wealth?: [lowAlt, highAlt], roads? (default true), farms? (default true), forest? (0..2),
-mood?, hour? (0-24), weather?, season?, terrain: [], districts: [], structures: [], views?: [] }.
+mood?, hour? (0-24), weather?, season?, volume? (default true: the ground and its rock are one 3D surface with
+layered, undercut rock on every steep face; false draws the old height grid with rock sheets), terrain: [], districts: [],
+structures: [], views?: [] }.
 Coordinates are metres from the centre: x east, y north. Heights are altitudes in metres. Later terrain features win over earlier ones
 (put coasts and fjords after the land they cut). Give everything an id; the user names things.
 
