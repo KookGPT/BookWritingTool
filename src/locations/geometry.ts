@@ -125,12 +125,21 @@ export function terrainTiles(b: CityBuilt, mat: THREE.Material) {
   const T = 64, group = new THREE.Group()
   for (let tj = 0; tj < N; tj += T) for (let ti = 0; ti < N; ti += T) {
     const lod = new THREE.LOD()
-    for (const [step, dist] of [[1, 0], [2, T * c * 1.4], [4, T * c * 3], [8, T * c * 6]] as const) {
+    // a tile with rock faces keeps its detail three times further out: coarse triangles across a cliff either stand in
+    // front of the rock (wedges) or leave a gutter behind its top
+    let cliffs = false
+    for (let j = tj; j <= Math.min(N, tj + T) && !cliffs; j++) for (let i = ti; i <= Math.min(N, ti + T); i++) if (b.cliffMask?.[j * w + i]) { cliffs = true; break }
+    const far = cliffs ? 3 : 1
+    for (const [step, dist] of [[1, 0], [2, T * c * 1.4 * far], [4, T * c * 3 * far], [8, T * c * 6 * far]] as const) {
       const m = T / step, pos: number[] = [], nr: number[] = [], col: number[] = [], sf: number[] = [], idx: number[] = []
       const vert = (i: number, j: number, drop: number) => {
         const a = j * w + i
         let hv = heights[a]
-        if (step > 1 && b.cliffMask?.[a]) for (let dj = -step; dj <= step; dj++) for (let di = -step; di <= step; di++) { const ii = i + di, jj = j + dj; if (ii >= 0 && jj >= 0 && ii <= N && jj <= N) hv = Math.min(hv, heights[jj * w + ii]) } // stay behind rock faces
+        if (step > 1 && b.cliffMask?.[a]) { // stay behind rock faces: ground below the face's middle drops to its foot; the top stays (else the cliff looks like a free-standing wall)
+          let lo = hv, hi = hv
+          for (let dj = -step; dj <= step; dj++) for (let di = -step; di <= step; di++) { const ii = i + di, jj = j + dj; if (ii >= 0 && jj >= 0 && ii <= N && jj <= N) { const v = heights[jj * w + ii]; lo = Math.min(lo, v); hi = Math.max(hi, v) } }
+          if (hv < (lo + hi) / 2) hv = lo
+        }
         pos.push(-size / 2 + i * c, hv - drop, -size / 2 + j * c); nr.push(nor[a * 3], nor[a * 3 + 1], nor[a * 3 + 2]); col.push(colors[a * 3], colors[a * 3 + 1], colors[a * 3 + 2]); sf.push(surf[a * 4], surf[a * 4 + 1], surf[a * 4 + 2], surf[a * 4 + 3])
         return pos.length / 3 - 1
       }
@@ -159,6 +168,36 @@ export function gridMesh(n: number, size: number, heights: Float32Array, colors:
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const a = j * (n + 1) + i, b = a + 1, cc = a + n + 1, d = cc + 1; idx.set([a, cc, b, b, cc, d], k); k += 6 }
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(colors, 3, true)); g.setAttribute('surf', new THREE.BufferAttribute(new Uint8Array((n + 1) * (n + 1) * 4), 4, true)); g.setIndex(new THREE.BufferAttribute(idx, 1))
   g.computeVertexNormals(); g.computeBoundingSphere()
+  return g
+}
+/** The far land and sea beyond the backdrop: its rim carried out flat to `far` metres, for the haze to swallow. */
+export function skirtMesh(n: number, size: number, heights: Float32Array, colors: Uint8Array, far: number) {
+  const w = n + 1, c = size / n, ring: number[] = []
+  for (let i = 0; i < n; i++) ring.push(i)
+  for (let j = 0; j < n; j++) ring.push(j * w + n)
+  for (let i = n; i > 0; i--) ring.push(n * w + i)
+  for (let j = n; j > 0; j--) ring.push(j * w)
+  const pos: number[] = [], col: number[] = [], L = ring.length
+  // far out, the colour is the rim's blurred along the ring (sharp rim colours stretched 250 km would draw rays)
+  const blur = ring.map((_, k) => { const s = [0, 0, 0]; for (let q = -40; q <= 40; q++) { const a = ring[(k + q + L) % L]; for (let t = 0; t < 3; t++) s[t] += colors[a * 3 + t] / 81 } return s })
+  // in rings spaced geometrically out to `far`: one sliver each would interpolate the haze differently in its two halves (rays)
+  // and the rim's heights smoothed outwards too, so the far slivers lie flat (their own tilts would shade into rays)
+  const blurH = ring.map((_, k) => { let s = 0; for (let q = -40; q <= 40; q++) s += heights[ring[(k + q + L) % L]] / 81; return s })
+  const RINGS = 10, P = (a: number, k: number, kk: number) => { const x = -size / 2 + (a % w) * c, z = -size / 2 + Math.floor(a / w) * c, m = Math.max(Math.abs(x), Math.abs(z), 1), s = (far / m) ** (k / RINGS); return [x * s, heights[a] + (blurH[kk] - heights[a]) * Math.min(1, k / 2), z * s] }
+  const push = (t: number[][], c: number[][]) => {
+    const [p, q, r] = t, up = (q[2] - p[2]) * (r[0] - p[0]) - (q[0] - p[0]) * (r[2] - p[2]) // y of (q - p) x (r - p)
+    const order = up > 0 ? [0, 1, 2] : [0, 2, 1]
+    for (const k of order) { pos.push(...t[k]); col.push(...c[k].map(Math.round)) }
+  }
+  const tint = (a: number, k: number, q: number) => { const t = Math.min(1, (q / RINGS) * 3); return [0, 1, 2].map((i) => colors[a * 3 + i] * (1 - t) + blur[k][i] * t) }
+  for (let k = 0; k < L; k++) {
+    const a = ring[k], kb = (k + 1) % L, b = ring[kb]
+    for (let q = 0; q < RINGS; q++) { push([P(a, q, k), P(a, q + 1, k), P(b, q, kb)], [tint(a, k, q), tint(a, k, q + 1), tint(b, kb, q)]); push([P(b, q, kb), P(a, q + 1, k), P(b, q + 1, kb)], [tint(b, kb, q), tint(a, k, q + 1), tint(b, kb, q + 1)]) }
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.BufferAttribute(new Uint8Array(col), 3, true)); g.setAttribute('surf', new THREE.BufferAttribute(new Uint8Array((pos.length / 3) * 4), 4, true))
+  // flat, lit straight from above: the slivers' own tilts would shade into rays
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(new Float32Array(pos.length).map((_, i) => (i % 3 === 1 ? 1 : 0)), 3)); g.computeBoundingSphere()
   return g
 }
 /** Group instance indices into square chunks so each chunk is culled (and levelled) on its own. */

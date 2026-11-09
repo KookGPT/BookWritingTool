@@ -510,6 +510,44 @@
    "facing": 200,
    "height": 40,
    "color": "bronze"
+  },
+  {
+   "id": "old-bridge",
+   "name": "Old Bridge",
+   "kind": "bridge",
+   "at": [
+    380,
+    -2520
+   ],
+   "to": [
+    660,
+    -2480
+   ],
+   "width": 12,
+   "span": 28,
+   "style": "gothic"
+  },
+  {
+   "id": "the-aqueduct",
+   "name": "The Aqueduct",
+   "kind": "aqueduct",
+   "path": [
+    [
+     -1400,
+     -1833
+    ],
+    [
+     -925,
+     -1913
+    ]
+   ],
+   "deck": [
+    386,
+    384.5
+   ],
+   "width": 5,
+   "span": 30,
+   "style": "roman"
   }
  ],
  "views": [
@@ -556,6 +594,28 @@
    "heading": 230,
    "pitch": -18,
    "note": "A walled bridge town: it grew along the valley floor from its market square, the cathedral above the river, suburbs outside the wall."
+  },
+  {
+   "name": "Old Bridge",
+   "at": [
+    575,
+    -2690,
+    125
+   ],
+   "heading": 352,
+   "pitch": -12,
+   "note": "A hump-backed gothic bridge over the river: pointed arches on cutwaters, statues on the piers, a gate tower at each end."
+  },
+  {
+   "name": "The Aqueduct",
+   "at": [
+    -1150,
+    -1450,
+    330
+   ],
+   "heading": 180,
+   "pitch": -4,
+   "note": "The aqueduct crosses the valley to the palace on tiers of great arches, the covered channel riding on a row of small ones."
   },
   {
    "name": "Patchwork",

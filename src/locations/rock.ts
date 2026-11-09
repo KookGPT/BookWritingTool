@@ -52,7 +52,10 @@ export function rockWalls(b: Builder, walls: Wall[], H: (x: number, y: number) =
       if (wl.sea && sea != null) bot = Math.min(bot, sea - 3)
       const inMap = Math.abs(p[0]) < half - 4 && Math.abs(p[1]) < half - 4
       const steep = (hs[K] - hs[0]) / (reach + 12)
-      return { p, u, hs, bot, top, ok: inMap && top - bot > 9 && steep > 0.85 }
+      // a crest (the ground falls away again just behind the top: an arete, a knife-edge) is no face: a sheet there would
+      // stick out of the far side as a dark slab
+      const crest = H(p[0] + u[0] * (reach + 30), p[1] + u[1] * (reach + 30)) < hs[K] - 12
+      return { p, u, hs, bot, top, ok: inMap && top - bot > 9 && steep > 0.85 && !crest }
     })
     // tops and feet vary smoothly along the wall, and short gaps are bridged, so a cliff is one face, not a row of pillars
     const tops = cols.map((_, i) => { let s = 0, c = 0; for (let k = Math.max(0, i - 3); k <= Math.min(cols.length - 1, i + 3); k++) { s += cols[k].top; c++ } return s / c })
@@ -79,9 +82,10 @@ export function rockWalls(b: Builder, walls: Wall[], H: (x: number, y: number) =
           let sd = -12
           for (let q = 0; q < c.hs.length; q++) if (c.hs[q] >= y) { const lo = q ? c.hs[q - 1] : c.hs[0]; sd = -12 + (q - 1 + clamp((y - lo) / (c.hs[q] - lo || 1))) * DS; break } else sd = -12 + q * DS
           const sv = (s0 + k) * STEP, mid = Math.sin(Math.PI * v) ** 0.6
-          const butt = fbm(nz, sv / 70, y / 50, 3, 3) * 2 + fbm(nz, sv / 14, y / 30, 9, 2) * 0.7 // broad buttresses, shallow fluting
+          const butt = fbm(nz, sv / 110, y / 60, 3, 3) * 2 + fbm(nz, sv / 18, y / 30, 9, 2) * 0.5 // broad buttresses, shallow fluting
           const ledge = sstep(0.82, 1, ((y / (6.5 * wl.strata) + fbm(nz, sv / 60, 5, y / 40, 2) * 0.6) % 1 + 1) % 1) // recesses along the beds
-          const out = r === R ? -2.2 : r === 0 ? 3 : 2.6 + (butt + 0.25) * 3.2 * mid - ledge * 0.9 * mid
+          // always in front of the ground (else the ground shows through the face in wedges), tucked behind it at the top
+          const out = r === R ? -2.2 : r === 0 ? 3 : Math.max(1.1, 2.6 + (butt + 0.25) * 2 * mid - ledge * 0.9 * mid)
           const x = c.p[0] + c.u[0] * (sd - out), yy = c.p[1] + c.u[1] * (sd - out)
           row.push([x, y, -yy])
           // colour: the rock, varied by bed and patch; a dark tide band at the sea; a little green on the ledges up top

@@ -50,11 +50,13 @@ export function drySeaPuddles(g: Grid, sea: number) {
   for (let a = 0; a < h.length; a++) if (h[a] < sea && !seen[a]) h[a] = sea + 0.4 + (sea - h[a]) * 0.02
 }
 
-/** Stream-power erosion at half resolution; `mask` (0..1 per full-res vertex) is how erodible the ground is. */
-export function fluvial(g: Grid, mask: Float32Array, sea: number | null, strength: number, iters = 18) {
+/** Stream-power erosion at half resolution; `mask` (0..1 per full-res vertex) is how erodible the ground is. Where
+ * `hard` is set (cliffs), streams still cut down like everywhere else but the slope never slumps, so a cliff keeps its
+ * face and is worn back with the land around it instead of being left standing as a wall. */
+export function fluvial(g: Grid, mask: Float32Array, sea: number | null, strength: number, iters = 18, hard?: Uint8Array) {
   const { N, heights: H } = g, w = N + 1, M = N >> 1, m1 = M + 1, n = m1 * m1, dx = (g.size / N) * 2
-  const h = new Float32Array(n), er = new Float32Array(n)
-  for (let j = 0; j <= M; j++) for (let i = 0; i <= M; i++) { const a = j * 2 * w + i * 2; h[j * m1 + i] = H[a]; er[j * m1 + i] = mask[a] }
+  const h = new Float32Array(n), er = new Float32Array(n), rigid = new Uint8Array(n)
+  for (let j = 0; j <= M; j++) for (let i = 0; i <= M; i++) { const a = j * 2 * w + i * 2; h[j * m1 + i] = H[a]; er[j * m1 + i] = mask[a]; rigid[j * m1 + i] = hard?.[a] ?? 0 }
   const orig = h.slice(), recv = new Int32Array(n), order = new Int32Array(n), area = new Float32Array(n), done = new Uint8Array(n)
   const heap = new Heap(n), K = 0.0034 * strength, talus = 1.05 * dx
   for (let it = 0; it <= iters; it++) {
@@ -98,11 +100,11 @@ export function fluvial(g: Grid, mask: Float32Array, sea: number | null, strengt
     // slopes steeper than the talus angle slump (cliffs, which are masked off, keep their faces)
     for (let j = 1; j < M; j++) for (let i = 1; i < M; i++) {
       const k = j * m1 + i
-      if (er[k] < 0.5) continue
+      if (er[k] < 0.5 || rigid[k]) continue
       let lo = k
       for (const [di, dj] of NB8) { const q = (j + dj) * m1 + i + di; if (h[q] < h[lo]) lo = q }
       const ex = h[k] - h[lo] - talus
-      if (ex > 0) { h[k] -= ex * 0.35; h[lo] += ex * 0.35 }
+      if (ex > 0 && !rigid[lo]) { h[k] -= ex * 0.35; h[lo] += ex * 0.35 }
     }
   }
   // add the change back to the full-resolution grid (bilinear), so the fine detail stays
@@ -265,13 +267,19 @@ export function carveRiver(g: Grid, r: RiverIn, sea: number | null, lakeAt: (x: 
   const path = meanderRiver(axis, H, wAt, r.meander, seed), step = 5, pts = resample(path, step), n = pts.length
   // the water surface: the ground along the line, never rising; lakes hold it at their level; the sea is the floor
   const prof: number[] = [], wid: number[] = []
+  // the level is the lowest ground across the whole channel and its banks, so the water never stands above a bank
   let low = Infinity
+  const ground: number[] = []
   for (let i = 0; i < n; i++) {
-    const [x, y] = pts[i], lk = lakeAt(x, y)
-    low = Math.min(low, lk ?? Math.min(H(x, y), H(x + 6, y), H(x - 6, y), H(x, y + 6), H(x, y - 6)) - 1)
+    const [x, y] = pts[i], lk = lakeAt(x, y), p = pts[Math.max(0, i - 2)], q = pts[Math.min(n - 1, i + 2)], dl = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1
+    const nx = -(q[1] - p[1]) / dl, ny = (q[0] - p[0]) / dl, wv = wAt(i / Math.max(1, n - 1)), off = wv * 0.6 + 12
+    ground.push(H(x, y))
+    low = Math.min(low, lk ?? Math.min(H(x, y), H(x + nx * wv * 0.5, y + ny * wv * 0.5), H(x - nx * wv * 0.5, y - ny * wv * 0.5), H(x + nx * off, y + ny * off), H(x - nx * off, y - ny * off)) - 1)
     if (sea != null) low = Math.max(low, sea)
-    prof.push(low); wid.push(wAt(i / Math.max(1, n - 1)))
+    prof.push(low); wid.push(wv)
   }
+  // how deep the river has to cut below the land here (smoothed along it): the deeper the cut, the wider its valley
+  const cut = ground.map((g, i) => Math.max(0, g - prof[i])).map((_, i, a) => { let s = 0, c2 = 0; for (let k = Math.max(0, i - 12); k <= Math.min(n - 1, i + 12); k++) { s += a[k]; c2++ } return s / c2 })
   // an estuary: the last stretch opens in a funnel, its width growing exponentially toward the sea
   const reachesSea = sea != null && prof[n - 1] <= sea + 0.01
   let mouth = n
@@ -286,7 +294,9 @@ export function carveRiver(g: Grid, r: RiverIn, sea: number | null, lakeAt: (x: 
   // carve: a bed under the water, banks that rise to the land. Each grid vertex takes its shape from its own nearest point
   // of the river (never from a point further down, which would cut the bed below the water upstream)
   const nz = simplex(seed ^ 0x77), cand = new Set<number>()
-  const shape = (i: number) => { const ww = wid[i], est01 = i >= e0 && est ? (i - e0) / Math.max(1, n - e0) : 0; return { half: ww / 2, plain: Math.min(400, 12 + ww * 1.2), depth: r.depth * (0.6 + 0.4 * (i / n)) + (est01 ? 2.5 : 0), est01, ww } }
+  // banks rise to the land at the edge of a strip that widens with the cut, so a deep cut is a valley with sloping sides
+  // (about 20 degrees), not a trench with vertical walls
+  const shape = (i: number) => { const ww = wid[i], est01 = i >= e0 && est ? (i - e0) / Math.max(1, n - e0) : 0; return { half: ww / 2, plain: Math.min(400, Math.max(12 + ww * 1.2, cut[i] * 2.7)), rise: Math.max(6 + ww * 0.15, cut[i] + 3), depth: r.depth * (0.6 + 0.4 * (i / n)) + (est01 ? 2.5 : 0), est01, ww } }
   for (let i = 0; i < n; i += 2) {
     const [x, y] = pts[i], s = shape(i), rad = s.half + s.plain
     for (let j = Math.max(0, Math.floor((size / 2 - y - rad) / c)); j <= Math.min(N, Math.ceil((size / 2 - y + rad) / c)); j++)
@@ -299,7 +309,7 @@ export function carveRiver(g: Grid, r: RiverIn, sea: number | null, lakeAt: (x: 
     const i = clamp(Math.round(near.s / step), 0, n - 1), s = shape(i), d = near.d, surf = prof[i]
     if (d > s.half + s.plain) continue
     const t = d < s.half ? surf - s.depth * (1 - (d / s.half) ** 2) + (s.est01 ? fbm(nz, vx / 80, 1, vy / 80, 3) * s.depth * 0.8 * s.est01 : 0) // shoals in the estuary
-      : surf + 0.6 + ((d - s.half) / s.plain) ** 2 * (6 + s.ww * 0.15) - 0.9 * s.est01 // banks; mud flats at the mouth
+      : surf + 0.6 + ((d - s.half) / s.plain) ** 1.6 * s.rise - 0.9 * s.est01 // banks; mud flats at the mouth
     if (t < h[a]) h[a] = t
   }
   // plunge pools below falls

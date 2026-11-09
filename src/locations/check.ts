@@ -21,7 +21,7 @@ export function audit(o: AuditIn): string[] {
   // terrain: no needles, no cliffs that are only a grid step (outside the rock walls), no huge dead-flat basins
   let spikes = 0, seams = 0, flat = 0, land = 0
   const nearWall = new Uint8Array(w * w)
-  for (const wl of o.walls) for (const [x, y] of wl.pts) { const i = Math.round((x + size / 2) / c), j = Math.round((size / 2 - y) / c); for (let dj = -3; dj <= 3; dj++) for (let di = -3; di <= 3; di++) { const a = (j + dj) * w + i + di; if (i + di >= 0 && i + di <= N && j + dj >= 0 && j + dj <= N) nearWall[a] = 1 } }
+  for (const wl of o.walls) for (const [x, y] of wl.pts) { const i = Math.round((x + size / 2) / c), j = Math.round((size / 2 - y) / c), rr = Math.ceil(wl.face / c) + 3; for (let dj = -rr; dj <= rr; dj++) for (let di = -rr; di <= rr; di++) { const a = (j + dj) * w + i + di; if (i + di >= 0 && i + di <= N && j + dj >= 0 && j + dj <= N) nearWall[a] = 1 } }
   for (let j = 1; j < N; j++) for (let i = 1; i < N; i++) {
     const a = j * w + i, v = h[a]
     if (sea != null && v < sea) continue

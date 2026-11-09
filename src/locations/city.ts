@@ -6,7 +6,7 @@
 // Everything is deterministic. Pure: node tests, the CLI and the worker run it.
 // Recipe coordinates are metres from the centre, x east and y north; heights are altitudes in metres.
 import { fbm, hash, rng, simplex } from '../world/noise.ts'
-import { arcade, basilica, BRONZE, Builder, cathedral, church, cityWall, colonnade, domeChurch, harbour, lin, MARBLE, market, MATS, mix, monastery, palace, plaza, statue, tower, type Col, type Mat, type V } from './kit.ts'
+import { AQUEDUCT_STYLES, arcade, basilica, BRIDGE_STYLES, BRONZE, Builder, cathedral, church, cityWall, colonnade, domeChurch, harbour, lin, MARBLE, market, MATS, mix, monastery, palace, plaza, statue, tower, type Col, type Mat, type V } from './kit.ts'
 import { carve, planRoads, RoadIndex, sampler, type Road } from './roads.ts'
 import { CULTURES, farmstead, Occ, PART, placeAll, PSTRIDE, type Culture, type DistrictIn, type Out } from './buildings.ts'
 import { erode } from './erode.ts'
@@ -49,6 +49,8 @@ export interface Structure {
   id: string; kind: typeof STRUCTURE_KINDS[number]; name?: string; note?: string
   at?: XY; to?: XY; path?: XY[]; facing?: number; scale?: number; height?: number; width?: number; depth?: number; radius?: number; span?: number
   level?: number; deck?: [number, number]; color?: string; roof?: string; statues?: boolean; centre?: 'fountain' | 'obelisk' | 'statue' | 'none'; gates?: XY[]; culture?: Culture
+  /** Bridges: roman, gothic, renaissance, inhabited; aqueducts: roman, segovia, moorish (default: chosen by the seed). */
+  style?: typeof BRIDGE_STYLES[number] | typeof AQUEDUCT_STYLES[number]
 }
 export interface View { name: string; at: [number, number, number]; heading: number; pitch: number; note?: string; hour?: number; weather?: Weather; season?: Season }
 export interface LocationDoc {
@@ -59,7 +61,7 @@ export interface LocationDoc {
   terrain: TerrainFeature[]; districts: District[]; structures: Structure[]; views?: View[]
 }
 /** Bump when the generator changes, so builds saved in the browser are redone. */
-export const BUILD_VERSION = 17
+export const BUILD_VERSION = 23
 export const TSTRIDE = 6 // trees: x y z scale kind shade
 export const TREE = { broadleaf: 0, spruce: 1, pine: 2, cypress: 3, larch: 4, orchard: 5, bush: 6, olive: 7, palm: 8 } as const
 const DEG = Math.PI / 180
@@ -129,12 +131,16 @@ export interface CityBuilt {
   snowline: number
   parts: Float32Array; chimneys: Float32Array; trees: Float32Array; rocks: Float32Array; lamps: Float32Array
   geo: Record<Mat, { pos: Float32Array; nor: Float32Array; col: Float32Array }>
+  /** Finer detail of the great structures (kit.ts TIERS): [ornament, carving], drawn only within reach of the camera. */
+  detail: Record<Mat, { pos: Float32Array; nor: Float32Array; col: Float32Array }>[]
   water: Float32Array; rivers: { pos: Float32Array; uv: Float32Array }; falls: Float32Array; waterLevels: number[]
   counts: { buildings: number; structures: number; roads: number; trees: number }; ms: number; stages: Record<string, number>
   /** The realism audit (check.ts): one line per finding. */
   audit: string[]
 }
 
+/** Texels across the field and living-ground textures: 7 m on a big place, down to 1.5 m on a small one. */
+const texN = (size: number) => Math.min(2048, Math.max(512, Math.round(size / clamp(size / 2000, 1.5, 7))))
 const centroid = (p: XY[]): XY => [p.reduce((s, q) => s + q[0], 0) / p.length, p.reduce((s, q) => s + q[1], 0) / p.length]
 const polyArea = (p: XY[]) => Math.abs(p.reduce((s, q, i) => { const r = p[(i + 1) % p.length]; return s + q[0] * r[1] - r[0] * q[1] }, 0)) / 2
 
@@ -190,13 +196,16 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
   const strength = doc.erosion ?? 1
   const mask = new Float32Array(heights.length).fill(1), soft = (a: number, v: number) => { mask[a] = Math.min(mask[a], v) }
   for (const f of T.flats) stamp(f.at[0], f.at[1], f.r * 1.5 + 40, (a, d) => soft(a, sstep(f.r, f.r * 1.5 + 40, d)))
-  for (const g of T.glaciers) for (const p of resample(g.path, 40)) stamp(p[0], p[1], g.w * 1.5, (a) => soft(a, 0))
+  // glaciers: the ice and its trough walls and moraines out to three widths (else the rain lowers the banks and the ice is left standing)
+  for (const g of T.glaciers) for (const p of resample(g.path, 40)) stamp(p[0], p[1], g.w * 3.2, (a, d) => soft(a, sstep(g.w * 1.8, g.w * 3.2, d)))
   for (const f of T.fields) { const [x0, y0, x1, y1] = bboxOf(f); stamp((x0 + x1) / 2, (y0 + y1) / 2, Math.hypot(x1 - x0, y1 - y0) / 2, (a) => { if (areaDist(f, vx(a), vy(a)) < 30) soft(a, 0) }) }
   for (const t of towns) { const [x0, z0, x1, z1] = t.bbox; stamp((x0 + x1) / 2, -(z0 + z1) / 2, Math.hypot(x1 - x0, z1 - z0) / 2 + 80, (a) => soft(a, 0.08 + 0.92 * sstep(0.9, 1.3, t.zone(vx(a), -vy(a))))) }
-  for (const wl of T.walls) for (const p of resample(wl.pts, 12)) stamp(p[0], p[1], wl.face + 40, (a) => soft(a, 0))
+  // cliffs erode with the land round them (a protected strip would be left standing like a wall), but never slump
+  const hard = new Uint8Array(heights.length)
+  for (const wl of T.walls) for (const p of resample(wl.pts, 12)) stamp(p[0], p[1], wl.face + 25, (a) => { hard[a] = 1; soft(a, wl.sea ? 0 : 0.3) }) // hard rock: streams notch it slowly; the sea keeps its cliffs fresh
   for (const l of lakeFeats) for (const p of l.path ? resample(l.path, 60) : [l.at!]) stamp(p[0], p[1], (l.radius ?? 400) * 1.2, (a) => soft(a, 0))
   if (T.sea != null) for (let a = 0; a < heights.length; a++) if (heights[a] < T.sea + 2) mask[a] = 0
-  if (strength > 0) fluvial(grid, mask, T.sea, strength)
+  if (strength > 0) fluvial(grid, mask, T.sea, strength, 18, hard)
   lap('erosion', 'Filling the lakes and rivers')
 
   // lakes fill their basins to the size asked; rivers find their valleys, meander on the flats and reach the sea
@@ -206,7 +215,7 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
   lakes.forEach((l, i) => { for (const a of l.cells) lakeId[a] = i })
   const vtx = (x: number, y: number) => clamp(Math.round((size / 2 - y) / cellM), 0, N) * w1 + clamp(Math.round((x + size / 2) / cellM), 0, N)
   const lakeAt = (x: number, y: number) => { const id = lakeId[vtx(x, y)]; return id >= 0 ? lakes[id].level : null }
-  const MT = Math.min(2048, Math.max(512, Math.round(size / 7))), mtC = size / MT, marks = new Uint8Array(MT * MT * 4)
+  const MT = texN(size), mtC = size / MT, marks = new Uint8Array(MT * MT * 4)
   const markAt = (x: number, y: number, r: number, ch: number, v: number) => {
     for (let vv = Math.max(0, Math.floor((size / 2 - y - r) / mtC)); vv <= Math.min(MT - 1, Math.ceil((size / 2 - y + r) / mtC)); vv++)
       for (let u = Math.max(0, Math.floor((x - r + size / 2) / mtC)); u <= Math.min(MT - 1, Math.ceil((x + r + size / 2) / mtC)); u++) {
@@ -224,6 +233,7 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
   // then rain on the slopes: gullies and fans at a finer scale (not in the water, the towns or the fields)
   for (const l of lakes) for (const a of l.cells) mask[a] = 0
   for (const r of rivers) for (let i = 0; i < r.path.length; i += 3) stamp(r.path[i][0], r.path[i][1], r.wid[i] * 1.5 + 12, (a) => soft(a, 0))
+  for (let a = 0; a < heights.length; a++) if (hard[a]) mask[a] = Math.min(mask[a], 0.3) // rain cuts gullies into cliffs only slowly
   if (strength > 0) erode(heights, N, cellM, mask, Math.round(N * N * 0.09 * strength), seed ^ 0xe40d, strength)
   if (T.sea != null) drySeaPuddles(grid, T.sea) // carving may have left hollows below the sea
   { // steep mountain ground: crests a little sharper, couloirs a little deeper (an unsharp mask of about 60 m)
@@ -236,6 +246,13 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
       const a = j * w1 + i, sl = Math.hypot(heights[a + 1] - heights[a - 1], heights[a + w1] - heights[a - w1]) / (2 * cellM)
       const k = sstep(0.3, 0.7, sl) * mask[a] * (T.sea != null ? sstep(T.sea + 20, T.sea + 60, heights[a]) : 1)
       if (k > 0) heights[a] += clamp(0.8 * k * (heights[a] - blur[a]), -6, 6)
+    }
+  }
+  { // no needles: a single vertex standing far above all its neighbours is noise, not a summit
+    const lim = cellM * 1.2
+    for (let pass = 0; pass < 2; pass++) for (let j = 1; j < N; j++) for (let i = 1; i < N; i++) {
+      const a = j * w1 + i, hi = Math.max(heights[a + 1], heights[a - 1], heights[a + w1], heights[a - w1])
+      if (heights[a] > hi + lim) heights[a] = hi + lim
     }
   }
   // the living ground: lava flows from active vents, old lava fields, hot springs, geysers and marshes, marked in a
@@ -476,7 +493,7 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
   }
   // fields at their own resolution: a texture of crop colours (parcel edges darkened for hedges and balks), so the
   // patchwork stays crisp from the air instead of blurring into the coarser ground colours
-  const FT = Math.min(2048, Math.max(512, Math.round(size / 7))), ftC = size / FT, fieldTex = new Uint8Array(FT * FT * 4), edgeC = lin('#5e5a46')
+  const FT = texN(size), ftC = size / FT, fieldTex = new Uint8Array(FT * FT * 4), edgeC = lin('#5e5a46')
   for (const fa of fieldsAt) {
     const [x0, y0, x1, y1] = fa.bbox
     for (let v = Math.max(0, Math.floor((size / 2 - y1) / ftC)); v < Math.min(FT, Math.ceil((size / 2 - y0) / ftC)); v++) for (let u = Math.max(0, Math.floor((x0 + size / 2) / ftC)); u < Math.min(FT, Math.ceil((x1 + size / 2) / ftC)); u++) {
@@ -641,8 +658,9 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
     }
   }
   lap('trees')
-  // the range beyond, coarser and tucked under the detailed ground
-  const os = Math.max(60000, size * 5), on = 256, oc = os / on, oh = new Float32Array((on + 1) * (on + 1)), ocol = new Uint8Array((on + 1) * (on + 1) * 3)
+  // the land beyond: a fringe a few kilometres wide where the ranges run on and settle down to lowland (the sea stays
+  // sea); past it the renderer carries the rim out flat into the haze. The scene is the place, not a sample of a continent.
+  const margin = clamp(size * 0.35, 2500, 9000), os = size + margin * 2, on = 256, oc = os / on, oh = new Float32Array((on + 1) * (on + 1)), ocol = new Uint8Array((on + 1) * (on + 1) * 3)
   // inside the map the backdrop must stay under the real ground: each of its points sits below the lowest ground within
   // one and a half of its cells, so no coarse triangle can poke up through a hollow
   const lowAround = (x: number, y: number) => {
@@ -651,9 +669,13 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
     for (let j = Math.max(0, cj - r); j <= Math.min(N, cj + r); j += 2) for (let i = Math.max(0, ci - r); i <= Math.min(N, ci + r); i += 2) m = Math.min(m, heights[j * w1 + i])
     return m - 10
   }
+  let edgeLo = Infinity
+  for (let k = 0; k <= N; k++) for (const a of [k, N * w1 + k, k * w1, k * w1 + N]) if (T.sea == null || heights[a] > T.sea) edgeLo = Math.min(edgeLo, heights[a])
+  const rimLow = T.sea != null ? T.sea + 12 : (Number.isFinite(edgeLo) ? edgeLo : minH) - 15
   for (let j = 0; j <= on; j++) for (let i = 0; i <= on; i++) {
     const x = -os / 2 + i * oc, y = os / 2 - j * oc, inside = Math.abs(x) < size / 2 - oc && Math.abs(y) < size / 2 - oc
-    oh[j * (on + 1) + i] = inside ? Math.min(T.h(x, y), lowAround(x, y)) - 30 : T.h(x, y)
+    const g = T.h(x, y), t = sstep(margin * 0.1, margin * 0.95, Math.max(Math.abs(x), Math.abs(y)) - size / 2)
+    oh[j * (on + 1) + i] = inside ? Math.min(g, lowAround(x, y)) - 30 : T.sea != null && g < T.sea ? g : lerp(g, Math.min(g, rimLow), t)
   }
   for (let j = 0; j <= on; j++) for (let i = 0; i <= on; i++) {
     const a = j * (on + 1) + i, hx = (oh[j * (on + 1) + Math.min(on, i + 1)] - oh[j * (on + 1) + Math.max(0, i - 1)]) / (2 * oc), hy = (oh[Math.min(on, j + 1) * (on + 1) + i] - oh[Math.max(0, j - 1) * (on + 1) + i]) / (2 * oc)
@@ -662,7 +684,7 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
   lap('outer', 'Raising the great buildings')
   // structures, then roads and canals drawn on the ground
   const b = new Builder(), gW = (x: number, z: number) => Hw(x, z), cliffMask = new Uint8Array(w1 * w1)
-  for (const st of structs) structure(b, st, T, gW, seed, roads, lakes)
+  for (const st of structs) structure(b, st, T, gW, seed, roads, lakes, (x, z) => wetR(x, -z))
   { // rock faces sit on the triangles as drawn; the grid's own steep face is sunk a little behind them
     const Htri = (x: number, y: number) => {
       const fx = clamp((x + size / 2) / cellM, 0, N - 1e-6), fz = clamp((size / 2 - y) / cellM, 0, N - 1e-6), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j, a = j * w1 + i
@@ -680,8 +702,8 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
   riverBridges(b, roads, overRiver, gW, seed)
   const wp: number[] = []
   for (const c of canals) drawCanal(b, c, roads, gW, wp, lamps)
-  const geo = {} as CityBuilt['geo']
-  for (const m of MATS) { const g = b.geo[m]; geo[m] = { pos: new Float32Array(g.pos), nor: new Float32Array(g.nor), col: new Float32Array(g.col) } }
+  const typed = (t: Builder['geo']) => { const o = {} as CityBuilt['geo']; for (const m of MATS) { const g = t[m]; o[m] = { pos: new Float32Array(g.pos), nor: new Float32Array(g.nor), col: new Float32Array(g.col) } } return o }
+  const geo = typed(b.geo), detail = b.tiers.slice(1).map(typed)
   lap('structures', 'Filling the lakes and rivers')
   // lake surfaces: every grid cell touching a flooded vertex whose lowest corner is under the water
   for (const l of lakes) {
@@ -721,7 +743,7 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
   return {
     size, N, heights, colors, surf, minH, maxH, sea: T.sea, outer: { size: os, n: on, heights: oh, colors: ocol }, fields: { n: FT, tex: fieldTex }, cliffMask, marks: { n: MT, tex: marks }, steam: new Float32Array(steam), snowline: snow,
     parts, chimneys: new Float32Array(out.chimneys), trees: new Float32Array(trees), rocks: new Float32Array(rocks), lamps: new Float32Array(lamps),
-    geo, water: new Float32Array(wp), rivers: { pos: new Float32Array(rp), uv: new Float32Array(ruv) }, falls: new Float32Array(falls), waterLevels: levels,
+    geo, detail, water: new Float32Array(wp), rivers: { pos: new Float32Array(rp), uv: new Float32Array(ruv) }, falls: new Float32Array(falls), waterLevels: levels,
     counts: { buildings: out.count, structures: structs.length, roads: roads.length, trees: trees.length / TSTRIDE }, ms: Date.now() - t0, stages, audit: auditLines,
   }
 }
@@ -797,7 +819,7 @@ function riverBridges(b: Builder, roads: Road[], over: (x: number, y: number) =>
       const a = p[Math.max(0, i - 2)], c = p[Math.min(p.length - 1, j + 1)], len = Math.hypot(c[0] - a[0], c[2] - a[2])
       if (len > 4) {
         const deck = Math.max(a[1], c[1]) + 0.6, spans = Math.max(1, Math.round(len / 28))
-        arcade(b, a[0], a[2], deck, c[0], c[2], deck, gW, { width: r.width + 1.6, span: len / spans, deckT: 1.6, col: stone, seed: seed + ri * 31 + i, statues: r.kind === 'main' && len > 50 })
+        arcade(b, a[0], a[2], deck, c[0], c[2], deck, gW, { width: r.width + 1.6, span: len / spans, deckT: 1.6, col: stone, seed: seed + ri * 31 + i, statues: r.kind === 'main' && len > 50, style: r.kind === 'main' && len > 50 ? 'roman' : 'plain', wet: (x, z) => over(x, -z), hump: Math.min(3, len * 0.04) })
       }
       i = j
     }
@@ -830,7 +852,7 @@ function drawCanal(b: Builder, c: { s: Structure; pts: XY[]; w: number; level: n
   }
 }
 
-function structure(b: Builder, st: Structure, T: TerrainFn, gW: (x: number, z: number) => number, seed: number, roads: Road[], lakes: Lake[]) {
+function structure(b: Builder, st: Structure, T: TerrainFn, gW: (x: number, z: number) => number, seed: number, roads: Road[], lakes: Lake[], wet: (x: number, z: number) => boolean) {
   const C = st.color ? lin(st.color) : lin('#d8d0bc'), sd = seed + hash(st.id), k = st.scale ?? SCALE[st.kind] ?? 1
   const flat = T.flats.find((f) => f.id === st.id), fp = footprint(st), roof = st.roof ? lin(st.roof) : lin('#56606a')
   if (st.kind === 'road' || st.kind === 'canal') return
@@ -840,12 +862,14 @@ function structure(b: Builder, st: Structure, T: TerrainFn, gW: (x: number, z: n
     const total = polyLen(path)
     const h0 = st.deck?.[0] ?? T.h(...path[0]) + (st.kind === 'bridge' ? 1 : 15)
     const h1 = st.deck?.[1] ?? (st.kind === 'bridge' ? T.h(...path[path.length - 1]) + 1 : h0 - total * 0.003)
+    const styles = st.kind === 'bridge' ? BRIDGE_STYLES.filter((q) => q !== 'inhabited') : AQUEDUCT_STYLES, style = st.style ?? styles[hash(st.id + seed) % styles.length]
     let run = 0
     for (let i = 0; i < path.length - 1; i++) {
       const l = Math.hypot(path[i + 1][0] - path[i][0], path[i + 1][1] - path[i][1]), [ax, az] = W(path[i]), [bx, bz] = W(path[i + 1])
       arcade(b, ax, az, lerp(h0, h1, run / total), bx, bz, lerp(h0, h1, (run + l) / total), gW, {
         width: st.width ?? (st.kind === 'bridge' ? 14 : 5), span: st.span ?? (st.kind === 'bridge' ? 60 : 22), deckT: st.kind === 'bridge' ? 3 : 2,
-        aqueduct: st.kind === 'aqueduct', statues: st.statues ?? st.kind === 'bridge', towers: st.kind === 'bridge' && i === 0 && path.length === 2, col: C, seed: sd + i,
+        aqueduct: st.kind === 'aqueduct', statues: st.statues ?? st.kind === 'bridge', towers: st.kind === 'bridge' && i === 0 && path.length === 2, col: C, seed: sd + i, style, wet,
+        hump: st.kind === 'bridge' && !st.deck ? Math.min(14, total * 0.035) : 0, // old bridges are hump-backed: up from the streets, high over the water
       })
       run += l
     }
@@ -946,6 +970,7 @@ export function validate(doc: LocationDoc) {
     named(s, 'structure')
     const w = `${s.id} (${s.kind})`
     if (!STRUCTURE_KINDS.includes(s.kind)) { errors.push(`${w}: unknown kind; use ${STRUCTURE_KINDS.join(', ')}`); continue }
+    if (s.style && !((s.kind === 'bridge' ? BRIDGE_STYLES : s.kind === 'aqueduct' ? AQUEDUCT_STYLES : []) as readonly string[]).includes(s.style)) errors.push(`${w}: style: ${s.kind === 'bridge' ? BRIDGE_STYLES.join(', ') : s.kind === 'aqueduct' ? AQUEDUCT_STYLES.join(', ') : 'only bridges and aqueducts have one'}`)
     if (s.kind === 'bridge') { pt(s.at, `${w} at`); pt(s.to, `${w} to`) } else if (s.kind === 'aqueduct' || s.kind === 'wall' || s.kind === 'road' || s.kind === 'canal') pts(s.path, 2, w); else pt(s.at, w)
   }
   if (errors.length) return { errors, warnings }
@@ -1015,7 +1040,8 @@ Terrain (kind: fields):
 - peak: at, height (summit), radius (1500), sharp (1.4; higher = needle, below 1 = rounded); island: the same, rising from the sea
 - ridge: path, height (crest), width (half-width at the foot, 900); the crest rises and falls in summits and cols on its own
 - valley: path, height (floor altitude at the start), end (floor altitude at the end; default = height), width (500), edge (half-width
-  of a flat floodplain, 0 = V-shaped). A valley that ends below sea level is a bay.
+  of a flat floodplain, 0 = V-shaped), meander (1: its axis winds in long bends between your points; 0 = straight). A valley
+  that ends below sea level is a bay.
 - coast: path with the sea on its RIGHT (walk it with the sea to your right), height (cliff top above the sea, 60), style
   (${COAST_STYLES.join('|')}: how much of it is hard rock), bays (0..2, headlands and bays, about 300 m at 1), stacks (0..2), depth (sea
   floor, 45), extent (how far inland the cliff top is raised, 900), rock. Hard rock makes headlands with sheer cliffs, a wave-cut platform,
@@ -1062,13 +1088,18 @@ by retaining walls. A town on the sea gets a harbour where it meets the water.
 - eastern: whitewash and banded stone, flat roofs with parapets, domes, cupolas, onion domes, minarets, pointed arches, wooden balconies
 
 Structures (kind: fields; facing is a compass bearing the front faces, 0 = north, 180 = south):
-- cathedral: at, facing, scale (1 = 79 m spires; Cologne is about 2, the default 1.9)
+- cathedral: at, facing, scale (1 = towers about 55 m; Cologne is about 2, the default 1.9). No two alike (from the id): solid,
+  openwork (Cologne, Freiburg) or lantern spires or flat-topped towers; a transept with roses or none; a flèche, lantern or spire
+  over the crossing; a chevet of chapels. Great structures carry finer detail that appears as you fly closer.
 - basilica: at, facing, scale (Sagrada style; 1 = central tower 172 m); dome: at, facing, scale, roof colour (St Peter's style)
 - church: at, facing, scale, culture (a parish church); market: at, facing (along its length), width, depth (a market square)
 - palace: at, facing, width (80), depth (64), roof colour; monastery: at, facing
 - colonnade: at, facing (the open side), radius (oval half-width, 120); tower: at, facing, width (12), height (70)
 - plaza: at, radius (40), centre fountain|obelisk|statue|none, statues; statue: at, facing, height (20), color ("bronze" or hex)
-- bridge: at, to, width (14), span (60), deck [altA, altB]; aqueduct: path, width (5), span (22), deck [start, end]
+- bridge: at, to, width (14), span (60), deck [altA, altB], style (${BRIDGE_STYLES.join('|')}: round arches with cutwaters; pointed arches,
+  refuges and gate towers; flat arches, oculi, a balustrade and statues; a row of houses on brackets; default from the seed)
+- aqueduct: path, width (5), span (22), deck [start, end], style (${AQUEDUCT_STYLES.join('|')}: tiers of arches under small ones carrying a
+  covered channel; slender stepped piers; striped horseshoe arches); it falls gently (about 0.3%) from its source to the town
 - wall: path, height (14), gates [[x, y], ...]; canal: path, width (12), level; road: path of waypoints
 - harbour: at (on a lake shore or the coast), facing (towards the water), width (quay length, 160)
 Structures with an at (except harbours) level the ground around them (to level, default the ground there).

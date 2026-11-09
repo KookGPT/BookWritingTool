@@ -15,7 +15,7 @@ import { MATS, type Mat } from './kit.ts'
 import { Fly, type Pose } from './fly.ts'
 import { Fx } from './fx.ts'
 import { atmo, GLOW, MOTTLE, ROAD, ROCK, ROCK_POST, ROOF, ROOF_FH, ROOF_V, ROOF_VH, SKY_F, SKY_V, STONE, STYLE_F, TERRAIN, TERRAIN_FH, TERRAIN_POST, TERRAIN_V, TERRAIN_VH, TREE, TREE_FH, TREE_V, TREE_VH, U, WALL, WALL_FH, WALL_V, WALL_VH } from './shaders.ts'
-import { chunks, gridMesh, partGeometries, rockGeo, terrainTiles, treeGeometries } from './geometry.ts'
+import { chunks, gridMesh, partGeometries, rockGeo, skirtMesh, terrainTiles, treeGeometries } from './geometry.ts'
 import { heightTexture, Reflection, WATER_U, waterMaterial } from './water.ts'
 
 // ---------- sky keyframes by sun elevation, and the mood presets ----------
@@ -53,6 +53,10 @@ export const STYLES = {
 } as const
 export type StyleName = keyof typeof STYLES
 const DEG = Math.PI / 180
+/** Per detail tier above the massing: [chunk size, distance from the chunk's middle beyond which it is not drawn] (m). */
+const DETAIL_LOD: [number, number][] = [[500, 2600], [250, 800]]
+/** How far the flat land and sea run on past the backdrop (m). */
+const FAR = 250000
 
 /** Triangles grouped into square chunks by their first corner. */
 function splitTris(g: { pos: Float32Array; nor: Float32Array; col: Float32Array }, size: number) {
@@ -167,7 +171,7 @@ export class LocScene {
     this.world.add(terrainTiles(b, this.terrainMat))
     const outer = new THREE.Mesh(gridMesh(b.outer.n, b.outer.size, b.outer.heights, b.outer.colors), this.terrainMat)
     outer.receiveShadow = true
-    this.world.add(outer)
+    this.world.add(outer, new THREE.Mesh(skirtMesh(b.outer.n, b.outer.size, b.outer.heights, b.outer.colors, FAR), this.terrainMat))
     // water: height texture for depth, lakes and canals, rivers, the sea
     this.heightTex?.dispose(); this.fieldTex?.dispose()
     this.fieldTex = new THREE.DataTexture(b.fields.tex, b.fields.n, b.fields.n, THREE.RGBAFormat)
@@ -181,7 +185,7 @@ export class LocScene {
     const water: THREE.Object3D[] = []
     if (b.water.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(b.water, 3)); g.setAttribute('flow', new THREE.BufferAttribute(new Float32Array((b.water.length / 3) * 2), 2)); g.computeVertexNormals(); const m = new THREE.Mesh(g, this.lakeMat); m.renderOrder = 1; water.push(m) }
     if (b.rivers.pos.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(b.rivers.pos, 3)); g.setAttribute('flow', new THREE.BufferAttribute(b.rivers.uv, 2)); g.computeVertexNormals(); const m = new THREE.Mesh(g, this.riverMat); m.renderOrder = 1; water.push(m) }
-    if (b.sea != null) { const g = new THREE.PlaneGeometry(b.outer.size, b.outer.size, 64, 64).rotateX(-Math.PI / 2); g.setAttribute('flow', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); const m = new THREE.Mesh(g, this.seaMat); m.position.y = b.sea; m.renderOrder = 1; water.push(m) }
+    if (b.sea != null) { const g = new THREE.PlaneGeometry(FAR * 2, FAR * 2, 64, 64).rotateX(-Math.PI / 2); g.setAttribute('flow', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); const m = new THREE.Mesh(g, this.seaMat); m.position.y = b.sea; m.renderOrder = 1; water.push(m) }
     this.world.add(...water); this.noReflect.push(...water)
     this.waterSamples = b.waterLevels.map((level) => ({ level, pts: [] as [number, number][] }))
     for (let k = 0; k < b.water.length; k += 18 * 8) { const s = this.waterSamples.find((w) => Math.abs(w.level - b.water[k + 1]) < 0.01); s?.pts.push([b.water[k], b.water[k + 2]]) }
@@ -196,6 +200,22 @@ export class LocScene {
         this.world.add(mesh)
       }
     }
+    // the great structures' ornament and carving: in small chunks, each drawn only while the camera is near it
+    b.detail.forEach((tier, t) => {
+      const [chunk, reach] = DETAIL_LOD[t]
+      for (const m of MATS) {
+        const g = tier[m]
+        if (!g.pos.length) continue
+        for (const part of splitTris(g, chunk)) {
+          const geo = new THREE.BufferGeometry()
+          geo.setAttribute('position', new THREE.BufferAttribute(part.pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(part.nor, 3)); geo.setAttribute('color', new THREE.BufferAttribute(part.col, 3))
+          geo.computeBoundingSphere()
+          const mesh = new THREE.Mesh(geo, this.mats[m]); mesh.castShadow = t === 0 && m !== 'glass'; mesh.receiveShadow = true
+          const lod = this.lodOf(part.pos[0], part.pos[2], chunk, [[mesh, 0], [null, reach]])
+          this.world.add(lod); this.noReflect.push(lod)
+        }
+      }
+    })
     const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), P = new THREE.Vector3(), S = new THREE.Vector3(), C = new THREE.Color(), Y = new THREE.Vector3(0, 1, 0)
     // buildings: parts grouped by shape within chunks, so each chunk is culled on its own
     const p = b.parts, np = p.length / PSTRIDE, geos = partGeometries(), small = new Set<number>([PART.chimney, PART.balcony, PART.awning, PART.vine, PART.drywall, PART.dormer])

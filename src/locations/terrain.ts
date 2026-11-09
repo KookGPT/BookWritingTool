@@ -167,7 +167,8 @@ export interface TerrainFn {
   volcanic: (x: number, y: number) => number
   vents: { at: XY; r: number; active: boolean; top: number }[]
 }
-export const gridN = (size: number) => (size / 12 > 1500 ? 2048 : size / 12 > 700 ? 1024 : 512)
+/** Grid cells across a place: about 12 m on a big one, finer on smaller places (down to 1.5 m), so a small scene is sharp. */
+export const gridN = (size: number) => { const n = size / clamp(size / 1000, 1.5, 12); return n > 1500 ? 2048 : n > 700 ? 1024 : 512 }
 const SCALE: Partial<Record<Structure['kind'], number>> = { cathedral: 1.9, basilica: 1, dome: 1 }
 /** Where a structure sits and how much flat ground it needs; arcades, walls, canals, harbours and roads need none. */
 export function footprint(s: Structure): { r: number; back: number } | null {
@@ -219,6 +220,22 @@ export function terrainOf(doc: LocationDoc): TerrainFn {
     return h
   }
   const along1 = (n: Noise3, sv: number, scale: number, salt: number, oct = 3) => fbm(n, sv / scale, salt, salt * 0.37, oct) * 2 // roughly -1..1
+  // cirques: high mountains were carved by the ice into armchair bowls under steep headwalls; where they meet, sharp
+  // aretes are left, and a summit cut from three or four sides is a horn. Mostly on the shaded (north) sides.
+  interface Cirque { x: number; y: number; r: number; floor: number; top: number }
+  const cirqueCut = (cs: Cirque[], p: number, x: number, y: number) => {
+    for (const c of cs) {
+      const dx = x - c.x, dy = y - c.y
+      if (Math.abs(dx) > c.r * 1.8 || Math.abs(dy) > c.r * 1.8) continue
+      const d = Math.hypot(dx, dy) * (1 + 0.18 * fbm(n3, x / (c.r * 0.8), 91, y / (c.r * 0.8), 2))
+      if (d > c.r * 1.7) continue
+      p = smin(p, c.floor + (d / c.r) ** 1.8 * (c.top - c.floor), 50)
+    }
+    return p
+  }
+  const glacial = (H: number) => H - base > 1100 && H > 1600
+  /** The headwall round the back of a cirque, facing `toward` (the summit or the crest) is bare rock. */
+  const headwall = (c: Cirque, toward: number) => walls.push({ pts: Array.from({ length: 25 }, (_, k) => { const a = toward - 1.7 + (k / 24) * 3.4; return [c.x + Math.cos(a) * c.r * 0.95, c.y + Math.sin(a) * c.r * 0.95] as XY }), high: -1, rock: rockHex(rockDefault, 'granite'), face: Math.max(cell, c.r * 0.25), sea: false, strata: 0.8 })
 
   feats.forEach((f, fi) => {
     const sd0 = s ^ hash(f.id)
@@ -229,6 +246,12 @@ export function terrainOf(doc: LocationDoc): TerrainFn {
       case 'peak': case 'island': {
         if (!f.at || f.height == null) return noop()
         const r = f.radius ?? (f.kind === 'island' ? 900 : 1500), H = f.height, sh = f.sharp ?? (f.kind === 'island' ? 0.9 : 1.4), [cx, cy] = f.at
+        const RC = rng(sd0 ^ 0xc1c), nc = 3 + Math.floor(RC() * 2), cs: Cirque[] = !glacial(H) ? [] : Array.from({ length: nc }, (_, k) => {
+          const a = Math.PI / 2 + ((k + 0.5) / nc - 0.5) * 3.6 + (RC() - 0.5) * 0.5, d = r * (0.3 + RC() * 0.1), cr = r * (0.24 + RC() * 0.08)
+          const c: Cirque = { x: cx + Math.cos(a) * d, y: cy + Math.sin(a) * d, r: cr, floor: base + (H - base) * (0.45 + RC() * 0.12), top: H }
+          headwall(c, a + Math.PI)
+          return c
+        })
         return add([cx - r * 1.3, cy - r * 1.3, cx + r * 1.3, cy + r * 1.3], (h, x, y) => {
           // warp the radius by direction so no massif is a cone
           const wx = x + fbm(n3, x / (r * 0.9), 3, y / (r * 0.9), 3) * r * 0.45, wy = y + fbm(n3, x / (r * 0.9), 8, y / (r * 0.9), 3) * r * 0.45
@@ -237,12 +260,24 @@ export function terrainOf(doc: LocationDoc): TerrainFn {
           const t = d / r, crag = ridged(n2, x / 650, 3, y / 650, 4) - 0.5, gully = ridged(n1, x / 260, 17, y / 260, 3) - 0.55
           const prof = f.kind === 'island' ? (1 - t * t) ** (1 + sh) : (1 - t) ** sh
           const p = lerp(h, H + (crag * 0.14 + gully * 0.07) * Math.max(0, H - base) * (1 - t) * (f.kind === 'island' ? 0.4 : 1), prof)
-          return smax(h, p, 1 + 150 * (1 - t))
+          return cs.length ? cirqueCut(cs, smax(h, p, 1 + 150 * (1 - t)), x, y) : smax(h, p, 1 + 150 * (1 - t))
         })
       }
       case 'ridge': {
         if (!f.path || f.height == null) return noop()
         const w = f.width ?? 900, H = f.height, total = polyLen(f.path)
+        // cirques along both flanks, mostly the shaded one, a couple of kilometres apart
+        const RC = rng(sd0 ^ 0xc1c), cs: Cirque[] = []
+        const sp = resample(f.path, 1700)
+        if (glacial(H)) for (let k = 1; k < sp.length - 1; k++) {
+          if (RC() < 0.2) continue
+          const p = sp[k], q = sp[k + 1], o = sp[k - 1], dx = q[0] - o[0], dy = q[1] - o[1], l = Math.hypot(dx, dy) || 1
+          let sg = RC() < 0.5 ? 1 : -1
+          if ((dx / l) * sg < 0 && RC() < 0.7) sg = -sg // the left flank faces north on an eastward ridge: prefer the shaded side
+          const d = w * (0.32 + RC() * 0.12)
+          const c: Cirque = { x: p[0] - (dy / l) * d * sg, y: p[1] + (dx / l) * d * sg, r: w * (0.26 + RC() * 0.08), floor: base + (H - base) * (0.42 + RC() * 0.12), top: H }
+          cs.push(c); headwall(c, Math.atan2(p[1] - c.y, p[0] - c.x))
+        }
         return add(box(w * 1.5), (h, x, y) => {
           const n = pathNear(f.path!, x + fbm(n3, x / 1800, 2, y / 1800, 2) * w * 0.4, y + fbm(n3, x / 1800, 6, y / 1800, 2) * w * 0.4)
           const ww = w * (0.75 + 0.5 * (along1(n3, n.s, 2600, 11) * 0.5 + 0.5))
@@ -251,14 +286,19 @@ export function terrainOf(doc: LocationDoc): TerrainFn {
           // the crest rises and falls in a few distinct summits and cols, not a row of equal teeth
           const crest = H * (0.8 + 0.2 * along1(n2, n.s, 1700, 7) + 0.07 * along1(n2, n.s, 520, 9)), gully = ridged(n1, x / 240, 19, y / 240, 3) - 0.55
           const p = lerp(h, crest + gully * (H - base) * 0.08 * (1 - t), ((1 - t) ** (f.sharp ?? 1.3)) * (0.35 + 0.65 * ends))
-          return smax(h, p, 1 + 120 * (1 - t))
+          return cs.length ? cirqueCut(cs, smax(h, p, 1 + 120 * (1 - t)), x, y) : smax(h, p, 1 + 120 * (1 - t))
         })
       }
       case 'valley': { // the floor falls from `height` at the start to `end` (default the same) at the end of the path
         if (!f.path || f.height == null) return noop()
-        const w = f.width ?? 500, fl = f.edge ?? 0, total = polyLen(f.path) || 1, h1 = f.end ?? f.height
-        return add(box(w * 3 + fl), (h, x, y) => {
-          const n = pathNear(f.path!, x, y)
+        const w = f.width ?? 500, fl = f.edge ?? 0, h1 = f.end ?? f.height
+        // no valley runs straight: its axis winds in long bends (about six widths), pinned at both ends
+        const raw = resample(f.path, 20), rl = polyLen(raw) || 1, wob = f.meander ?? 1
+        const offs = smooth(raw.map((_, i) => wob * w * 0.32 * along1(n2, i * 20, w * 6, 131 + fi) * sstep(0, w, i * 20) * sstep(0, w, rl - i * 20)), 3)
+        const axis = offsetPath(raw, (i) => offs[i]), total = polyLen(axis) || 1
+        return add(box(w * 3 + fl + w * 0.4), (h, x, y) => {
+          const n = pathNearFast(axis, x, y, w * 3 + fl + 50)
+          if (n.d === Infinity) return h
           if (n.d > w * 3 + fl) return h
           return smin(h, lerp(f.height!, h1, clamp(n.s / total)) + (Math.max(0, n.d - fl) / w) ** 2 * 900 + fbm(n2, x / 300, 2, y / 300, 2) * (fl ? 6 : 15), 90)
         })
@@ -459,14 +499,19 @@ export function terrainOf(doc: LocationDoc): TerrainFn {
     const sideCache = new Map<number, boolean>(), maxD = ext + 700
     const seaSide = (x: number, y: number) => { const k = Math.floor(x / 64) * 1000003 + Math.floor(y / 64); let v = sideCache.get(k); if (v == null) { v = inPoly(closure, x, y); sideCache.set(k, v) } return v }
     // the faces, for real rock; only where the cliff is tall enough to show
-    const rock = rockHex(f.rock ?? rockDefault, style === 'fjord' ? 'granite' : 'limestone'), fw = (sv: number) => Math.max(cell * 0.9, at(sv, Hc) * 0.14)
-    let run: XY[] = []
+    const rock = rockHex(f.rock ?? rockDefault, style === 'fjord' ? 'granite' : 'limestone')
+    // in the soft bays the sea has cut back further: a beach (up to 70 m) lies at the foot of the cliff, which stands
+    // wherever the land behind is high; only low land runs down to its beach in a gentle slope
+    const nrS = normals(shore), setB = beachW.map((v) => v * 70)
+    const behind = shore.map((p, i) => (Math.abs(p[0]) < doc.size / 2 + 600 && Math.abs(p[1]) < doc.size / 2 + 600 ? hb(p[0] + nrS[i][0] * (setB[i] + 120), p[1] + nrS[i][1] * (setB[i] + 120), fi) - sea! : 0))
+    const backH = smooth(behind.map((v, i) => Math.max(0, Math.min(v, H * 2.5)) * sstep(0.05, 0.4, beachW[i])), 3)
+    let run: XY[] = [], runF = 0
     shore.forEach((p, i) => {
-      const sv = i * step, inMap = Math.abs(p[0]) < doc.size / 2 + 400 && Math.abs(p[1]) < doc.size / 2 + 400
-      if (Hc[i] > 7 && inMap) run.push(p)
-      else { if (run.length > 4) walls.push({ pts: run, high: 1, rock, face: fw(sv), sea: true, strata: 1 }); run = [] }
+      const inMap = Math.abs(p[0]) < doc.size / 2 + 400 && Math.abs(p[1]) < doc.size / 2 + 400, ch = Math.max(Hc[i], backH[i] > 18 ? backH[i] : 0)
+      if (ch > 7 && inMap) { run.push([p[0] + nrS[i][0] * setB[i], p[1] + nrS[i][1] * setB[i]]); runF = Math.max(runF, Math.max(cell * 0.9, ch * 0.14)) }
+      else { if (run.length > 4) walls.push({ pts: run, high: 1, rock, face: runF, sea: true, strata: 1 }); run = []; runF = 0 }
     })
-    if (run.length > 4) walls.push({ pts: run, high: 1, rock, face: H * 0.14, sea: true, strata: 1 })
+    if (run.length > 4) walls.push({ pts: run, high: 1, rock, face: runF, sea: true, strata: 1 })
     // sea stacks and the odd arch off the hardest headlands
     const R = rng(s ^ hash(f.id) ^ 0x57ac), dens = f.stacks ?? (style === 'cliffs' ? 1 : style === 'beach' ? 0 : 0.6)
     const nr = normals(shore)
@@ -487,15 +532,19 @@ export function terrainOf(doc: LocationDoc): TerrainFn {
       const n = pathNearFast(shore, x, y, maxD)
       if (n.d === Infinity) return seaSide(x, y) ? sea! - depth + fbm(n2, x / 900, 71, y / 900, 3) * depth * 0.4 : h
       const sv = n.s, sd = n.d * n.side // positive inland (left)
-      const hc = at(sv, Hc), bw = at(sv, beachW), pw = at(sv, platW), fwv = fw(sv)
+      const hc = at(sv, Hc), bw = at(sv, beachW), pw = at(sv, platW), set = at(sv, setB)
       if (sd >= 0) {
-        // the land behind: raised to the cliff top near the sea (never lowered), then a beach cut into it where the rock is soft
+        // the land behind: raised to the cliff top near the sea (never lowered)
         const plateau = sea! + hc + sd * 0.025 + fbm(n2, x / 140, 73, y / 140, 2) * 2.5
-        let hl = h + Math.max(0, plateau - h) * (1 - sstep(ext * 0.35, ext, sd))
+        const land = h + Math.max(0, plateau - h) * (1 - sstep(ext * 0.35, ext, sd))
         const beachTop = sea! + 0.4 + sd * (0.03 + 0.03 * (1 - bw)) + fbm(n2, x / 60, 75, y / 60, 2) * 0.5
-        hl = lerp(hl, Math.min(hl, beachTop), bw * (1 - sstep(60, 260, sd)))
-        if (sd < fwv && hc > 3) { const t = sd / fwv; hl = lerp(sea! - 1.5, hl, 1 - (1 - t) ** 2.2) } // the cliff face, rounded at the top
-        return hl
+        // low land: a gentle slope down to the beach
+        const ramp = lerp(land, Math.min(land, beachTop), bw * (1 - sstep(60, 260, sd)))
+        // high land: the cliff, set back behind the bay's beach, rounded at the top
+        const s2 = sd - set, fwv = Math.max(cell * 0.9, (land - sea!) * 0.14)
+        let cliff = sd < set ? Math.min(land, beachTop) : land
+        if (sd >= set && s2 < fwv && land - sea! > 3) { const t = s2 / fwv; cliff = lerp(set > 1 ? beachTop : sea! - 1.5, land, 1 - (1 - t) ** 2.2) }
+        return lerp(ramp, cliff, Math.max(sstep(3, 8, hc), sstep(12, 24, land - sea!)))
       }
       const u = -sd, rough = fbm(n1, x / 35, 77, y / 35, 3)
       // a wave-cut platform below cliffs (rocks awash at its edge), a gently shelving shore below beaches, then the deep
@@ -505,7 +554,7 @@ export function terrainOf(doc: LocationDoc): TerrainFn {
       for (const r of stackBase) { const dr = Math.hypot(x - r.at[0], y - r.at[1]); if (dr < r.r * 2.2) v = Math.max(v, lerp(sea! - 0.5, v, sstep(r.r * 0.8, r.r * 2.2, dr))) }
       return Math.min(v, h)
     }
-    const beach = (x: number, y: number) => { const n = pathNearFast(shore, x, y, 260); if (n.d === Infinity) return 0; return at(n.s, beachW) * (1 - sstep(80, 240, n.d * n.side)) }
+    const beach = (x: number, y: number) => { const n = pathNearFast(shore, x, y, 260); if (n.d === Infinity) return 0; const set = at(n.s, setB); return at(n.s, beachW) * (1 - sstep(Math.max(set + 4, 80 * (1 - sstep(10, 40, set))), Math.max(set + 25, 240 * (1 - sstep(10, 40, set))), n.d * n.side)) }
     return { fn, beach }
   }
   /** Back around on the right-hand side, far away, to close the sea polygon. */
