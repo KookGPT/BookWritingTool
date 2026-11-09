@@ -24,6 +24,17 @@ float anoise(vec3 x) { vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 *
              mix(mix(ahash(i + vec3(0, 0, 1)), ahash(i + vec3(1, 0, 1)), f.x), mix(ahash(i + vec3(0, 1, 1)), ahash(i + vec3(1, 1, 1)), f.x), f.y), f.z); }
 float afbm(vec3 p) { return anoise(p) * 0.55 + anoise(p * 2.13) * 0.3 + anoise(p * 4.37) * 0.15; }
 `
+/** Header for the materials that lay a pattern on the surface (pass as `fhead`; kept out of HEAD, which every shader shares). */
+export const FACE_H = /* glsl */ `
+// A surface's own frame from its world position and smooth normal: (along, up the slope) on upright and sloping faces,
+// (x, z) on level ones; z = how fast the normal turns per metre (columns, domes, statues), where seams across lose sense
+vec3 faceUV(vec3 p, vec3 n) {
+  float curved = smoothstep(0.25, 0.9, length(fwidth(n)) / max(length(fwidth(p)), 1e-4));
+  if (abs(n.y) > 0.75) return vec3(p.xz, curved);
+  vec2 t2 = normalize(vec2(-n.z, n.x) + 1e-5);
+  return vec3(dot(p.xz, t2), p.y / max(0.3, length(n.xz)), curved);
+}
+`
 export const FOG = /* glsl */ `
 {
   vec3 V = vAtmoPos - cameraPosition; float L = length(V); vec3 dir = V / max(L, 1e-3);
@@ -70,7 +81,7 @@ const WEATHER = /* glsl */ `
   // moss patches; a fine upright one draws the streaks and varies the roughness
   float big = anoise(vec3(p.x * 0.35, p.y * 0.02, p.z * 0.35 + 9.0)), fine = anoise(vec3(p.x * 2.6, p.y * 0.09, p.z * 2.6));
   float foot = (1.0 - smoothstep(0.15, 0.9 + 1.4 * big * (0.4 + uDamp), above)) * vert;
-  float streak = smoothstep(0.58, 0.82, fine) * smoothstep(0.35, 0.65, big) * vert;
+  float streak = smoothstep(0.66, 0.88, fine) * smoothstep(0.5, 0.75, big) * vert; // sparse runs, not a curtain of stripes
   float shade = smoothstep(0.1, -0.7, gN.z) * (1.0 - smoothstep(0.85, 1.0, gN.y));
   float mn = anoise(p * 0.45 + 3.0) * 0.65 + anoise(p * 1.6) * 0.35, patchy = smoothstep(0.45, 0.75, mn);
   float moss = uDamp * uDamp * clamp(foot * 0.9 + shade * 0.45 + ledge * 0.55, 0.0, 1.0) * patchy;
@@ -194,6 +205,74 @@ export const STONE = /* glsl */ `
     diffuseColor.rgb = mix(diffuseColor.rgb * (0.9 + 0.12 * broad), c, fade);
     diffuseColor.rgb *= 0.92 + 0.1 * anoise(p * 0.05);
     atmoBump = (tool * 0.006 - mortar * 0.014 - arris * 0.004) * fade; }
+`
+// ---------- the other built materials, all in the face's own frame and fading out once their detail is under a pixel ----------
+// Wood: boards a hand wide with joints, grain running along them (up posts and doors, along level decks), each board its
+// own shade; exposed wood silvers with age, less where the climate keeps it damp and dark.
+export const WOOD = /* glsl */ `
+  { vec3 p = vAtmoPos, n = inverseTransformDirection(normalize(vNormal), viewMatrix), f = faceUV(p, n);
+    float bw = 0.2, bi = floor(f.x / bw), bf = fract(f.x / bw);
+    float fade = 1.0 - smoothstep(0.008, 0.035, fwidth(f.x)), joint = (1.0 - smoothstep(0.0, 0.06, min(bf, 1.0 - bf))) * (1.0 - f.z);
+    float grain = anoise(vec3(f.x * 14.0 + bi * 3.7, f.y * 0.6, bi)) * 0.7 + anoise(vec3(f.x * 40.0, f.y * 2.0, bi + 5.0)) * 0.3;
+    vec3 c = diffuseColor.rgb * (0.82 + 0.3 * ahash(vec3(bi, 3.0, 1.0))) * (0.78 + 0.4 * grain);
+    c *= 1.0 - 0.55 * joint;
+    float l = dot(c, vec3(0.3, 0.55, 0.15)); c = mix(c, vec3(l * 1.15, l * 1.13, l * 1.12), 0.35 * (1.0 - uDamp * 0.5)); // silvered
+    diffuseColor.rgb = mix(diffuseColor.rgb * (0.88 + 0.12 * grain), c, fade);
+    atmoBump = (grain * 0.004 - joint * 0.01) * fade; }
+`
+// Metal: hammered sheet and cast work; iron rusts and bronze greens with the weather (in METAL_POST, where metalness is
+// known); gold only tarnishes a little. The family comes from the colour the kit gave it.
+export const METAL = /* glsl */ `
+  { float h = anoise(vAtmoPos * 7.0); atmoBump = h * 0.004 * (1.0 - smoothstep(0.01, 0.05, fwidth(vAtmoPos.y))); diffuseColor.rgb *= 0.92 + 0.12 * h; }
+`
+export const METAL_POST = /* glsl */ `
+  { vec3 b = diffuseColor.rgb, p = vAtmoPos; float l = dot(b, vec3(0.3, 0.55, 0.15));
+    float gold = smoothstep(0.08, 0.2, b.r - b.b) * smoothstep(0.15, 0.3, l), iron = 1.0 - smoothstep(0.03, 0.08, l);
+    float n1 = anoise(p * 1.4), run = smoothstep(0.5, 0.85, anoise(vec3(p.x * 3.0, p.y * 0.15, p.z * 3.0))); // patches, and runs down the faces
+    float rust = iron * smoothstep(0.55, 0.85, n1 + run * 0.3) * (0.35 + 0.65 * uDamp);
+    float patina = (1.0 - gold) * (1.0 - iron) * clamp(uDamp * (0.4 + 0.6 * run) + smoothstep(0.5, 0.9, wN.y) * 0.3, 0.0, 1.0);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.22, 0.09, 0.035) * (0.7 + 0.6 * n1), rust);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.42, 0.34) * (0.8 + 0.4 * n1), patina * 0.6);
+    diffuseColor.rgb *= 1.0 - 0.12 * gold * smoothstep(0.6, 0.9, n1); // tarnish
+    metalnessFactor *= 1.0 - 0.8 * max(rust, patina * 0.7);
+    roughnessFactor = clamp(roughnessFactor + rust * 0.5 + patina * 0.3 - gold * 0.15 + (n1 - 0.5) * 0.1, 0.05, 1.0); }
+`
+// Stained glass: small diamond quarries in lead cames, every pane its own shade of the window's colour (the emission uses
+// the same colour, so the lead stays dark in the glow at night).
+export const GLASS = /* glsl */ `
+  { vec3 p = vAtmoPos, n = inverseTransformDirection(normalize(vNormal), viewMatrix), f = faceUV(p, n);
+    float a = (f.x + f.y) / 0.32, b2 = (f.x - f.y) / 0.32, fa = fract(a), fb = fract(b2);
+    // each pane's shade reads well past the point where the thin lead lines go under a pixel, so they fade apart
+    float fw = fwidth(a * 0.32), tint = 1.0 - smoothstep(0.05, 0.16, fw), lead = 1.0 - smoothstep(0.015, 0.05, fw);
+    float came = (1.0 - smoothstep(0.03, 0.09, min(min(fa, 1.0 - fa), min(fb, 1.0 - fb)))) * lead;
+    vec3 c = diffuseColor.rgb * mix(1.0, 0.65 + 0.7 * ahash(vec3(floor(a), floor(b2), 2.0)), tint);
+    diffuseColor.rgb = mix(c, vec3(0.025), came) * mix(1.0, 0.85, tint * (1.0 - lead)); // the lead darkens the window on average
+    atmoBump = -came * 0.006; }
+`
+// Cloth: a fine weave and soft folds hanging down it, faded where the sun reaches.
+export const CLOTH = /* glsl */ `
+  { vec3 p = vAtmoPos, n = inverseTransformDirection(normalize(vNormal), viewMatrix), f = faceUV(p, n);
+    float fade = 1.0 - smoothstep(0.005, 0.03, fwidth(f.x));
+    float weave = sin(f.x * 220.0) * sin(f.y * 220.0) * 0.5 + 0.5, fold = sin(f.x * 5.5 + anoise(vec3(f.x * 0.8, f.y * 0.3, 1.0)) * 4.0);
+    diffuseColor.rgb *= (0.9 + 0.1 * fold) * mix(1.0, 0.92 + 0.08 * weave, fade);
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(dot(diffuseColor.rgb, vec3(0.3, 0.55, 0.15))) * 1.2, 0.2 * smoothstep(0.3, 0.9, n.y));
+    atmoBump = fold * 0.02 + weave * 0.0015 * fade; }
+`
+// Roofs of the great buildings: clay tiles (red family), copper with standing seams going green (green family), slate or
+// lead in small plates (grey and blue). Courses run level round domes and spires; seams across only where flat enough.
+export const ROOF_K = /* glsl */ `
+  { vec3 p = vAtmoPos, n = inverseTransformDirection(normalize(vNormal), viewMatrix), f = faceUV(p, n), b = diffuseColor.rgb;
+    float clay = smoothstep(0.03, 0.12, b.r - b.g * 1.15), copper = smoothstep(0.0, 0.05, b.g - b.r) * (1.0 - clay);
+    float rh = mix(mix(0.2, 0.3, clay), 0.6, copper), ri = floor(f.y / rh), rf = fract(f.y / rh);
+    float cw = mix(mix(0.32, 0.26, clay), 0.55, copper), cu = f.x / cw + mod(ri, 2.0) * 0.5, ci = floor(cu), cf = fract(cu);
+    float fade = 1.0 - smoothstep(0.012, 0.05, fwidth(f.y)), across = 1.0 - f.z;
+    float lap = smoothstep(0.0, 0.2, rf), seam = (1.0 - smoothstep(0.0, 0.05, min(cf, 1.0 - cf))) * across;
+    float t = ahash(vec3(ci * across, ri, 6.0));
+    vec3 c = b * mix(0.8 + 0.3 * t, 1.0, copper) * (0.75 + 0.25 * lap);   // each tile or slate its own shade, darker under the lap
+    c *= 1.0 - mix(0.25, 0.0, copper) * seam * (1.0 - copper);                  // gaps between tiles and slates
+    c = mix(c, c * 1.18, copper * seam);                                        // copper: the standing seams catch the light
+    diffuseColor.rgb = mix(b * (0.9 + 0.1 * anoise(p * 0.4)), c, fade);
+    atmoBump = (lap * mix(0.03, 0.005, copper) + copper * seam * 0.02) * fade; }
 `
 // natural rock: bedding planes that wander, vertical joints, grain; lichen and grass on ledges (in ROCK_POST)
 export const ROCK = /* glsl */ `

@@ -15,7 +15,7 @@ import { PART, PART_COUNT, PSTRIDE, ROOF_PARTS } from './buildings.ts'
 import { MATS, type Mat } from './kit.ts'
 import { Fly, type Pose } from './fly.ts'
 import { Fx } from './fx.ts'
-import { atmo, DAMP, GLOW, MOTTLE, ROAD, ROCK, ROCK_POST, ROOF, ROOF_FH, ROOF_V, ROOF_VH, SKY_F, SKY_V, STONE, STYLE_F, TERRAIN, TERRAIN_FH, TERRAIN_POST, TERRAIN_V, TERRAIN_VH, TREE, TREE_FH, TREE_V, TREE_VH, U, WALL, WALL_FH, WALL_V, WALL_VH } from './shaders.ts'
+import { atmo, CLOTH, DAMP, FACE_H, GLASS, METAL, METAL_POST, ROOF_K, WOOD, GLOW, MOTTLE, ROAD, ROCK, ROCK_POST, ROOF, ROOF_FH, ROOF_V, ROOF_VH, SKY_F, SKY_V, STONE, STYLE_F, TERRAIN, TERRAIN_FH, TERRAIN_POST, TERRAIN_V, TERRAIN_VH, TREE, TREE_FH, TREE_V, TREE_VH, U, WALL, WALL_FH, WALL_V, WALL_VH } from './shaders.ts'
 import { chunks, gridMesh, partGeometries, rockGeo, skirtMesh, terrainTiles, treeGeometries } from './geometry.ts'
 import { heightTexture, Reflection, WATER_U, waterMaterial } from './water.ts'
 import { VolumeLod } from './volumeLod.ts'
@@ -134,8 +134,9 @@ export class LocScene {
     this.sun.castShadow = true
     this.sun.shadow.mapSize.set(4096, 4096)
     for (const m of MATS) {
-      const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: m === 'metal' ? 0.35 : m === 'glass' ? 0.1 : m === 'water' ? 0.05 : m === 'roof' ? 0.7 : m === 'rock' ? 0.95 : 0.88, metalness: m === 'metal' ? 0.85 : 0, side: m === 'cloth' || m === 'leaf' || m === 'rock' ? THREE.DoubleSide : THREE.FrontSide })
-      this.mats[m] = atmo(mat, { surface: m === 'stone' ? STONE : m === 'roof' ? MOTTLE : m === 'road' ? ROAD : m === 'rock' ? ROCK : '', post: m === 'rock' ? ROCK_POST : '', emissive: m === 'stained' ? 'totalEmissiveRadiance += diffuseColor.rgb * (0.35 + uNight * 1.6);' : '', weather: m === 'stone' || m === 'roof' || m === 'dark' || m === 'metal' })
+      const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: m === 'metal' ? 0.35 : m === 'glass' ? 0.1 : m === 'water' ? 0.05 : m === 'roof' ? 0.7 : m === 'rock' ? 0.95 : m === 'wood' ? 0.8 : m === 'stained' ? 0.25 : 0.88, metalness: m === 'metal' ? 0.85 : 0, side: m === 'cloth' || m === 'leaf' || m === 'rock' ? THREE.DoubleSide : THREE.FrontSide })
+      const surface = { stone: STONE, roof: ROOF_K, road: ROAD, rock: ROCK, wood: WOOD, metal: METAL, stained: GLASS, cloth: CLOTH } as Partial<Record<Mat, string>>
+      this.mats[m] = atmo(mat, { surface: surface[m] ?? '', fhead: m === 'wood' || m === 'stained' || m === 'cloth' || m === 'roof' ? FACE_H : '', post: m === 'rock' ? ROCK_POST : m === 'metal' ? METAL_POST : '', emissive: m === 'stained' ? 'totalEmissiveRadiance += diffuseColor.rgb * (0.35 + uNight * 1.6);' : '', weather: m === 'stone' || m === 'roof' || m === 'dark' || m === 'metal' || m === 'wood' })
     }
     this.composer = new EffectComposer(r, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }))
     this.composer.addPass(new RenderPass(this.scene, this.camera))

@@ -3,7 +3,7 @@
 The plan, status and session log for the **Locations** tab (`/locations`, `src/locations/`).
 CLAUDE.md explains how the code works. This file covers what the tool is for, where it stands, and what comes next.
 
-Last updated: 2026-11-09, FIX-6 (rivers never vanish).
+Last updated: 2026-11-09, GFX-1b (surface detail up close).
 
 ---
 
@@ -169,7 +169,6 @@ Each problem has an ID. Fix items refer to these IDs.
 | P12 | No quays along town shores | missing feature | low |
 | P13 | Editing a location on two devices keeps an "(other device)" copy instead of merging | `merge.ts` | low |
 | P15 | Houses are tier 0 in every scene, so small scenes are as plain as big ones | `buildings.ts` has no detail tiers (DET-1) | high |
-| P16 | Up close, kit wood, metal, glass and cloth are still flat colours (stone and weathering done in GFX-1a) | materials in `kit.ts`, `shaders.ts` (GFX-1b) | high |
 | P17 | Trees, ground cover and props are simple up close; no undergrowth, grass or scattered stones | `city.ts` trees, no ground-cover pass (GFX-4) | medium |
 | P18 | Light and render pipeline are basic: no bloom, no screen-space AO, limited shadow range, plain sky | `scene.ts` (GFX-5, ATM-4) | medium |
 | P19 | Port Town's square (showcase, shot `town-port-town`): bare levelled sand under a big dark slab overhead, rock wall behind, no market in view | the core sits on a slope (ground 10..63 m round it); the square's levelling vs the volume ground, maybe an overhang | medium |
@@ -189,11 +188,10 @@ Milestones are in order. Each milestone lists its items in order. An item is siz
 
 ### Next up (the short queue)
 
-1. **GFX-1b** Surface detail up close (P16)
-2. **DET-1** Detail tiers by scene size (P15)
-3. **FIX-2** Glacier sits in its valley (P3)
-4. **PERF-1** Lighter volume ground (P6)
-5. **SH-0** Stones Hold reference pack (needs the user)
+1. **DET-1** Detail tiers by scene size (P15)
+2. **FIX-2** Glacier sits in its valley (P3)
+3. **PERF-1** Lighter volume ground (P6)
+4. **SH-0** Stones Hold reference pack (needs the user)
 
 The rule for picking order: keep alternating between fixing what's wrong (realism), raising the look (quality and detail) and **adding new kinds of things** (environments, structures, details), so none of them falls behind. If no "new kind of thing" item was done in the last three sessions, the next one should be.
 
@@ -225,8 +223,7 @@ Raises the look of every scene at once. Each item is done when the standard shot
 
 - **GFX-1 Real materials.** A material system shared by kits, houses and ground. Split into three sessions (2026-11-09):
   - ~~GFX-1a Weathering and cut stone~~ (done 2026-11-09, see the log).
-  - **GFX-1b Surface detail up close.** Every kit material, not only stone: wood (grain, planks, end grain), metal (hammered sheet, rust and patina by climate), glass (reflections of the sky, leaded panes on great windows, dirt at the edges), cloth, ice. Detail normals and roughness that fade in under ~60 m and out with distance, the same way stone does. Kits need to say which material a surface is beyond colour: add a material id per vertex where `kit.ts` mixes several under one `Mat` (e.g. `dark` doors vs openings).
-    - Done when: close shots of a door, a copper roof, a cathedral window and a market stall look like their materials, fps within 15%.
+  - ~~GFX-1b Surface detail up close~~ (done 2026-11-09, see the log).
   - **GFX-1c Built ground.** Paving, steps, cobbles and kerbs in the same system (road and plaza surfaces), worn where feet go (centres of streets, thresholds), weeds in the joints by climate.
     - Done when: street-height shots in every town show paving with wear, fps within 15%.
 - **GFX-2 Stone that reads as built.** Masonry courses and blocks on great structures (on the carving tier); ashlar vs rubble by wealth and culture; mortar lines; worn edges.
@@ -316,6 +313,7 @@ Each kit is done when: three seeds look different, they sit correctly on uneven 
 Quays along town shores (P12); a field-wise merge for locations (P13); showing locations on the Map or Globe; scene and wiki pins.
 - Braided rivers: wide gravel beds with shifting channels and bars below glaciers (the showcase's upper valley would have one).
 - Shot sheets that score each pair by pixel difference, so the sheet opens on what changed most.
+- Tower furniture: clock faces, bells seen through belfry louvres, weather vanes and gilded crosses that catch the low sun.
 - Rivers by season: high water and brown floods in spring melt, low water with gravel bars showing in late summer (the season switch exists; the channel would need a bankfull and a low-water level).
 - Age as a recipe knob: a place (or one structure) says how old and how kept it is, and weathering, moss, missing render and broken tiles follow (feeds ENV-3 ruins).
 - Rivers in winter: ice along the banks, frozen falls as hanging icicle curtains, snow on the gravel bars (the season switch already exists).
@@ -353,6 +351,15 @@ These block or shape items. Answer any time; write the answer into section 7.
 ---
 
 ## 8. Session log (newest first)
+
+**2026-11-09: GFX-1b surface detail up close** (not committed yet).
+- A `wood` material (`kit.ts` `MATS`): doors, belfry louvres, brackets, pier decks and piles, hulls, masts, stall posts and counters were all drawn as `roof`. A new kind of surface gets its own `Mat` rather than a hidden id per vertex.
+- `shaders.ts`, all in the face's own frame (`faceUV` in `FACE_H`: along and up the slope, or x and z on level faces, plus how curved the surface is) and fading once their detail is under a pixel: `WOOD` (boards, grain along them, joints, silvering less in damp climates), `METAL` + `METAL_POST` (hammered; iron rusts and bronze greens by climate, metalness drops where it does; gold tarnishes a little; family from the colour), `GLASS` for stained windows (diamond quarries in lead; pane shades stay visible further out than the lead lines), `CLOTH` (weave, folds, sun-faded tops), `ROOF_K` for the great buildings' roofs (clay tiles, slate or lead plates, copper with standing seams, by colour family; courses only on curved domes).
+- Shared weathering: rain streaks thinned (sparse runs, not a curtain of stripes) after the cathedral front looked like a barcode.
+- Cost: none measurable once `faceUV` moved out of `HEAD` into `FACE_H`. In `HEAD` (which every shader includes, water too) it doubled frame times everywhere, even with every new material hidden. Keep `HEAD` lean. A/B by stashing the change and timing the same three views in the same session (cathedral 16.3 -> 16.1 ms, overview 11.0 -> 11.0, street 18.3 -> 17.5).
+- Done-check shots `gfx1b-close-*`: planked doors in the cathedral portal, a copper dome with standing seams, leaded diamond panes in a cathedral window (and pane shading at 15 m), market awnings with folds over grained posts. Standard sets `gfx1b-` vs `fix6-`.
+- Not done: ice (no kit uses it; glacier ice is terrain, GFX-3), glass reflections of the sky, dirt at window edges.
+- Next: DET-1.
 
 **2026-11-09: `c594e35` FIX-6 rivers never vanish.**
 - Measured in the browser, not guessed: rays cast down onto every river point as it is drawn, from each saved view. The height grid was fine (new audit line "hidden or thinned by the ground": 0% everywhere); the volume ground was not. Its coarse levels sample the grid only at cube corners, so any channel narrower than a cube (about distance/150) closed over: from "The whole valley" 79 of 246 river points were under the ground, 21 by over 2 m, all 5-10 km away. (First count said 224: the raycaster also hits hidden LOD meshes; count visible ones only.)

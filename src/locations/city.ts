@@ -64,7 +64,7 @@ export interface LocationDoc {
   terrain: TerrainFeature[]; districts: District[]; structures: Structure[]; views?: View[]
 }
 /** Bump when the generator changes, so builds saved in the browser are redone. */
-export const BUILD_VERSION = 32
+export const BUILD_VERSION = 33
 export const TSTRIDE = 6 // trees: x y z scale kind shade
 export const TREE = { broadleaf: 0, spruce: 1, pine: 2, cypress: 3, larch: 4, orchard: 5, bush: 6, olive: 7, palm: 8 } as const
 const DEG = Math.PI / 180

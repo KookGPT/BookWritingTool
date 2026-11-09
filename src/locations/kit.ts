@@ -7,7 +7,7 @@ import { rng } from '../world/noise.ts'
 export type V = [number, number, number]
 export type Col = [number, number, number]
 export type P2 = [number, number]
-export const MATS = ['stone', 'roof', 'dark', 'glass', 'stained', 'metal', 'water', 'leaf', 'road', 'cloth', 'rock'] as const
+export const MATS = ['stone', 'roof', 'dark', 'glass', 'stained', 'metal', 'water', 'leaf', 'road', 'cloth', 'rock', 'wood'] as const
 export type Mat = typeof MATS[number]
 interface Geo { pos: number[]; nor: number[]; col: number[] }
 const DEG = Math.PI / 180
@@ -402,7 +402,7 @@ function front(b: Builder, hw: number, wall: number, ridge: number, S: Col, S2: 
   b.fine(2, () => { for (const sd of [-1, 1]) for (let t = 0.1; t < 0.95; t += 0.14) b.box('stone', sd * (pw / 2) * (1 - t) - 0.14, apex + 0.6 + 5.2 * t, pd - 0.45, sd * (pw / 2) * (1 - t) + 0.14, apex + 0.95 + 5.2 * t, pd - 0.05, S) }) // crockets up the gablet
   const inner = lancet(arcs[arcs.length - 1], ps)
   b.fill2('stone', inner.slice(1, -1), 0.02, S2)
-  for (const sd of [-1, 1]) b.box('roof', sd < 0 ? -2.15 : 0.18, 0.4, 0.03, sd < 0 ? -0.18 : 2.15, ps, 0.12, lin('#4a3020'))
+  for (const sd of [-1, 1]) b.box('wood', sd < 0 ? -2.15 : 0.18, 0.4, 0.03, sd < 0 ? -0.18 : 2.15, ps, 0.12, lin('#4a3020'))
   b.fine(2, () => {
     for (let yy = 1; yy < ps; yy += 0.8) b.box('metal', -2.1, yy, 0.12, 2.1, yy + 0.07, 0.15, IRON)
     for (let k = 0; k < 7; k++) { const t = (k + 0.5) / 7, xx = -2 + 4 * t; b.box('stone', xx - 0.15, ps + 0.3, 0.05, xx + 0.15, ps + 1.4, 0.35, S); b.ico('stone', xx, ps + 1.6, 0.2, 0.14, 0.17, 0.14, S) } // the tympanum's row of saints
@@ -533,7 +533,7 @@ function belfry(b: Builder, x: number, y0: number, S: Col, iron: Col) {
   b.within(x, 0, 0, 0, () => {
     b.ring2('stone', lancet(w + 0.6, hs).map(([u, v]) => [u, v + y0] as P2), lancet(w, hs).map(([u, v]) => [u, v + y0] as P2), 0, 0.6, S)
     b.fill2('dark', lancet(w, hs).map(([u, v]) => [u, v + y0] as P2), -0.3, [0.02, 0.02, 0.02])
-    b.fine(1, () => { for (let yy = y0 + 0.3; yy < y0 + hs + 0.8; yy += 0.45) b.beam('roof', [-w / 2, yy, -0.1], [w / 2, yy, -0.1], 0.08, 0.35, [0, -0.6, 0.8], mix(iron, [0.2, 0.15, 0.1], 0.6)) })
+    b.fine(1, () => { for (let yy = y0 + 0.3; yy < y0 + hs + 0.8; yy += 0.45) b.beam('wood', [-w / 2, yy, -0.1], [w / 2, yy, -0.1], 0.08, 0.35, [0, -0.6, 0.8], mix(iron, [0.2, 0.15, 0.1], 0.6)) })
   })
 }
 
@@ -760,7 +760,7 @@ export function arcade(b: Builder, ax: number, az: number, ha: number, bx: numbe
         b.prism('roof', [[Math.min(zi, zo) - 0.4, yb + hh], [Math.max(zi, zo) + 0.4, yb + hh], [(zi + zo) / 2, yb + hh + 1.6]], 'x', u - 0.25, u1 + 0.25, roofs[Math.floor(R() * 3)])
         b.fine(1, () => {
           for (let f = 0; f < fl; f++) for (let w = u + 0.9; w < u1 - 0.8; w += 1.7) for (const zf of [zi, zo]) b.box('dark', w - 0.35, yb + f * 3.1 + 1.0, zf - 0.03, w + 0.35, yb + f * 3.1 + 2.3, zf + 0.03, DARK)
-          for (let w = u + 0.6; w < u1; w += 1.6) b.beam('roof', [w, yb - 1.9, sd * (W / 2 + 0.1)], [w, yb - 0.1, zo - sd * 0.15], 0.25, 0.3, [1, 0, 0], lin('#4a3626'), true) // brackets
+          for (let w = u + 0.6; w < u1; w += 1.6) b.beam('wood', [w, yb - 1.9, sd * (W / 2 + 0.1)], [w, yb - 0.1, zo - sd * 0.15], 0.25, 0.3, [1, 0, 0], lin('#4a3626'), true) // brackets
         })
         u = u1 + (R() < 0.2 ? 2 + R() * 3 : 0.05)
       }
@@ -1138,15 +1138,15 @@ export function harbour(b: Builder, x: number, y: number, z: number, yaw: number
   const nP = Math.max(2, Math.floor(len / 40))
   for (let k = 0; k < nP; k++) {
     const u = -len / 2 + (k + 0.5) * (len / nP), pl = 25 + R() * 35
-    b.box('roof', u - 2.5, 1.0, 0, u + 2.5, 1.4, pl, wood)
-    for (let v = 2; v < pl; v += 4) for (const s of [-2.3, 2.3]) b.cyl('roof', u + s, -4, v, 0.2, 0.2, 5.6, 6, wood, false)
+    b.box('wood', u - 2.5, 1.0, 0, u + 2.5, 1.4, pl, wood)
+    for (let v = 2; v < pl; v += 4) for (const s of [-2.3, 2.3]) b.cyl('wood', u + s, -4, v, 0.2, 0.2, 5.6, 6, wood, false)
     for (let m = 0; m < 3; m++) {
       const bv = 6 + m * 12 + R() * 4, bs = R() < 0.5 ? -1 : 1, L = 7 + R() * 6, hull = jit(lin('#4a3a2c'), R, 0.4), sail = lin(R() < 0.6 ? '#e8dcc0' : '#a84a32')
       b.within(u + bs * 5.5, 0, bv, Math.PI / 2, () => {
-        b.prism('roof', [[-1.6, 1], [1.6, 1], [1.1, -0.4], [-1.1, -0.4]], 'x', -L / 2, L / 2, hull)
-        b.box('roof', -L / 2 + 0.5, 1, -1.4, L / 2 - 0.5, 1.15, 1.4, mix(hull, [1, 1, 1], 0.15))
+        b.prism('wood', [[-1.6, 1], [1.6, 1], [1.1, -0.4], [-1.1, -0.4]], 'x', -L / 2, L / 2, hull)
+        b.box('wood', -L / 2 + 0.5, 1, -1.4, L / 2 - 0.5, 1.15, 1.4, mix(hull, [1, 1, 1], 0.15))
         if (R() < 0.7) {
-          b.beam('roof', [0, 1, 0], [0, 1 + L * 0.9, 0], 0.18, 0.18, [0, 0, 1], wood, true)
+          b.beam('wood', [0, 1, 0], [0, 1 + L * 0.9, 0], 0.18, 0.18, [0, 0, 1], wood, true)
           const sp = [b.w(0.3, 2, 0), b.w(L * 0.42, 2, 0), b.w(0.3, 1 + L * 0.8, 0)]
           b.face('cloth', sp, sail, b.w(0.3, 2, -1)); b.face('cloth', sp, sail, b.w(0.3, 2, 1))
         }
@@ -1218,8 +1218,8 @@ export function market(b: Builder, x: number, y: number, z: number, a: number, w
   b.fine(1, () => { for (let i = 0; i < n; i++) { // stalls in loose rows on the far half
     const u = l * (0.04 + 0.42 * R()), v = (R() - 0.5) * (w - 8), sw = 2.6 + R() * 1.4, sd = 2 + R() * 0.6, col = lin(stalls[Math.floor(R() * stalls.length)])
     b.within(u, 0.12, v, (R() < 0.5 ? 0 : Math.PI / 2) + (R() - 0.5) * 0.2, () => {
-      for (const [px, pz] of [[-sw / 2, -sd / 2], [sw / 2, -sd / 2], [-sw / 2, sd / 2], [sw / 2, sd / 2]]) b.box('dark', px - 0.05, 0, pz - 0.05, px + 0.05, 2.3, pz + 0.05, lin('#3a2a1e'))
-      b.box('dark', -sw / 2, 0.75, -sd / 2 + 0.2, sw / 2, 0.85, sd / 2 - 0.2, lin('#5a4030'))
+      for (const [px, pz] of [[-sw / 2, -sd / 2], [sw / 2, -sd / 2], [-sw / 2, sd / 2], [sw / 2, sd / 2]]) b.box('wood', px - 0.05, 0, pz - 0.05, px + 0.05, 2.3, pz + 0.05, lin('#3a2a1e'))
+      b.box('wood', -sw / 2, 0.75, -sd / 2 + 0.2, sw / 2, 0.85, sd / 2 - 0.2, lin('#5a4030'))
       b.prism('cloth', [[-sd / 2 - 0.3, 2.1], [sd / 2 + 0.3, 2.1], [0, 2.75]], 'x', -sw / 2 - 0.2, sw / 2 + 0.2, col)
       for (let k = 0; k < 4; k++) b.box('cloth', -sw / 2 + 0.3 + (k * (sw - 0.6)) / 4, 0.86, -0.4, -sw / 2 + 0.3 + (k * (sw - 0.6)) / 4 + 0.45, 1.05, 0.4, lin(goods[k]))
     })
