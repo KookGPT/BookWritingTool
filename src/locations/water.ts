@@ -63,10 +63,17 @@ void main() {
   float fn = anoise(vec3(vAtmoPos.xz * 0.35, t * 0.5)) * 0.6 + anoise(vec3(vAtmoPos.xz * 1.3, t)) * 0.4;
   float shore = (1.0 - smoothstep(0.0, 1.4, depth)) * smoothstep(0.35, 0.7, fn) * (0.12 + 0.88 * uWaves); // surf on the sea; still water only laps
   float waves = uWaves * smoothstep(0.82, 0.97, sin(depth * 1.3 - t * 1.5 + fn * 4.0)) * (1.0 - smoothstep(1.0, 7.0, depth)) * smoothstep(0.2, 0.6, fn);
-  float white = uMode > 0.5 ? clamp(steep * (0.6 + fn * 0.6) + smoothstep(0.62, 0.85, fn) * 0.35, 0.0, 1.0) : 0.0;
+  // falling water: streaks along the fall (v is metres along the water, down the curtain too) sliding downward,
+  // thin and see-through between them and at the curtain's edges
+  float streak = anoise(vec3(vFlow.x * 11.0, vFlow.y * 0.07 - t * 2.2, 3.0)) * 0.65 + anoise(vec3(vFlow.x * 27.0, vFlow.y * 0.15 - t * 3.1, 9.0)) * 0.35;
+  float fall = uMode > 0.5 ? smoothstep(0.55, 0.9, steep) : 0.0;
+  float white = uMode > 0.5 ? clamp(mix(steep * (0.6 + fn * 0.6), 0.35 + streak * 0.75, fall) + smoothstep(0.62, 0.85, fn) * 0.35 * (1.0 - fall), 0.0, 1.0) : 0.0;
   col = mix(col, vec3(0.9, 0.93, 0.95) * (uAmb + uSunCol * light * 1.6), clamp(shore * 0.8 + waves * 0.75 + white, 0.0, 1.0));
   float alpha = uMode > 0.5 ? 0.92 + steep * 0.08 : smoothstep(0.0, 1.0, depth) * 0.95 + 0.05;
-  gl_FragColor = vec4(col, max(alpha, max(shore, white)));
+  alpha = max(alpha, max(shore, white));
+  float edge = smoothstep(0.0, 0.2, vFlow.x) * smoothstep(1.0, 0.8, vFlow.x);
+  alpha = mix(alpha, (0.5 + 0.5 * streak) * edge, fall);
+  gl_FragColor = vec4(col, alpha);
   ${FOG}
 }`
 /** A water material: mode 0 still water (lakes, canals, sea), 1 rivers (needs the `flow` attribute). */

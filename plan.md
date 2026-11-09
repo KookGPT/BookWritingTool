@@ -3,7 +3,7 @@
 The plan, status and session log for the **Locations** tab (`/locations`, `src/locations/`).
 CLAUDE.md explains how the code works. This file covers what the tool is for, where it stands, and what comes next.
 
-Last updated: 2026-11-09, TOOL-1 (standard shots and contact sheet).
+Last updated: 2026-11-09, FIX-1 (rivers stay in their banks).
 
 ---
 
@@ -131,13 +131,15 @@ Stones Hold is the hardest test of the end goal and the first big place to build
 
 ## 3. Baseline numbers (update every session)
 
-Audit on 2026-11-09 (`node scripts/loc.ts check examples/<demo>.json`):
+Audit on 2026-11-09 after FIX-1 (`node scripts/loc.ts check examples/<demo>.json`):
 
 | Demo | Warnings | Notable |
 |---|---|---|
-| showcase | 4 | river 12% bank below water, 18 falls; **glacier 18% above banks (bad)**; port-town 16% and eastern-hill 20% houses off street |
-| active-lands | 2 | 30 inland sea cells; jade-river 20% bank below water, 23 falls; karst-village 63% dead ends (passes, but high) |
-| cliff-test | 1 | gorge-river 45% bank below water |
+| showcase | 2 | **glacier 18% above banks (bad)**; eastern-hill 18% houses off street; river 1% bank below water, 5 falls |
+| active-lands | 0 | 8 inland sea cells; jade-river 0% bank below water, 4 falls |
+| cliff-test | 0 | gorge-river 0% |
+
+Before FIX-1: showcase 4 (river 12% / 18 falls, port-town 16% houses off street), active-lands 2 (30 inland sea cells, river 20% / 23 falls), cliff-test 1 (river 45%). Part of that was the audit itself: see the FIX-1 log entry.
 
 Performance (showcase, preview pane, volume ground):
 - Build: about 25 s in node, about 50 s in the pane. It is cached in IndexedDB.
@@ -154,11 +156,9 @@ Each problem has an ID. Fix items refer to these IDs.
 
 | ID | Problem | Likely cause / where | Severity |
 |---|---|---|---|
-| P1 | Rivers stand above a bank in steep gorges and at their source (cliff-test 45%, active 20%, showcase 12%) | the routing grid is coarser than the gorge floor; `carveRiver` levels in `hydro.ts` | high |
-| P2 | Too many small falls; white "plank" falls in the gorge | running-minimum profile in `carveRiver`; fall drawing in `water.ts` | high |
 | P3 | Glacier tongue stands above its banks (18%) | glacier bed vs valley floor, `terrain.ts` glacier | high |
-| P4 | Inland cells below sea level show as sea (active-lands 30) | `drySeaPuddles` misses some; volcano/crater basins | medium |
-| P5 | 16-21% of houses not on a street in some towns | `placeAll` vs `townStreets` density on slopes | medium |
+| P4 | Inland cells below sea level (active-lands 8 after FIX-1, was 30: most were the delta trench) | `drySeaPuddles` misses some; volcano/crater basins | low |
+| P5 | 18% of houses not on a street in eastern-hill (port-town is under 10% since FIX-1) | `placeAll` vs `townStreets` density on slopes | medium |
 | P6 | Heavy ground mesh: about 15M triangles, about 30 fps | volume squares are 64 cubes even on flat ground; shadow casters | high |
 | P7 | Detail arrives late when flying | 2 workers, nearest-first queue, no prefetch along the flight direction | medium |
 | P8 | The seam between the volume map edge and the backdrop skirt is unchecked | `volumeLod.ts` vs `skirtMesh` | low |
@@ -173,9 +173,13 @@ Each problem has an ID. Fix items refer to these IDs.
 | P18 | Light and render pipeline are basic: no bloom, no screen-space AO, limited shadow range, plain sky | `scene.ts` (GFX-5, ATM-4) | medium |
 | P19 | Port Town's square (showcase, shot `town-port-town`): bare levelled sand under a big dark slab overhead, rock wall behind, no market in view | the core sits on a slope (ground 10..63 m round it); the square's levelling vs the volume ground, maybe an overhang | medium |
 | P20 | Triangular rock facets on smooth grass slopes (showcase, below the aqueduct) | volume rock where the grid is steep, `volume.ts` | medium |
-| P21 | The build cache misses for showcase and active-lands: they rebuild on every visit in the pane (cliff-test hits) | `idbSet` in `LocationsPage.tsx` failing on big builds? | medium |
+| P21 | The build cache misses for showcase and active-lands: they rebuild on every visit in the pane (cliff-test hits) | `idbSet` in `LocationsPage.tsx` failing on big builds? Old builds are never deleted (IndexedDB held `loc-build:25..30:cliff-test` at once and no showcase entry), so storage likely fills up: delete other versions' keys when saving | medium |
 | P22 | A thin straight horizontal line across the far cliffs (cliff-test `view-sea-cliffs`, both grounds) | maybe the backdrop skirt or the sea plane edge (see P8) | low |
 | P23 | Floating grey quads near the river cathedral's base (showcase `structure-river-cathedral`) | a kit part or detail-tier chunk placed off the ground | low |
+| P24 | Where the river leaves Glacier Lake (showcase, about -1100, 2250) its ribbon is broken into pieces with gaps | ribbon segments skipped wherever a lake cell is under them (`lakeAt` in the water stage of `city.ts`) | medium |
+| P25 | Deltas are a simple fan: channels from one apex, no real branching, no levees or bars (active-lands) | `carveDelta` in `hydro.ts`; see ENV-5 | medium |
+| P26 | Jade River reaches the sea over a cliff fall, so its delta starts under a plunge pool | the coast cliff is cut after the river's valley; the river does not cut its own way through the cliff | low |
+| P27 | A short flat ribbon ledge sticks out past the rock at the top of a fall | the last ribbon segment above the lip is drawn at full width | low |
 
 ---
 
@@ -185,12 +189,11 @@ Milestones are in order. Each milestone lists its items in order. An item is siz
 
 ### Next up (the short queue)
 
-1. **FIX-1** Rivers stay in their banks (P1, P2)
-2. **GFX-1** Real materials (P16)
-3. **DET-1** Detail tiers by scene size (P15)
-4. **FIX-2** Glacier sits in its valley (P3)
-5. **PERF-1** Lighter volume ground (P6)
-6. **SH-0** Stones Hold reference pack (needs the user)
+1. **GFX-1** Real materials (P16)
+2. **DET-1** Detail tiers by scene size (P15)
+3. **FIX-2** Glacier sits in its valley (P3)
+4. **PERF-1** Lighter volume ground (P6)
+5. **SH-0** Stones Hold reference pack (needs the user)
 
 The rule for picking order: keep alternating between fixing what's wrong (realism), raising the look (quality and detail) and **adding new kinds of things** (environments, structures, details), so none of them falls behind. If no "new kind of thing" item was done in the last three sessions, the next one should be.
 
@@ -204,8 +207,7 @@ Makes every later session targeted: change, re-shoot, compare.
   - Done when: the numbers in section 3 come from it.
 
 ### M2 Fix what's wrong
-- **FIX-1 Rivers stay in their banks** (P1, P2). Route on the finest grid in steep ground. Make the river profile a smoothed monotone curve, not a running minimum. Merge small falls into fewer real ones. Draw falls as curtains, not planks.
-  - Done when: every demo river has ≤3% bank below water, the showcase has ≤6 falls, and the gorge shots look right.
+- ~~FIX-1 Rivers stay in their banks~~ (done 2026-11-09, see the log).
 - **FIX-2 Glacier sits in its valley** (P3).
   - Done when: the glacier audit is ≤3%, and shots show ice between moraines.
 - **FIX-3 No inland sea** (P4).
@@ -247,6 +249,8 @@ The end goal is any environment, so every kind has to be built, looked at and co
 - **ENV-2 onward: one demo per missing row.** Examples: cold or arid (DEMO-1), desert oasis town, arctic coast, rainforest river, steppe, wetlands and marsh, high pass with a fortress, mining valley, coastal ruins. Each finds its own FIX and KIT items.
 - **ENV-3 Ruins and age.** Any structure can be ruined or aged: collapsed roofs, broken arches, overgrowth, rubble. Old places need this to look real.
 - **ENV-4 More building cultures** as the user asks (for example Nordic timber, desert mud brick, East Asian), each with houses, a church or temple, and a market.
+- **ENV-5 Real deltas and river mouths** (P25, P26). Distributaries that split again and again and wander, natural levees, mouth bars, a lobate front that differs by kind (arcuate like the Nile, bird's foot like the Mississippi, cuspate); a river cuts its own way through a coastal cliff instead of falling over it.
+  - Done when: the active-lands delta holds up next to reference photos from the air, and the audit checks that every distributary reaches the sea.
 
 ### M6 Performance for a mountain-range city
 Stones Hold is maybe 15-30 km across, with tens of thousands of buildings and dozens of megastructures. The current numbers won't carry that.
@@ -309,6 +313,7 @@ Each kit is done when: three seeds look different, they sit correctly on uneven 
 Quays along town shores (P12); a field-wise merge for locations (P13); showing locations on the Map or Globe; scene and wiki pins.
 - Braided rivers: wide gravel beds with shifting channels and bars below glaciers (the showcase's upper valley would have one).
 - Shot sheets that score each pair by pixel difference, so the sheet opens on what changed most.
+- Rivers in winter: ice along the banks, frozen falls as hanging icicle curtains, snow on the gravel bars (the season switch already exists).
 
 ---
 
@@ -343,6 +348,16 @@ These block or shape items. Answer any time; write the answer into section 7.
 ---
 
 ## 8. Session log (newest first)
+
+**2026-11-09: FIX-1 rivers stay in their banks** (not committed yet).
+- Measured first. Most of the "bank below the water" was the audit: it read the nearest grid vertex (13.7 m cells; on a steep reach that is a step down the slope, metres lower), counted samples off the map edge (cliff-test's river starts off the map) and counted lakebed inside lakes and plunge pools as bank. The audit now samples the drawn (bilinear) ground and skips those; a cascade of steps counts as one fall.
+- Real faults fixed in `hydro.ts`: the delta apex sat a fixed 3.6 km back from the mouth, so its channels cut a sea-level trench beside a river still 70 m up (active-lands: also most of its 30 inland sea cells); now the apex is where the river reaches the sea, and the fan grows out from there with a rounded lobed front and wandering channels. The water profile reads banks in 18 directions (turned up and down stream) instead of 2. The running-minimum staircase is smoothed: steps over 10 m are falls (the biggest one per 250 m), the rest wear back into a steady incline no steeper than 1.3x the reach's own grade (falls left out of that grade). Water still only goes down and only cuts deeper.
+- Drawing (`city.ts`, `water.ts`): plunge pools are filled with water (they were dry pits); a fall run is one curtain along a throw curve (out with time, down with time squared), a little narrower than the river, with streaks sliding down it, see-through between streaks and at the edges; the ribbon gives way to the pool at its foot. Flow texture coordinates are metres along the water, down the falls too.
+- Numbers: showcase river 12% -> 1%, 18 -> 5 falls; jade-river 20% -> 0%, 23 -> 4 falls; gorge-river 45% -> 0%. Showcase warnings 4 -> 2, active-lands 2 -> 0, cliff-test 1 -> 0.
+- Shots: `fix1-` sets for all three demos; sheets `test/out/sheet-<demo>.html` (`base-` vs `fix1-`). The gorge fall is a curtain into a pool; the active-lands delta is a small arcuate fan instead of a large plain that land mostly hid.
+- Not done from the old FIX-1 text: routing on a finer grid in steep ground was not needed once the measurements were right.
+- Learned: measure before fixing; two of the three "worst" numbers were the ruler. New problems P24-P27, new item ENV-5.
+- Next: GFX-1, compare with `fix1-`.
 
 **2026-11-09: `1109287` TOOL-1 standard shots and contact sheet.**
 - `shots.ts` (pure): `standardShots(doc, groundAt)` = every saved view (with its hour, weather, season), overview, low pass, each recipe structure (lines from the side, others three-quarters from the front, raised until the sight line clears hills, from the other side if that is much lower), each town at street height from the end of its square (or, when the recipe gave the town its own plaza, from that plaza towards the nearest great building). Tested in `locations.test.ts`.

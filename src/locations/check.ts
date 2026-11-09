@@ -48,16 +48,25 @@ export function audit(o: AuditIn): string[] {
     say(stranded > 20 ? 'warn' : 'ok', `sea: ${stranded} cells below sea level cut off from the open sea${stranded > 20 ? ' (they show as sea water inland)' : ''}`)
   }
 
-  // rivers follow their valleys: the banks must stand above the water
+  // rivers follow their valleys: the banks must stand above the water (the ground as drawn: bilinear between vertices;
+  // the nearest vertex on a steep reach is a step up or down the slope and reads metres off)
+  const Hb = (x: number, y: number) => { const fx = (x + size / 2) / c, fy = (size / 2 - y) / c, i = Math.min(N - 1, Math.floor(fx)), j = Math.min(N - 1, Math.floor(fy)), tx = fx - i, ty = fy - j; return (h[j * w + i] * (1 - tx) + h[j * w + i + 1] * tx) * (1 - ty) + (h[(j + 1) * w + i] * (1 - tx) + h[(j + 1) * w + i + 1] * tx) * ty }
+  const onMap = (x: number, y: number) => Math.abs(x) < size / 2 && Math.abs(y) < size / 2
+  // ground under a lake or a plunge pool is under that water, not a bank the river spills over
+  const lakeV = new Uint8Array(w * w)
+  for (const l of o.lakes) for (const a of l.cells) lakeV[a] = 1
+  const inLake = (x: number, y: number) => lakeV[Math.max(0, Math.min(N, Math.round((size / 2 - y) / c))) * w + Math.max(0, Math.min(N, Math.round((x + size / 2) / c)))] === 1
+  const wetAt = (r: River, x: number, y: number) => inLake(x, y) || r.pools.some((p) => Math.hypot(p.at[0] - x, p.at[1] - y) < p.r)
   for (const r of o.rivers) {
     let perched = 0, n = 0, drops = 0
     for (let i = 0; i < r.path.length - 1; i += 4) {
       const [x, y] = r.path[i], [x2, y2] = r.path[i + 1], l = Math.hypot(x2 - x, y2 - y) || 1, nx = -(y2 - y) / l, ny = (x2 - x) / l, off = r.wid[i] * 0.6 + 12
       if (sea != null && r.prof[i] <= sea + 0.05) continue
+      if (!onMap(x + off, y + off) || !onMap(x - off, y - off) || inLake(x, y)) continue // off the map it is not drawn; in a lake the lake takes over
       n++
-      const bank = (s: number) => { const bx = x + nx * off * s, by = y + ny * off * s; return pathNearFast(r.path, bx, by, off * 0.8).d < off * 0.6 ? Infinity : H(bx, -by) } // a sample in another loop of the river is no bank
+      const bank = (s: number) => { const bx = x + nx * off * s, by = y + ny * off * s; return pathNearFast(r.path, bx, by, off * 0.8).d < off * 0.6 || wetAt(r, bx, by) ? Infinity : Hb(bx, by) } // a sample in another loop of the river is no bank
       if (bank(1) < r.prof[i] - 0.8 || bank(-1) < r.prof[i] - 0.8) perched++
-      if (i >= 4 && r.prof[i - 4] - r.prof[i] > 8) drops++
+      if (i >= 4 && r.prof[i - 4] - r.prof[i] > 8 && !(i >= 8 && r.prof[i - 8] - r.prof[i - 4] > 8)) drops++ // a cascade of steps is one fall
     }
     say(perched > n * 0.05 ? 'warn' : 'ok', `river ${r.id}: ${pct(perched, n)}% of its course has a bank below the water${perched > n * 0.05 ? ' (it runs along a slope or a ridge: let it follow its valley, or give it waypoints in the valley floor)' : ''}; ${drops} falls`)
   }

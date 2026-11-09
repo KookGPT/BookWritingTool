@@ -274,9 +274,40 @@ export function carveRiver(g: Grid, r: RiverIn, sea: number | null, lakeAt: (x: 
     const [x, y] = pts[i], lk = lakeAt(x, y), p = pts[Math.max(0, i - 2)], q = pts[Math.min(n - 1, i + 2)], dl = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1
     const nx = -(q[1] - p[1]) / dl, ny = (q[0] - p[0]) / dl, wv = wAt(i / Math.max(1, n - 1)), off = wv * 0.6 + 12
     ground.push(H(x, y))
-    low = Math.min(low, lk ?? Math.min(H(x, y), H(x + nx * wv * 0.5, y + ny * wv * 0.5), H(x - nx * wv * 0.5, y - ny * wv * 0.5), H(x + nx * off, y + ny * off), H(x - nx * off, y - ny * off)) - 1)
+    // the banks: across the channel and out past its edge, also turned a little up and down stream (on a steep reach
+    // the ground beside the water falls with it, so a bank seen slightly downstream is the one that limits the water)
+    let bank = Math.min(H(x, y), H(x + nx * wv * 0.5, y + ny * wv * 0.5), H(x - nx * wv * 0.5, y - ny * wv * 0.5))
+    for (const d of [off * 0.8, off, off * 1.25]) for (const a of [-0.35, 0, 0.35]) {
+      const ca = Math.cos(a), sa = Math.sin(a), ux = nx * ca - ny * sa, uy = ny * ca + nx * sa, vx2 = nx * ca + ny * sa, vy2 = ny * ca - nx * sa
+      bank = Math.min(bank, H(x + ux * d, y + uy * d), H(x - vx2 * d, y - vy2 * d))
+    }
+    low = Math.min(low, lk ?? bank - 1)
     if (sea != null) low = Math.max(low, sea)
     prof.push(low); wid.push(wv)
+  }
+  // the running minimum is a staircase wherever the floor is bumpy: a fall at every dip. A river wears small steps back
+  // into a steady incline (rapids) and keeps only the big ones as falls, one per reach.
+  {
+    const F = 10, lip = new Uint8Array(n), runs: [number, number, number][] = [] // [first step, last step, drop]
+    for (let i = 0; i + 3 < n; i++) if (prof[i] - prof[i + 3] > F && prof[i] - prof[i + 1] > 0.5) { // a big step close ahead, starting here
+      let j = i; while (j + 1 < n && prof[j] - prof[j + 1] > 0.5) j++
+      const last = runs[runs.length - 1]
+      if (last && i <= last[1] + 1) { last[1] = Math.max(last[1], j); last[2] = prof[last[0]] - prof[last[1]] } else runs.push([i, j, prof[i] - prof[j]])
+      i = j
+    }
+    // one fall per 250 m: the biggest of any that close together
+    const keep = runs.filter((r) => !runs.some((o) => o !== r && Math.abs(o[0] - r[0]) * step < 250 && (o[2] > r[2] || (o[2] === r[2] && o[0] < r[0]))))
+    for (const [a, b] of keep) for (let k = a; k < b; k++) lip[k] = 1
+    // allowed fall per step elsewhere: a little steeper than the reach's own grade over about 300 m, leaving the falls
+    // themselves out of that grade (else every step beside a fall would pass as one)
+    const W = Math.round(300 / step), out = prof.slice(), fell = new Float64Array(n)
+    for (let i = 1; i < n; i++) fell[i] = fell[i - 1] + (lip[i - 1] ? prof[i - 1] - prof[i] : 0)
+    for (let i = n - 2; i >= 0; i--) {
+      if (lip[i]) continue
+      const a = Math.max(0, i - W), b = Math.min(n - 1, i + W), g = (prof[a] - prof[b] - (fell[b] - fell[a])) / ((b - a) * step || 1)
+      out[i] = Math.min(prof[i], out[i + 1] + step * Math.max(0.02, 1.3 * g))
+    }
+    for (let i = 0; i < n; i++) prof[i] = out[i]
   }
   // how deep the river has to cut below the land here (smoothed along it): the deeper the cut, the wider its valley
   const cut = ground.map((g, i) => Math.max(0, g - prof[i])).map((_, i, a) => { let s = 0, c2 = 0; for (let k = Math.max(0, i - 12); k <= Math.min(n - 1, i + 12); k++) { s += a[k]; c2++ } return s / c2 })
@@ -326,8 +357,14 @@ export function carveRiver(g: Grid, r: RiverIn, sea: number | null, lakeAt: (x: 
 /** A delta: the river splits at its apex into distributaries that fan out across a low plain of its own mud. */
 export function carveDelta(g: Grid, rv: River, sea: number, seed: number, wet?: (x: number, y: number, r: number) => void) {
   const { N, size, heights: h } = g, w = N + 1, c = size / N, R = rng(seed), nz = simplex(seed)
-  const n = rv.path.length, end = rv.path[n - 1], L = Math.min(rv.width * 90, (n * rv.step) * 0.35), ai = Math.max(1, n - 1 - Math.round(L / rv.step))
-  const apex = rv.path[ai], dir = Math.atan2(end[1] - apex[1], end[0] - apex[0]), Rf = L * 1.25
+  // the apex is where the river has come down to the sea's level, never further up (a distributary cut at sea level
+  // through land the river still crosses 70 m up would be a trench beside it)
+  const n = rv.path.length, end = rv.path[n - 1], low = rv.prof.findIndex((v) => v <= sea + 2)
+  const ai = Math.max(1, n - 1 - Math.round(Math.min(rv.width * 90, (n * rv.step) * 0.35) / rv.step), low < 0 ? n : low)
+  if (ai >= n - 2) return [] // it never gets down to the sea
+  // the fan grows out into the sea from there: at least ~20 river widths, however short the low stretch on land
+  const L = (n - 1 - ai) * rv.step, back = rv.path[Math.max(0, Math.min(ai, n - 1 - Math.round(200 / rv.step)))]
+  const apex = rv.path[ai], dir = Math.atan2(end[1] - back[1], end[0] - back[0]), Rf = Math.max(L * 1.25, rv.width * 20)
   // the plain: a lobed fan just above the sea, sloping into the water at its front
   for (let j = 0; j <= N; j++) {
     const y = size / 2 - j * c
@@ -336,7 +373,8 @@ export function carveDelta(g: Grid, rv: River, sea: number, seed: number, wet?: 
       const x = -size / 2 + k * c, d = Math.hypot(x - apex[0], y - apex[1])
       if (d > Rf * 1.3) continue
       let da = Math.atan2(y - apex[1], x - apex[0]) - dir; da -= Math.round(da / (Math.PI * 2)) * Math.PI * 2
-      const lobe = Rf * (0.85 + 0.25 * Math.cos(da * 5) + 0.2 * fbm(nz, Math.cos(da) * 3, Math.sin(da) * 3, 1, 3))
+      // a rounded, gently lobed front that draws in at the sides (not a sector with notches between the channels)
+      const lobe = Rf * (0.9 + 0.07 * Math.cos(da * 3) + 0.18 * fbm(nz, Math.cos(da) * 2, Math.sin(da) * 2, 1, 3)) * Math.cos(Math.min(1.45, Math.abs(da) * 1.25)) ** 0.6
       if (Math.abs(da) > 1.1) continue
       const t = d / lobe, a = j * w + k, top = sea + 1.4 * (1 - t) ** 0.5 + fbm(nz, x / 90, 3, y / 90, 3) * 0.8
       const v = t < 1 ? top : sea - (t - 1) * 30
@@ -347,7 +385,7 @@ export function carveDelta(g: Grid, rv: River, sea: number, seed: number, wet?: 
   const k = 3 + Math.floor(R() * 3), lines: XY[][] = []
   for (let q = 0; q < k; q++) {
     const a = dir + (q / (k - 1) - 0.5) * 1.5 + (R() - 0.5) * 0.25, ln: XY[] = []
-    for (let s = 0; s <= Rf * 1.25; s += 8) { const wob = fbm(nz, s / 260, q * 7, 0, 2) * 60 * (s / Rf); ln.push([apex[0] + Math.cos(a) * s - Math.sin(a) * wob, apex[1] + Math.sin(a) * s + Math.cos(a) * wob]) }
+    for (let s = 0; s <= Rf * 1.25; s += 8) { const wob = (fbm(nz, s / 260, q * 7, 0, 2) * 0.12 + fbm(nz, s / 90, q * 7 + 3, 0, 2) * 0.03) * Rf * Math.min(1, s / (Rf * 0.3)); ln.push([apex[0] + Math.cos(a) * s - Math.sin(a) * wob, apex[1] + Math.sin(a) * s + Math.cos(a) * wob]) }
     lines.push(ln)
     const cw = Math.max(8, rv.width * (q === Math.floor(k / 2) ? 0.6 : 0.35))
     for (const [x, y] of ln) for (let j = Math.max(0, Math.floor((size / 2 - y - cw) / c)); j <= Math.min(N, Math.ceil((size / 2 - y + cw) / c)); j++)

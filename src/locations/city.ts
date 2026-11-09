@@ -64,7 +64,7 @@ export interface LocationDoc {
   terrain: TerrainFeature[]; districts: District[]; structures: Structure[]; views?: View[]
 }
 /** Bump when the generator changes, so builds saved in the browser are redone. */
-export const BUILD_VERSION = 25
+export const BUILD_VERSION = 30
 export const TSTRIDE = 6 // trees: x y z scale kind shade
 export const TREE = { broadleaf: 0, spruce: 1, pine: 2, cypress: 3, larch: 4, orchard: 5, bush: 6, olive: 7, palm: 8 } as const
 const DEG = Math.PI / 180
@@ -725,18 +725,63 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
     }
   }
   for (const v of pools) wp.push(v)
+  // plunge pools below the falls: every cell near the pool whose lowest corner is under its level, as for lakes
+  for (const rv of rivers) for (const p of rv.pools) {
+    const i0 = Math.max(0, Math.floor((p.at[0] - p.r + size / 2) / cellM)), i1 = Math.min(N - 1, Math.floor((p.at[0] + p.r + size / 2) / cellM))
+    const j0 = Math.max(0, Math.floor((size / 2 - p.at[1] - p.r) / cellM)), j1 = Math.min(N - 1, Math.floor((size / 2 - p.at[1] + p.r) / cellM))
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+      const x = -size / 2 + i * cellM, z = -size / 2 + j * cellM, X = x + cellM, Z = z + cellM, L = p.lvl + 0.3
+      if (Math.hypot(x + cellM / 2 - p.at[0], -(z + cellM / 2) - p.at[1]) > p.r + cellM * 0.7) continue
+      if (Math.min(heights[j * w1 + i], heights[j * w1 + i + 1], heights[(j + 1) * w1 + i], heights[(j + 1) * w1 + i + 1]) >= p.lvl) continue
+      wp.push(x, L, z, x, L, Z, X, L, z, X, L, z, x, L, Z, X, L, Z)
+    }
+  }
   // rivers: a ribbon on the water surface (v runs downstream for the flow), widening downstream; falls where it drops
   const rp: number[] = [], ruv: number[] = [], falls: number[] = []
   for (const rv of rivers) {
     const pts = resample(rv.path, 5).map((p, i) => { const k = clamp((i * 5) / rv.step, 0, rv.prof.length - 1.001), q = Math.floor(k); return [p[0], lerp(rv.prof[q], rv.prof[q + 1], k - q) + 0.3, -p[1], lerp(rv.wid[q], rv.wid[q + 1], k - q)] })
-    for (let i = 0; i < pts.length - 1; i++) {
-      const [ax, ay, az, aw] = pts[i], [bx, by, bz, bw] = pts[i + 1], dx = bx - ax, dz = bz - az, l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l
-      const A = aw * 0.58, B = bw * 0.58
-      if ((T.sea != null && ay < T.sea + 0.32 && by < T.sea + 0.32) || lakeAt(ax, -az) != null) continue // the sea or a lake takes over
-      rp.push(ax - nx * A, ay, az - nz * A, ax + nx * A, ay, az + nz * A, bx - nx * B, by, bz - nz * B, bx - nx * B, by, bz - nz * B, ax + nx * A, ay, az + nz * A, bx + nx * B, by, bz + nz * B)
-      const va = i * 5, vb = va + 5
-      ruv.push(0, va, 1, va, 0, vb, 0, vb, 1, va, 1, vb)
-      if ((ay - by) / l > 0.8 && (i === pts.length - 2 || (pts[i + 1][1] - pts[i + 2][1]) / 5 < 0.8)) falls.push(bx, by, bz, bw)
+    const m = pts.length, hl = (i: number) => Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][2] - pts[i][2]) || 1
+    // fall segments, with short ledges between two of them joined in (a fall in tiers is one curtain)
+    const fall = Array.from({ length: m - 1 }, (_, i) => (pts[i][1] - pts[i + 1][1]) / hl(i) > 0.8)
+    for (let i = 1; i < m - 2; i++) if (!fall[i] && fall.slice(Math.max(0, i - 2), i).some(Boolean) && fall.slice(i + 1, i + 3).some(Boolean)) fall[i] = true
+    const inPool = (x: number, y: number) => rv.pools.some((p) => Math.hypot(p.at[0] - x, p.at[1] - y) < p.r * 0.85)
+    const quad = (x0: number, y0: number, z0: number, w0: number, x1: number, y1: number, z1: number, w1: number, nx: number, nz: number, v0: number, v1: number) => {
+      rp.push(x0 - nx * w0, y0, z0 - nz * w0, x0 + nx * w0, y0, z0 + nz * w0, x1 - nx * w1, y1, z1 - nz * w1, x1 - nx * w1, y1, z1 - nz * w1, x0 + nx * w0, y0, z0 + nz * w0, x1 + nx * w1, y1, z1 + nz * w1)
+      ruv.push(0, v0, 1, v0, 0, v1, 0, v1, 1, v0, 1, v1)
+    }
+    let v = 0 // metres along the water, down the falls too, so the flow pattern keeps its scale on a curtain
+    for (let i = 0; i < m - 1; i++) {
+      const [ax, ay, az, aw] = pts[i], [bx, by, bz, bw] = pts[i + 1], dx = bx - ax, dz = bz - az, l = hl(i), nx = -dz / l, nz = dx / l
+      if ((T.sea != null && ay < T.sea + 0.32 && by < T.sea + 0.32) || lakeAt(ax, -az) != null) { v += l; continue } // the sea or a lake takes over
+      if (fall[i]) {
+        // a fall is a curtain, not a plank: the water leaves the lip level and drops along a throw curve (out with time,
+        // down with time squared) over the whole run, a little narrower than the river (the edges stay on the rock)
+        // and spreading toward the pool
+        let e = i
+        while (e + 1 < m - 1 && fall[e + 1]) e++
+        const top = ay, drop = ay - pts[e + 1][1], wTop = aw * 0.58 * 0.8, K = 8 * (e - i + 1)
+        let total = 0
+        for (let q = i; q <= e; q++) total += hl(q)
+        const at = (t: number) => { // a point t of the way along the run's line, with that segment's normal
+          let d = t * total, q = i
+          while (q < e && d > hl(q)) { d -= hl(q); q++ }
+          const f = Math.min(1, d / hl(q)), [px, , pz] = pts[q], [qx, , qz] = pts[q + 1], L = hl(q)
+          return [px + (qx - px) * f, top - drop * t * t, pz + (qz - pz) * f, wTop * (1 + 0.2 * t * t), -(qz - pz) / L, (qx - px) / L]
+        }
+        for (let s = 0; s < K; s++) {
+          const [x0, y0, z0, w0, n0x, n0z] = at(s / K), [x1, y1, z1, w1] = at((s + 1) / K), v0 = v
+          v += Math.hypot(x1 - x0, y1 - y0, z1 - z0)
+          quad(x0, y0, z0, w0, x1, y1, z1, w1, n0x, n0z, v0, v)
+        }
+        const [fx, fy, fz, fw] = pts[e + 1]
+        falls.push(fx, fy, fz, fw)
+        i = e
+        continue
+      }
+      if (inPool(ax, -az) && inPool(bx, -bz)) { v += l; continue } // the plunge pool takes over
+      const v0 = v
+      v += Math.hypot(l, ay - by)
+      quad(ax, ay, az, aw * 0.58, bx, by, bz, bw * 0.58, nx, nz, v0, v)
     }
   }
   const levels = [...new Set([...lakes.map((l) => l.level), ...canals.map((c) => c.level), ...(T.sea != null ? [T.sea] : [])])]

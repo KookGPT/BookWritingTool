@@ -117,6 +117,15 @@ assert.ok(a.fields.tex.some((v, i) => i % 4 === 3 && v > 0), 'fields are drawn')
   const g = { N, size, heights }, rv = carveRiver(g, { id: 'r', way: [[-1400, 1300], [-900, 600], [-1000, -1450]], width: 20, depth: 3, meander: 1, follow: true }, 0, () => null, 1)
   assert.ok(rv.prof.every((v, i) => !i || v <= rv.prof[i - 1] + 1e-9), 'the river only goes down')
   assert.ok(rv.prof[rv.prof.length - 1] <= 0.01, 'the river reaches the sea')
+  // a valley floor of little steps (2-4 m every 60 m) and one 30 m cliff: the steps wear into an incline, the cliff stays a fall
+  const sw = new Float32Array(w * w), stair = (y: number) => 200 - Math.floor((1300 - y) / 60) * 3 - (y < 0 ? 30 : 0)
+  for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) { const x = -size / 2 + i * c, y = size / 2 - j * c; sw[j * w + i] = stair(y) + Math.abs(x) * 0.4 }
+  const sr = carveRiver({ N, size, heights: sw }, { id: 's', way: [[0, 1300], [0, -1300]], width: 12, depth: 2, meander: 0, follow: false }, null, () => null, 3)
+  let steps = 0
+  for (let i = 4; i < sr.prof.length; i += 4) if (sr.prof[i - 4] - sr.prof[i] > 8 && !(i >= 8 && sr.prof[i - 8] - sr.prof[i - 4] > 8)) steps++ // as the audit counts
+  assert.ok(sr.prof.every((v, i) => !i || v <= sr.prof[i - 1] + 1e-9), 'the smoothed river only goes down')
+  assert.equal(steps, 1, `small steps become rapids, the cliff stays one fall (${steps} falls)`)
+  assert.equal(sr.pools.length, 1, 'one plunge pool, under the fall')
   const L = makeLake(g, 'l', [[950, -350]], 150, 20, undefined, 2)!
   assert.ok(L && L.cells.length > 20, 'a lake fills its basin')
   for (const k of L.cells) assert.ok(heights[k] < L.level, 'the lake floor is under the water')
