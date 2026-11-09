@@ -58,17 +58,27 @@ export function audit(o: AuditIn): string[] {
   const inLake = (x: number, y: number) => lakeV[Math.max(0, Math.min(N, Math.round((size / 2 - y) / c))) * w + Math.max(0, Math.min(N, Math.round((x + size / 2) / c)))] === 1
   const wetAt = (r: River, x: number, y: number) => inLake(x, y) || r.pools.some((p) => Math.hypot(p.at[0] - x, p.at[1] - y) < p.r)
   for (const r of o.rivers) {
-    let perched = 0, n = 0, drops = 0
+    let perched = 0, n = 0, drops = 0, thin = 0, flat = 0
     for (let i = 0; i < r.path.length - 1; i += 4) {
       const [x, y] = r.path[i], [x2, y2] = r.path[i + 1], l = Math.hypot(x2 - x, y2 - y) || 1, nx = -(y2 - y) / l, ny = (x2 - x) / l, off = r.wid[i] * 0.6 + 12
       if (sea != null && r.prof[i] <= sea + 0.05) continue
       if (!onMap(x + off, y + off) || !onMap(x - off, y - off) || inLake(x, y)) continue // off the map it is not drawn; in a lake the lake takes over
       n++
+      // the drawn water (a ribbon 0.3 m over the profile, 1.16 widths across) must show: count the stretches where the
+      // ground covers more than half of it (falls and plunge pools are drawn otherwise)
+      if (i > 0 && Math.abs(r.prof[i - 1] - r.prof[i + 1]) < 2 && !r.pools.some((p) => Math.hypot(p.at[0] - x, p.at[1] - y) < p.r)) {
+        flat++
+        const half = r.wid[i] * 0.58, lvl = r.prof[i] + 0.3
+        let seen = 0
+        for (const s of [-0.9, -0.6, -0.3, 0, 0.3, 0.6, 0.9]) if (Hb(x + nx * half * s, y + ny * half * s) < lvl) seen++
+        if (seen < 4) thin++
+      }
       const bank = (s: number) => { const bx = x + nx * off * s, by = y + ny * off * s; return pathNearFast(r.path, bx, by, off * 0.8).d < off * 0.6 || wetAt(r, bx, by) ? Infinity : Hb(bx, by) } // a sample in another loop of the river is no bank
       if (bank(1) < r.prof[i] - 0.8 || bank(-1) < r.prof[i] - 0.8) perched++
       if (i >= 4 && r.prof[i - 4] - r.prof[i] > 8 && !(i >= 8 && r.prof[i - 8] - r.prof[i - 4] > 8)) drops++ // a cascade of steps is one fall
     }
     say(perched > n * 0.05 ? 'warn' : 'ok', `river ${r.id}: ${pct(perched, n)}% of its course has a bank below the water${perched > n * 0.05 ? ' (it runs along a slope or a ridge: let it follow its valley, or give it waypoints in the valley floor)' : ''}; ${drops} falls`)
+    say(thin > flat * 0.02 ? 'warn' : 'ok', `river ${r.id}: ${pct(thin, flat)}% of its course is hidden or thinned by the ground (${thin} of ${flat} samples)`)
   }
 
   // lakes: a natural shore is ragged, not a circle; and it holds its level

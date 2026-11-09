@@ -32,7 +32,7 @@ export class VolumeLod {
     const v = b.volume!
     for (let k = 0; k < WORKERS; k++) {
       const w = new Worker(new URL('./volume.worker.ts', import.meta.url), { type: 'module' })
-      w.postMessage({ init: { N: b.N, size: b.size, heights: b.heights, colors: b.colors, surf: b.surf, sea: b.sea, rocks: v.rocks, rockMap: v.rockMap, seed: v.seed } })
+      w.postMessage({ init: { N: b.N, size: b.size, heights: b.heights, colors: b.colors, surf: b.surf, sea: b.sea, rocks: v.rocks, rockMap: v.rockMap, seed: v.seed, wet: v.wet } })
       w.onmessage = (e: MessageEvent<{ key: string; ch: VolumeChunk | null }>) => { this.busy[k]--; this.receive(e.data.key, e.data.ch) }
       this.workers.push(w); this.busy.push(0)
     }

@@ -7,15 +7,20 @@ import { FOG, HEAD, U } from './shaders.ts'
 export const WATER_U = {
   tHeight: { value: null as THREE.Texture | null }, uGrid: { value: new THREE.Vector2(1, 1) },
   tRefl: { value: null as THREE.Texture | null }, uReflMat: { value: new THREE.Matrix4() }, uReflLevel: { value: -1e9 }, uHasRefl: { value: 0 },
+  /** metres one pixel covers per metre of distance (set on resize) */ uPxK: { value: 0.001 },
   uZenith: { value: new THREE.Color() }, uSunCol: { value: new THREE.Color() }, uSunI: { value: 1 }, uAmb: { value: new THREE.Color() },
 }
 const V = /* glsl */ `
 #include <common>
 #include <logdepthbuf_pars_vertex>
-attribute vec2 flow;
+attribute vec2 flow; attribute vec2 across; uniform float uPxK;
 varying vec3 vAtmoPos; varying vec2 vFlow; varying vec3 vN;
 void main() {
   vec4 w = modelMatrix * vec4(position, 1.0);
+  // a river is never drawn narrower than about 1.5 pixels: far away it widens on screen (inside the opening the volume
+  // ground keeps for water at every level of detail) instead of breaking into dashes; up close it keeps its true width
+  float hw = length(across);
+  if (hw > 0.0) w.xz += across / hw * max(0.0, 0.75 * uPxK * length(cameraPosition - w.xyz) - hw);
   vAtmoPos = w.xyz; vFlow = flow; vN = normalize(mat3(modelMatrix) * normal);
   gl_Position = projectionMatrix * viewMatrix * w;
   #include <logdepthbuf_vertex>

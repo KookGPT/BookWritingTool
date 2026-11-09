@@ -288,19 +288,21 @@ export function carveRiver(g: Grid, r: RiverIn, sea: number | null, lakeAt: (x: 
   // the running minimum is a staircase wherever the floor is bumpy: a fall at every dip. A river wears small steps back
   // into a steady incline (rapids) and keeps only the big ones as falls, one per reach.
   {
-    const F = 10, lip = new Uint8Array(n), runs: [number, number, number][] = [] // [first step, last step, drop]
+    // sizes follow the river: a fall is a step over 2.5 channel depths (else rapids), falls closer than 7 widths are one
+    // reach, and the grade is read over 8 widths (a creek and a great river both)
+    const F = Math.max(6, r.depth * 2.5), reach = Math.max(150, r.width * 7), lip = new Uint8Array(n), runs: [number, number, number][] = [] // [first step, last step, drop]
     for (let i = 0; i + 3 < n; i++) if (prof[i] - prof[i + 3] > F && prof[i] - prof[i + 1] > 0.5) { // a big step close ahead, starting here
       let j = i; while (j + 1 < n && prof[j] - prof[j + 1] > 0.5) j++
       const last = runs[runs.length - 1]
       if (last && i <= last[1] + 1) { last[1] = Math.max(last[1], j); last[2] = prof[last[0]] - prof[last[1]] } else runs.push([i, j, prof[i] - prof[j]])
       i = j
     }
-    // one fall per 250 m: the biggest of any that close together
-    const keep = runs.filter((r) => !runs.some((o) => o !== r && Math.abs(o[0] - r[0]) * step < 250 && (o[2] > r[2] || (o[2] === r[2] && o[0] < r[0]))))
+    // one fall per reach: the biggest of any that close together
+    const keep = runs.filter((r) => !runs.some((o) => o !== r && Math.abs(o[0] - r[0]) * step < reach && (o[2] > r[2] || (o[2] === r[2] && o[0] < r[0]))))
     for (const [a, b] of keep) for (let k = a; k < b; k++) lip[k] = 1
-    // allowed fall per step elsewhere: a little steeper than the reach's own grade over about 300 m, leaving the falls
+    // allowed fall per step elsewhere: a little steeper than the reach's own grade, leaving the falls
     // themselves out of that grade (else every step beside a fall would pass as one)
-    const W = Math.round(300 / step), out = prof.slice(), fell = new Float64Array(n)
+    const W = Math.round(Math.max(150, r.width * 8) / step), out = prof.slice(), fell = new Float64Array(n)
     for (let i = 1; i < n; i++) fell[i] = fell[i - 1] + (lip[i - 1] ? prof[i - 1] - prof[i] : 0)
     for (let i = n - 2; i >= 0; i--) {
       if (lip[i]) continue

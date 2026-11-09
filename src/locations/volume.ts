@@ -11,7 +11,11 @@ import type { Rock } from './terrain.ts'
 
 export interface VolumeChunk { pos: Float32Array; nor: Float32Array; col: Uint8Array; surf: Uint8Array; idx: Uint32Array }
 /** What the field needs from a build. `rockMap` is the colour of the rock under each grid vertex (sRGB bytes). */
-export interface FieldIn { N: number; size: number; heights: Float32Array; colors: Uint8Array; surf: Uint8Array; sea: number | null; rocks: Rock[]; rockMap: Uint8Array; seed: number }
+export interface FieldIn {
+  N: number; size: number; heights: Float32Array; colors: Uint8Array; surf: Uint8Array; sea: number | null; rocks: Rock[]; rockMap: Uint8Array; seed: number
+  /** 1 where a grid vertex lies under water (river channel, lake, plunge pool): coarse meshes keep it open. */
+  wet?: Uint8Array
+}
 
 const sstep = (a: number, b: number, x: number) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t) }
 // corners of a cube (bit 1: +x, 2: +y, 4: +z) and its twelve edges
@@ -74,10 +78,22 @@ export function volumeField(o: FieldIn) {
     }
     return d
   }
-  /** Signed distance to the land (> 0 in the air). */
-  const dens = (x: number, y: number, z: number, fine = 1) => {
+  /** The ground a mesh of voxel `v` stands on. A coarse cube only samples its corners, so water narrower than a cube
+   * (a river channel, a gorge, a lake's edge) would be closed over and vanish at a distance; where the cube's footprint
+   * holds water, its column takes the lowest underwater ground in it, so water stays open at every level of detail. */
+  const wet = o.wet
+  const Hv = (x: number, z: number, v: number) => {
+    const h = H(x, z)
+    if (!wet || v <= c * 1.2) return h
+    const r = v * 0.5, i0 = Math.max(0, Math.floor((x - r + half) / c)), i1 = Math.min(N, Math.ceil((x + r + half) / c)), j0 = Math.max(0, Math.floor((z - r + half) / c)), j1 = Math.min(N, Math.ceil((z + r + half) / c))
+    let m = h
+    for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) if (wet[j * w + i]) m = Math.min(m, heights[j * w + i])
+    return m
+  }
+  /** Signed distance to the land (> 0 in the air); `hh` is the column's ground when the caller already knows it. */
+  const dens = (x: number, y: number, z: number, fine = 1, hh?: number) => {
     const gx = bil(gxA, x, z), gz = bil(gzA, x, z), g = Math.hypot(gx, gz)
-    let d = (y - H(x, z)) / Math.sqrt(1 + g * g)
+    let d = (y - (hh ?? H(x, z))) / Math.sqrt(1 + g * g)
     const s = sstep(0.85, 1.7, g)
     if (s > 0) {
       d += bedding(x, y, z, 1.6 * s, fine)
@@ -100,7 +116,7 @@ export function volumeField(o: FieldIn) {
     const ia = -2, ib = n + 2, cw = ib - ia + 1 // columns, with the overlap cube and one more for the faces on its edge
     const col = (i: number) => x0 + i * v, row = (k: number) => z0 + k * v
     const Hc = new Float32Array((cw + 2) * (cw + 2)) // heights with one more ring for the neighbourhoods
-    for (let k = ia - 1; k <= ib + 1; k++) for (let i = ia - 1; i <= ib + 1; i++) Hc[(k - ia + 1) * (cw + 2) + i - ia + 1] = H(col(i), row(k))
+    for (let k = ia - 1; k <= ib + 1; k++) for (let i = ia - 1; i <= ib + 1; i++) Hc[(k - ia + 1) * (cw + 2) + i - ia + 1] = Hv(col(i), row(k), v)
     let yMin = Infinity
     for (const h of Hc) yMin = Math.min(yMin, h)
     const y0 = Math.floor((yMin - M - 20) / v) * v
@@ -117,8 +133,8 @@ export function volumeField(o: FieldIn) {
     }
     const D = new Float32Array(total)
     for (let k = ia; k <= ib; k++) for (let i = ia; i <= ib; i++) {
-      const q = (k - ia) * cw + i - ia, x = col(i), z = row(k)
-      for (let j = clo[q]; j <= chi[q]; j++) D[off[q] + j - clo[q]] = dens(x, y0 + j * v, z, fine)
+      const q = (k - ia) * cw + i - ia, x = col(i), z = row(k), hh = Hc[(k - ia + 1) * (cw + 2) + i - ia + 1]
+      for (let j = clo[q]; j <= chi[q]; j++) D[off[q] + j - clo[q]] = dens(x, y0 + j * v, z, fine, hh)
     }
     const at = (i: number, j: number, k: number) => { const q = (k - ia) * cw + i - ia; return j < clo[q] ? -1e3 : j > chi[q] ? 1e3 : D[off[q] + j - clo[q]] }
     // a vertex in every cube the surface passes through, at the mean of its edge crossings
@@ -160,7 +176,8 @@ export function volumeField(o: FieldIn) {
     const nv = P.length / 3, nor = new Float32Array(nv * 3), cl = new Uint8Array(nv * 3), sf = new Uint8Array(nv * 4), e = v * 0.5
     for (let p = 0; p < nv; p++) {
       const x = P[p * 3], y = P[p * 3 + 1], z = P[p * 3 + 2]
-      let nx = dens(x + e, y, z, fine) - dens(x - e, y, z, fine), ny = dens(x, y + e, z, fine) - dens(x, y - e, z, fine), nzz = dens(x, y, z + e, fine) - dens(x, y, z - e, fine)
+      const hx0 = Hv(x - e, z, v), hx1 = Hv(x + e, z, v), hz0 = Hv(x, z - e, v), hz1 = Hv(x, z + e, v), h0 = Hv(x, z, v)
+      let nx = dens(x + e, y, z, fine, hx1) - dens(x - e, y, z, fine, hx0), ny = dens(x, y + e, z, fine, h0) - dens(x, y - e, z, fine, h0), nzz = dens(x, y, z + e, fine, hz1) - dens(x, y, z - e, fine, hz0)
       const l = Math.hypot(nx, ny, nzz) || 1
       nx /= l; ny /= l; nzz /= l
       nor[p * 3] = nx; nor[p * 3 + 1] = ny; nor[p * 3 + 2] = nzz

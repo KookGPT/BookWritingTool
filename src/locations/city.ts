@@ -64,7 +64,7 @@ export interface LocationDoc {
   terrain: TerrainFeature[]; districts: District[]; structures: Structure[]; views?: View[]
 }
 /** Bump when the generator changes, so builds saved in the browser are redone. */
-export const BUILD_VERSION = 30
+export const BUILD_VERSION = 32
 export const TSTRIDE = 6 // trees: x y z scale kind shade
 export const TREE = { broadleaf: 0, spruce: 1, pine: 2, cypress: 3, larch: 4, orchard: 5, bush: 6, olive: 7, palm: 8 } as const
 const DEG = Math.PI / 180
@@ -136,11 +136,11 @@ export interface CityBuilt {
   geo: Record<Mat, { pos: Float32Array; nor: Float32Array; col: Float32Array }>
   /** Finer detail of the great structures (kit.ts TIERS): [ornament, carving], drawn only within reach of the camera. */
   detail: Record<Mat, { pos: Float32Array; nor: Float32Array; col: Float32Array }>[]
-  water: Float32Array; rivers: { pos: Float32Array; uv: Float32Array }; falls: Float32Array; waterLevels: number[]
+  water: Float32Array; rivers: { pos: Float32Array; uv: Float32Array; across: Float32Array }; falls: Float32Array; waterLevels: number[]
   counts: { buildings: number; structures: number; roads: number; trees: number }; ms: number; stages: Record<string, number>
   /** For the volume ground (volume.ts): the free-standing rocks it carves, and the rock colour under each grid vertex
    * (sRGB). Absent when the recipe draws the old height grid. */
-  volume?: { rocks: Rock[]; rockMap: Uint8Array; seed: number }
+  volume?: { rocks: Rock[]; rockMap: Uint8Array; seed: number; wet: Uint8Array }
   /** The realism audit (check.ts): one line per finding. */
   audit: string[]
 }
@@ -712,8 +712,9 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
   const geo = typed(b.geo), detail = b.tiers.slice(1).map(typed)
   lap('structures', 'Filling the lakes and rivers')
   // lake surfaces: every grid cell touching a flooded vertex whose lowest corner is under the water
+  const lakeDrawn = new Set<number>() // cells a lake surface covers: a river gives way to the lake only there
   for (const l of lakes) {
-    const cellLo = (i: number, j: number) => Math.min(heights[j * w1 + i], heights[j * w1 + i + 1], heights[(j + 1) * w1 + i], heights[(j + 1) * w1 + i + 1]), done = new Set<number>()
+    const cellLo = (i: number, j: number) => Math.min(heights[j * w1 + i], heights[j * w1 + i + 1], heights[(j + 1) * w1 + i], heights[(j + 1) * w1 + i + 1]), done = lakeDrawn
     for (const v of l.cells) {
       const vi = v % w1, vj = Math.floor(v / w1)
       for (const [i, j] of [[vi - 1, vj - 1], [vi, vj - 1], [vi - 1, vj], [vi, vj]]) {
@@ -737,7 +738,7 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
     }
   }
   // rivers: a ribbon on the water surface (v runs downstream for the flow), widening downstream; falls where it drops
-  const rp: number[] = [], ruv: number[] = [], falls: number[] = []
+  const rp: number[] = [], ruv: number[] = [], rac: number[] = [], falls: number[] = [] // rac: each vertex's offset from the centre line (for a minimum width on screen)
   for (const rv of rivers) {
     const pts = resample(rv.path, 5).map((p, i) => { const k = clamp((i * 5) / rv.step, 0, rv.prof.length - 1.001), q = Math.floor(k); return [p[0], lerp(rv.prof[q], rv.prof[q + 1], k - q) + 0.3, -p[1], lerp(rv.wid[q], rv.wid[q + 1], k - q)] })
     const m = pts.length, hl = (i: number) => Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][2] - pts[i][2]) || 1
@@ -748,11 +749,15 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
     const quad = (x0: number, y0: number, z0: number, w0: number, x1: number, y1: number, z1: number, w1: number, nx: number, nz: number, v0: number, v1: number) => {
       rp.push(x0 - nx * w0, y0, z0 - nz * w0, x0 + nx * w0, y0, z0 + nz * w0, x1 - nx * w1, y1, z1 - nz * w1, x1 - nx * w1, y1, z1 - nz * w1, x0 + nx * w0, y0, z0 + nz * w0, x1 + nx * w1, y1, z1 + nz * w1)
       ruv.push(0, v0, 1, v0, 0, v1, 0, v1, 1, v0, 1, v1)
+      rac.push(-nx * w0, -nz * w0, nx * w0, nz * w0, -nx * w1, -nz * w1, -nx * w1, -nz * w1, nx * w0, nz * w0, nx * w1, nz * w1)
     }
     let v = 0 // metres along the water, down the falls too, so the flow pattern keeps its scale on a curtain
     for (let i = 0; i < m - 1; i++) {
       const [ax, ay, az, aw] = pts[i], [bx, by, bz, bw] = pts[i + 1], dx = bx - ax, dz = bz - az, l = hl(i), nx = -dz / l, nz = dx / l
-      if ((T.sea != null && ay < T.sea + 0.32 && by < T.sea + 0.32) || lakeAt(ax, -az) != null) { v += l; continue } // the sea or a lake takes over
+      // the sea or a lake takes over, but only where its surface is drawn (a lake's vertex nearby is not enough: where
+      // its edge cells stay dry the river would be broken into pieces)
+      const mi = Math.floor(((ax + bx) / 2 + size / 2) / cellM), mj = Math.floor(((az + bz) / 2 + size / 2) / cellM)
+      if ((T.sea != null && ay < T.sea + 0.32 && by < T.sea + 0.32) || lakeDrawn.has(mj * w1 + mi)) { v += l; continue }
       if (fall[i]) {
         // a fall is a curtain, not a plank: the water leaves the lip level and drops along a throw curve (out with time,
         // down with time squared) over the whole run, a little narrower than the river (the edges stay on the rock)
@@ -794,7 +799,14 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
     const base = doc.rock ? rockHex(doc.rock, 'limestone') : climate === 'alpine' || climate === 'boreal' ? ROCKS.granite : ROCKS.limestone
     for (let a = 0; a < w1 * w1; a++) put(a, base)
     for (const wl of T.walls) for (const p of resample(wl.pts, 8)) stamp(p[0], p[1], wl.face + 40, (a) => put(a, wl.rock))
-    volume = { rocks: T.rocks, rockMap, seed }
+    // every vertex under water (river channels, lakes, plunge pools), so coarse meshes never close over it
+    const wet = new Uint8Array(w1 * w1)
+    for (const l of lakes) for (const a of l.cells) if (heights[a] < l.level) wet[a] = 1
+    for (const rv of rivers) {
+      for (let i = 0; i < rv.path.length; i += 2) stamp(rv.path[i][0], rv.path[i][1], rv.wid[i] * 0.58 + cellM * 0.5, (a) => { if (heights[a] < rv.prof[i] + 0.3) wet[a] = 1 })
+      for (const p of rv.pools) stamp(p.at[0], p.at[1], p.r, (a) => { if (heights[a] < p.lvl + 0.3) wet[a] = 1 })
+    }
+    volume = { rocks: T.rocks, rockMap, seed, wet }
   }
   const auditLines = audit({ N, size, heights, sea: T.sea, rivers, lakes, towns, roads: [...roads, ...fronts], glaciers: T.glaciers, walls: T.walls, houses, volume: vol })
   lap('audit')
@@ -802,7 +814,7 @@ export function buildCity(doc0: LocationDoc, onStage?: (stage: string) => void):
   return {
     size, N, heights, colors, surf, minH, maxH, sea: T.sea, outer: { size: os, n: on, heights: oh, colors: ocol }, fields: { n: FT, tex: fieldTex }, cliffMask, marks: { n: MT, tex: marks }, steam: new Float32Array(steam), snowline: snow,
     parts, chimneys: new Float32Array(out.chimneys), trees: new Float32Array(trees), rocks: new Float32Array(rocks), lamps: new Float32Array(lamps),
-    geo, detail, volume, water: new Float32Array(wp), rivers: { pos: new Float32Array(rp), uv: new Float32Array(ruv) }, falls: new Float32Array(falls), waterLevels: levels,
+    geo, detail, volume, water: new Float32Array(wp), rivers: { pos: new Float32Array(rp), uv: new Float32Array(ruv), across: new Float32Array(rac) }, falls: new Float32Array(falls), waterLevels: levels,
     counts: { buildings: out.count, structures: structs.length, roads: roads.length, trees: trees.length / TSTRIDE }, ms: Date.now() - t0, stages, audit: auditLines,
   }
 }

@@ -3,7 +3,7 @@
 The plan, status and session log for the **Locations** tab (`/locations`, `src/locations/`).
 CLAUDE.md explains how the code works. This file covers what the tool is for, where it stands, and what comes next.
 
-Last updated: 2026-11-09, GFX-1a (weathering and cut stone).
+Last updated: 2026-11-09, FIX-6 (rivers never vanish).
 
 ---
 
@@ -177,11 +177,9 @@ Each problem has an ID. Fix items refer to these IDs.
 | P21 | The build cache misses for showcase and active-lands: they rebuild on every visit in the pane (cliff-test hits) | `idbSet` in `LocationsPage.tsx` failing on big builds? Old builds are never deleted (IndexedDB held `loc-build:25..30:cliff-test` at once and no showcase entry), so storage likely fills up: delete other versions' keys when saving | medium |
 | P22 | A thin straight horizontal line across the far cliffs (cliff-test `view-sea-cliffs`, both grounds) | maybe the backdrop skirt or the sea plane edge (see P8) | low |
 | P23 | Floating grey quads near the river cathedral's base (showcase `structure-river-cathedral`) | a kit part or detail-tier chunk placed off the ground | low |
-| P24 | Where the river leaves Glacier Lake (showcase, about -1100, 2250) its ribbon is broken into pieces with gaps | ribbon segments skipped wherever a lake cell is under them (`lakeAt` in the water stage of `city.ts`) | medium |
 | P25 | Deltas are a simple fan: channels from one apex, no real branching, no levees or bars (active-lands) | `carveDelta` in `hydro.ts`; see ENV-5 | medium |
 | P26 | Jade River reaches the sea over a cliff fall, so its delta starts under a plunge pool | the coast cliff is cut after the river's valley; the river does not cut its own way through the cliff | low |
 | P27 | A short flat ribbon ledge sticks out past the rock at the top of a fall | the last ribbon segment above the lip is drawn at full width | low |
-| P28 | (user, 2026-11-09) Rivers get very thin and drop out in places | the ribbon is `wid * 1.16` wide and sits 0.3 m over the carved surface: where the bed is narrow or the banks crowd in, the ground covers it. The user suggests wider and deeper channels. The FIX-1 fall thresholds (10 m, 250 m) also don't scale with river width yet | high |
 
 ---
 
@@ -191,9 +189,8 @@ Milestones are in order. Each milestone lists its items in order. An item is siz
 
 ### Next up (the short queue)
 
-1. **FIX-6** Rivers never vanish (P28; the user saw them get very thin and drop out)
-2. **GFX-1b** Surface detail up close (P16)
-3. **DET-1** Detail tiers by scene size (P15)
+1. **GFX-1b** Surface detail up close (P16)
+2. **DET-1** Detail tiers by scene size (P15)
 3. **FIX-2** Glacier sits in its valley (P3)
 4. **PERF-1** Lighter volume ground (P6)
 5. **SH-0** Stones Hold reference pack (needs the user)
@@ -221,8 +218,7 @@ Makes every later session targeted: change, re-shoot, compare.
   - Done when: low shots along all four map edges show no crack or step.
 - **DEMO-1 Cold/arid demo** (P11). Fjord, mesas, canyon and dunes, with one town each. Fix what it reveals as new FIX items.
   - Done when: it builds, the audit is clean, and the shots have been looked at.
-- **FIX-6 Rivers never vanish** (P28). Find every place a river ribbon gets thin or disappears under the ground (an audit check: share of the course where the drawn ribbon is under the ground beside it, or narrower than the river's width). Fix it for every river: a channel cut wide and deep enough for the ribbon everywhere (the user suggests wider and deeper), the ribbon matched to the carved bed, and the FIX-1 fall thresholds scaled with river width.
-  - Done when: the new audit check is 0 on every demo, and low passes along each river show it unbroken.
+- ~~FIX-6 Rivers never vanish~~ (done 2026-11-09, see the log).
 
 ### M3 Graphical quality
 Raises the look of every scene at once. Each item is done when the standard shots are clearly better side by side, with no fps loss over 15%.
@@ -320,6 +316,7 @@ Each kit is done when: three seeds look different, they sit correctly on uneven 
 Quays along town shores (P12); a field-wise merge for locations (P13); showing locations on the Map or Globe; scene and wiki pins.
 - Braided rivers: wide gravel beds with shifting channels and bars below glaciers (the showcase's upper valley would have one).
 - Shot sheets that score each pair by pixel difference, so the sheet opens on what changed most.
+- Rivers by season: high water and brown floods in spring melt, low water with gravel bars showing in late summer (the season switch exists; the channel would need a bankfull and a low-water level).
 - Age as a recipe knob: a place (or one structure) says how old and how kept it is, and weathering, moss, missing render and broken tiles follow (feeds ENV-3 ruins).
 - Rivers in winter: ice along the banks, frozen falls as hanging icicle curtains, snow on the gravel bars (the season switch already exists).
 
@@ -356,6 +353,16 @@ These block or shape items. Answer any time; write the answer into section 7.
 ---
 
 ## 8. Session log (newest first)
+
+**2026-11-09: FIX-6 rivers never vanish** (not committed yet).
+- Measured in the browser, not guessed: rays cast down onto every river point as it is drawn, from each saved view. The height grid was fine (new audit line "hidden or thinned by the ground": 0% everywhere); the volume ground was not. Its coarse levels sample the grid only at cube corners, so any channel narrower than a cube (about distance/150) closed over: from "The whole valley" 79 of 246 river points were under the ground, 21 by over 2 m, all 5-10 km away. (First count said 224: the raycaster also hits hidden LOD meshes; count visible ones only.)
+- Fix for any water (`volume.ts` `Hv`): the build marks every grid vertex under water (`volume.wet`: river channels, lakes, plunge pools); a coarse column whose footprint holds water takes the lowest underwater ground in it, so water keeps an opening at least one cube wide at every level of detail. Now 0-1 of 241 points covered from every saved view. Test: a 10 m channel on an 8 m grid meshed with 32 m cubes closes without the mask and stays open with it.
+- Rivers keep at least ~1.5 px on screen (`water.ts`: ribbon vertices carry their offset from the centre line, `across`; far away they move out to 0.75 px * distance, inside that opening), so a distant river is a line, not dashes. Up close nothing changes.
+- P24 fixed: a river gives way to a lake only where the lake surface is drawn (cells in `lakeDrawn`), not wherever a lake vertex is near; the ribbon out of Glacier Lake is whole.
+- FIX-1 thresholds scale with the river: a fall is a step over 2.5 channel depths (min 6 m), falls closer than 7 widths are one, the grade is read over 8 widths (demos unchanged: 10 m / ~250 m / ~290 m for them).
+- Not done: wider and deeper channels in general. The measurements showed the width was not the cause, so true widths stay; the minimum on screen covers the far view. If rivers still look too thin up close, that is a recipe width (or a new default) to decide with the user.
+- Shots: `fix6-` sets vs `gfx1-`: the whole-valley view now shows the river as one line from the town up to the lake.
+- Next: GFX-1b.
 
 **2026-11-09: `c768189` GFX-1a weathering and cut stone.**
 - GFX-1 split into 1a (this), 1b surface detail up close, 1c built ground.

@@ -193,7 +193,7 @@ export class LocScene {
     U.tGround.value = this.heightTex; U.uGroundGrid.value.set(b.size, b.N) // weathering knows how high a surface stands
     const water: THREE.Object3D[] = []
     if (b.water.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(b.water, 3)); g.setAttribute('flow', new THREE.BufferAttribute(new Float32Array((b.water.length / 3) * 2), 2)); g.computeVertexNormals(); const m = new THREE.Mesh(g, this.lakeMat); m.renderOrder = 1; water.push(m) }
-    if (b.rivers.pos.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(b.rivers.pos, 3)); g.setAttribute('flow', new THREE.BufferAttribute(b.rivers.uv, 2)); g.computeVertexNormals(); const m = new THREE.Mesh(g, this.riverMat); m.renderOrder = 1; water.push(m) }
+    if (b.rivers.pos.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(b.rivers.pos, 3)); g.setAttribute('flow', new THREE.BufferAttribute(b.rivers.uv, 2)); if (b.rivers.across) g.setAttribute('across', new THREE.BufferAttribute(b.rivers.across, 2)); g.computeVertexNormals(); const m = new THREE.Mesh(g, this.riverMat); m.renderOrder = 1; water.push(m) }
     if (b.sea != null) { const g = new THREE.PlaneGeometry(FAR * 2, FAR * 2, 64, 64).rotateX(-Math.PI / 2); g.setAttribute('flow', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2)); const m = new THREE.Mesh(g, this.seaMat); m.position.y = b.sea; m.renderOrder = 1; water.push(m) }
     this.world.add(...water); this.noReflect.push(...water)
     this.waterSamples = b.waterLevels.map((level) => ({ level, pts: [] as [number, number][] }))
@@ -379,6 +379,7 @@ export class LocScene {
     const pr = this.renderer.getPixelRatio()
     this.grade.uniforms.uRes.value.set(w * pr, h * pr)
     this.reflection.resize(w * pr, h * pr)
+    WATER_U.uPxK.value = (2 * Math.tan((this.camera.fov * Math.PI) / 360)) / (h * pr) // for rivers' least width on screen
   }
 
   /** The water level to mirror this frame: the water body nearest to where the camera is looking. */

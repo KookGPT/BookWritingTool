@@ -163,6 +163,17 @@ assert.ok(idx.near(roads[0].pts[3][0], roads[0].pts[3][2]).d < 0, 'a point on th
   assert.ok(Math.abs(meanY(big) - meanY(small)) < 3, 'levels of detail agree')
 }
 {
+  // water never vanishes at a distance: a 10 m channel on an 8 m grid, meshed with 32 m cubes, stays open (under its
+  // water level) when the field knows where the water is, and is closed over when it does not
+  const N = 128, size = 1024, c = size / N, w = N + 1, heights = new Float32Array(w * w).fill(10), wet = new Uint8Array(w * w)
+  for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) if (Math.abs(-size / 2 + i * c - 8) < 5) { heights[j * w + i] = 6; wet[j * w + i] = 1 }
+  const base = { N, size, heights, colors: new Uint8Array(w * w * 3), surf: new Uint8Array(w * w * 4), sea: null, rocks: [], rockMap: new Uint8Array(w * w * 3), seed: 1 }
+  const lowest = (m: ReturnType<ReturnType<typeof volumeField>['mesh']>) => { let lo = Infinity; for (let k = 0; k < m!.pos.length; k += 3) if (Math.abs(m!.pos[k] - 8) < 20) lo = Math.min(lo, m!.pos[k + 1]); return lo }
+  assert.ok(lowest(volumeField(base).mesh(-128, -128, 8, 32)) > 9.5, 'without the water mask a coarse mesh closes the channel (the case this guards)')
+  assert.ok(lowest(volumeField({ ...base, wet }).mesh(-128, -128, 8, 32)) < 9.5, 'with it the channel stays open under the water')
+  assert.ok(Math.abs(lowest(volumeField({ ...base, wet }).mesh(-128, -128, 64, 4)) - 6) < 1.5, 'fine meshes are unchanged: the bed where it is')
+}
+{
   // standard shots: every view, overview, low pass, every structure and town, unique names, compass headings
   const shots = standardShots(show, () => 100), names = shots.map((s) => s[0])
   assert.equal(new Set(names).size, names.length, 'shot names are unique')
