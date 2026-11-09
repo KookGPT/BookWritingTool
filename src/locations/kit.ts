@@ -7,7 +7,7 @@ import { rng } from '../world/noise.ts'
 export type V = [number, number, number]
 export type Col = [number, number, number]
 export type P2 = [number, number]
-export const MATS = ['stone', 'roof', 'dark', 'glass', 'stained', 'metal', 'water', 'leaf', 'road', 'cloth'] as const
+export const MATS = ['stone', 'roof', 'dark', 'glass', 'stained', 'metal', 'water', 'leaf', 'road', 'cloth', 'rock'] as const
 export type Mat = typeof MATS[number]
 interface Geo { pos: number[]; nor: number[]; col: number[] }
 const DEG = Math.PI / 180
@@ -840,5 +840,75 @@ export function harbour(b: Builder, x: number, y: number, z: number, yaw: number
       })
     }
     if (k === nP - 1) { b.cyl('stone', u, 1.4, pl - 2, 2.2, 1.8, 14, 14, C); b.cyl('stained', u, 15.4, pl - 2, 1.4, 1.4, 2, 10, lin('#f0c060')); b.pyr('roof', u, 17.4, pl - 2, 2, 2.6, 8, lin('#4a5560')); b.lamp(u, 16.4, pl - 2) }
+  }
+}
+
+// ---------- parish church ----------
+/** Every town's own church, in its building culture: a steep gothic nave with a west tower and needle spire (central),
+ * a low romanesque nave with a free-standing campanile (mediterranean), a rubble chapel with a slim shingled spire
+ * (mountain), or a cross-in-square church with a dome on a drum (eastern). Front (west door) at local z = 0, facing +z. */
+export function church(b: Builder, x: number, y: number, z: number, yaw: number, culture: string, scale: number, seed: number, C: Col) {
+  const R = rng(seed), C2 = mix(C, [0, 0, 0], 0.15), dark: Col = [0.03, 0.03, 0.035]
+  b.frame(x, y, z, yaw, scale)
+  const nw = culture === 'mountain' ? 9 : 13, nl = culture === 'mountain' ? 20 : 34
+  b.box('stone', -nw / 2 - 0.6, -6, -nl - 1, nw / 2 + 0.6, 0.4, 0.6, C2) // plinth into the ground
+  if (culture === 'eastern') {
+    const s = 22, wh = 11, roofC = lin('#4f6a7a')
+    b.box('stone', -s / 2, 0, -s, s / 2, wh, 0, C)
+    b.cyl('stone', 0, wh, -s / 2, 5.2, 5.2, 4.5, 16, C); b.lathe('roof', 0, wh + 4.5, -s / 2, dome(5.6, 5.4), 20, roofC); b.cyl('metal', 0, wh + 9.9, -s / 2, 0.2, 0.05, 2, 6, GOLD)
+    for (const [cx, cz] of [[-s / 2 + 3, -3], [s / 2 - 3, -3], [-s / 2 + 3, -s + 3], [s / 2 - 3, -s + 3]]) { b.cyl('stone', cx, wh, cz, 1.8, 1.8, 1.6, 12, C); b.lathe('roof', cx, wh + 1.6, cz, dome(2, 1.9), 12, roofC) }
+    for (let i = 0; i < 3; i++) for (const zz of [0.04, -s - 0.04]) b.fill2('dark', lancet(1.2, 3.2, 5).slice(1, -1).map(([u, v]) => [u + (i - 1) * 5.5, v + 4] as P2), zz, dark, zz < 0)
+    b.cyl('stone', 0, 0, -s - 3.5, 4.5, 4.5, wh * 0.8, 16, C)
+    b.lathe('roof', 0, wh * 0.8, -s - 3.5, dome(4.6, 3), 14, roofC)
+    b.ring2('stone', roundArc(2.6, 4.4, 10), roundArc(1.9, 4.4, 10), 0, 0.5, C2)
+    b.fill2('dark', [[-1.9, 0], ...roundArc(1.9, 4.4, 10), [1.9, 0]], 0.05, dark)
+    return
+  }
+  // nave and chancel under a gabled roof, an apse at the east end
+  const wh = culture === 'mountain' ? 6 : culture === 'mediterranean' ? 10 : 12, pitch = culture === 'mediterranean' ? 0.32 : culture === 'mountain' ? 0.9 : 1.05
+  const roofC = culture === 'mediterranean' ? lin('#b8643a') : culture === 'mountain' ? lin('#5e4a38') : R() < 0.5 ? lin('#4a5058') : lin('#8a3e26')
+  b.box('stone', -nw / 2, 0, -nl, nw / 2, wh, 0, C)
+  const rh = (nw / 2 + 0.8) * pitch
+  b.prism('roof', [[-nw / 2 - 0.8, wh - 0.3], [nw / 2 + 0.8, wh - 0.3], [0, wh + rh - 0.3]], 'z', -nl - 0.6, 0.6, roofC)
+  b.prism('stone', [[-nw / 2, wh], [nw / 2, wh], [0, wh + (nw / 2) * pitch]], 'z', -0.05, 0.4, C)
+  b.cyl('stone', 0, 0, -nl, nw / 2, nw / 2, wh * 0.9, 12, C)
+  b.cyl('roof', 0, wh * 0.9, -nl, nw / 2 + 0.6, 0.2, (nw / 2) * pitch * 0.8, 12, roofC)
+  for (const sd of [-1, 1]) for (let i = 0; i < Math.floor(nl / 7); i++) b.within(sd * (nw / 2 + 0.02), 0, -4 - i * 7, (sd * Math.PI) / 2, () => b.fill2('dark', lancet(1.3, wh * 0.45, 5).slice(1, -1).map(([u, v]) => [u, v + wh * 0.25] as P2), 0, dark))
+  // west door, and a rose window except on mountain chapels
+  b.ring2('stone', lancet(3.4, 3.2, 6), lancet(2.4, 3.2, 6), 0, 0.7, C2); b.fill2('dark', lancet(2.4, 3.2, 6).slice(1, -1), 0.05, dark)
+  if (culture !== 'mountain') { b.ring2('stone', circle(2.4, 20, 0, wh * 0.72), circle(1.9, 20, 0, wh * 0.72), 0, 0.45, C2, true); b.fill2('stained', circle(1.9, 20, 0, wh * 0.72), 0.06, lin('#2a4a8a')) }
+  // the tower: on the west front, or free-standing beside the nave (a campanile)
+  const tw = culture === 'mountain' ? 4.2 : 6.5, th = culture === 'mountain' ? 18 : culture === 'mediterranean' ? 30 : 34
+  const [tx, tz] = culture === 'mediterranean' ? [nw / 2 + tw / 2 + 3, -nl * 0.35] : [0, tw / 2 - 0.5]
+  b.box('stone', tx - tw / 2, -4, tz - tw / 2, tx + tw / 2, th, tz + tw / 2, C)
+  for (let f = 0; f < 4; f++) b.within(tx, 0, tz, (f * Math.PI) / 2, () => b.fill2('dark', (culture === 'mediterranean' ? [[-0.9, 0], ...roundArc(0.9, 2.6, 8), [0.9, 0]] as P2[] : lancet(1.4, 2.4, 5).slice(1, -1)).map(([u, v]) => [u, v + th - 4.5] as P2), tw / 2 + 0.03, dark))
+  b.box('stone', tx - tw / 2 - 0.3, th - 0.4, tz - tw / 2 - 0.3, tx + tw / 2 + 0.3, th, tz + tw / 2 + 0.3, C2)
+  const spire = culture === 'mountain' ? th * 0.9 : th * 1.05
+  if (culture === 'mediterranean') b.pyr('roof', tx, th, tz, tw * 0.62, tw * 0.55, 4, roofC)
+  else if (culture === 'central' && R() < 0.35) { b.cyl('stone', tx, th, tz, tw * 0.3, tw * 0.3, 1.5, 8, C); b.lathe('roof', tx, th + 1.5, tz, [[tw * 0.45, 0], [tw * 0.55, 1.2], [tw * 0.4, 2.6], [tw * 0.12, 4], [tw * 0.3, 5.2], [tw * 0.06, 7.2], [0, 8.5]], 14, lin('#4f7a6e')) }
+  else { b.pyr('roof', tx, th, tz, tw * 0.72, spire, 8, culture === 'mountain' ? lin('#5e4a38') : lin('#4a5560')); b.cyl('metal', tx, th + spire, tz, 0.08, 0.05, 2.2, 6, GOLD, false) }
+}
+
+// ---------- market square ----------
+/** A paved market square (local x along its length) with a fountain, lamps at its corners and stalls under awnings. */
+export function market(b: Builder, x: number, y: number, z: number, a: number, w: number, l: number, bottom: number, seed: number, C: Col) {
+  const R = rng(seed), stalls = ['#a83a2a', '#2f5a7a', '#d8b04a', '#4a7a3a', '#e8dcc0', '#8a3a5a', '#c87a3a'], goods = ['#8a3a2a', '#c8a040', '#5a7a3a', '#c86a3a']
+  const pave = mix(C, lin('#8a8070'), 0.5), kerb = mix(pave, [1, 1, 1], 0.15)
+  b.frame(x, y, z, a)
+  b.box('road', -l / 2, bottom - y, -w / 2, l / 2, 0.12, w / 2, pave)
+  for (const sd of [-1, 1]) b.box('stone', -l / 2, 0.1, sd * w / 2 - 0.3, l / 2, 0.16, sd * w / 2 + 0.3, kerb)
+  const f = b.w(-l * 0.22, 0.12, 0)
+  fountain(b, f[0], f[1], f[2], Math.max(0.7, w / 40))
+  b.frame(x, y, z, a)
+  for (const [u, v] of [[-l / 2 + 2, -w / 2 + 2], [l / 2 - 2, -w / 2 + 2], [-l / 2 + 2, w / 2 - 2], [l / 2 - 2, w / 2 - 2], [0, -w / 2 + 2], [0, w / 2 - 2]]) { b.cyl('metal', u, 0.1, v, 0.09, 0.07, 4, 6, IRON, false); b.lamp(u, 4.3, v) }
+  const n = Math.round((l * w) / 240)
+  for (let i = 0; i < n; i++) { // stalls in loose rows on the far half
+    const u = l * (0.04 + 0.42 * R()), v = (R() - 0.5) * (w - 8), sw = 2.6 + R() * 1.4, sd = 2 + R() * 0.6, col = lin(stalls[Math.floor(R() * stalls.length)])
+    b.within(u, 0.12, v, (R() < 0.5 ? 0 : Math.PI / 2) + (R() - 0.5) * 0.2, () => {
+      for (const [px, pz] of [[-sw / 2, -sd / 2], [sw / 2, -sd / 2], [-sw / 2, sd / 2], [sw / 2, sd / 2]]) b.box('dark', px - 0.05, 0, pz - 0.05, px + 0.05, 2.3, pz + 0.05, lin('#3a2a1e'))
+      b.box('dark', -sw / 2, 0.75, -sd / 2 + 0.2, sw / 2, 0.85, sd / 2 - 0.2, lin('#5a4030'))
+      b.prism('cloth', [[-sd / 2 - 0.3, 2.1], [sd / 2 + 0.3, 2.1], [0, 2.75]], 'x', -sw / 2 - 0.2, sw / 2 + 0.2, col)
+      for (let k = 0; k < 4; k++) b.box('cloth', -sw / 2 + 0.3 + (k * (sw - 0.6)) / 4, 0.86, -0.4, -sw / 2 + 0.3 + (k * (sw - 0.6)) / 4 + 0.45, 1.05, 0.4, lin(goods[k]))
+    })
   }
 }

@@ -8,7 +8,7 @@
 import { rng } from '../world/noise.ts'
 
 export type P3 = [number, number, number] // x, height, z
-export interface Road { kind: 'main' | 'lane' | 'stairs'; width: number; pts: P3[]; wealth: number }
+export interface Road { kind: 'main' | 'street' | 'lane' | 'stairs'; width: number; pts: P3[]; wealth: number }
 export interface Grid { N: number; size: number; heights: Float32Array }
 type Hub = { x: number; z: number }
 
@@ -58,8 +58,8 @@ class Router {
         const nk = nj * w + ni
         if (block[nk] && nk !== b) continue
         const d = Math.hypot(di, dj) * this.cell, grade = Math.abs(h[nk] - h[k]) / d
-        if (grade > 0.33) continue
-        const c = d * (1 + 60 * Math.max(0, grade - 0.07) ** 2 + (grade > 0.12 ? 3 : 0)) * (onRoad[nk] ? 0.35 : 1)
+        if (grade > 0.3) continue
+        const c = d * (1 + 140 * Math.max(0, grade - 0.06) ** 2 + (grade > 0.1 ? 4 : 0)) * (onRoad[nk] ? 0.35 : 1)
         if (g[k] + c < g[nk]) {
           g[nk] = g[k] + c; from[nk] = k
           const [x, z] = this.xz(nk)
@@ -144,7 +144,7 @@ export function planRoads(o: RoadInput): Road[] {
   const add = (cells: number[], width: number) => {
     if (cells.length < 2) return
     mark(cells)
-    const pts = finish(cells.map((k) => router.xz(k)), H, 4, 14, 0.22)
+    const pts = finish(cells.map((k) => router.xz(k)), H, 4, 14, 0.15)
     roads.push({ kind: 'main', width, pts, wealth: 0.5 })
   }
   // which hubs to join: a minimum spanning tree (bridges count as already joined), then a few short extra links

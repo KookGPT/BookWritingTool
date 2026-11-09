@@ -61,7 +61,7 @@ void main() {
   col += uSunCol * uSunI * pow(max(dot(reflect(-uSun, n), V), 0.0), 380.0) * 3.0 * (1.0 - uNight);
   // foam: along shores, breaking waves on beaches, white water in steep rivers
   float fn = anoise(vec3(vAtmoPos.xz * 0.35, t * 0.5)) * 0.6 + anoise(vec3(vAtmoPos.xz * 1.3, t)) * 0.4;
-  float shore = (1.0 - smoothstep(0.0, 1.4, depth)) * smoothstep(0.35, 0.7, fn);
+  float shore = (1.0 - smoothstep(0.0, 1.4, depth)) * smoothstep(0.35, 0.7, fn) * (0.12 + 0.88 * uWaves); // surf on the sea; still water only laps
   float waves = uWaves * smoothstep(0.82, 0.97, sin(depth * 1.3 - t * 1.5 + fn * 4.0)) * (1.0 - smoothstep(1.0, 7.0, depth)) * smoothstep(0.2, 0.6, fn);
   float white = uMode > 0.5 ? clamp(steep * (0.6 + fn * 0.6) + smoothstep(0.62, 0.85, fn) * 0.35, 0.0, 1.0) : 0.0;
   col = mix(col, vec3(0.9, 0.93, 0.95) * (uAmb + uSunCol * light * 1.6), clamp(shore * 0.8 + waves * 0.75 + white, 0.0, 1.0));

@@ -231,7 +231,11 @@ export function emit(o: Out, s: Spec, x: number, z: number, yaw: number, H: (x: 
 }
 
 // ---------- placing ----------
-export interface DistrictIn { culture: Culture | 'mixed'; inside: (x: number, z: number) => number; bbox: [number, number, number, number]; density: number; wealth: (x: number, z: number, h: number) => number; steep: boolean }
+export interface DistrictIn {
+  culture: Culture | 'mixed'; inside: (x: number, z: number) => number; bbox: [number, number, number, number]; density: number; wealth: (x: number, z: number, h: number) => number; steep: boolean
+  /** 0 at the town's core, 1 at its edge: rows of attached houses in the middle, detached ones with gardens at the edge. */
+  zone?: (x: number, z: number) => number
+}
 export interface PlaceIn {
   H: (x: number, z: number) => number; wet: (x: number, z: number, h: number) => boolean; occ: Occ; roads: Road[]; districts: DistrictIn[]; seed: number; max: number
 }
@@ -261,21 +265,24 @@ export function placeAll(o: PlaceIn): Out {
         while (sv < total - 4) {
           const q = sample(sv)
           if (d.inside(q.x, q.z) > 0) { sv += 6; continue }
-          const h = o.H(q.x, q.z), w = d.wealth(q.x, q.z, h), cu = cultureAt(d, q.x, q.z)
-          if (R() > d.density * 1.1) { sv += 4 + R() * 6; continue }
+          const h = o.H(q.x, q.z), w = d.wealth(q.x, q.z, h), cu = cultureAt(d, q.x, q.z), zn = clamp(d.zone?.(q.x, q.z) ?? 0.5, 0, 1.2)
+          // the core is built up wall to wall; toward the edge houses stand apart, set back behind front gardens
+          if (R() > d.density * (1.15 - Math.max(0, zn - 0.55) * 0.9)) { sv += 4 + R() * 6 + zn * 8; continue }
           const s = design(cu, w, R, d.steep)
-          const nx = -q.dz * side, nz = q.dx * side, set = r.width / 2 + 0.8 + (w > 0.7 ? 2 + R() * 4 : R() * 0.6), dd = s.courtyard ? s.w * 0.85 : s.d
+          s.floors = Math.max(1, s.floors + (zn < 0.35 ? 1 : zn > 0.8 ? -1 : 0))
+          const nx = -q.dz * side, nz = q.dx * side, set = r.width / 2 + 0.6 + (zn < 0.5 ? R() * 0.4 : zn < 0.8 ? 0.5 + R() * 2 : 2.5 + R() * 5) + (w > 0.75 ? 1 + R() * 3 : 0), dd = s.courtyard ? s.w * 0.85 : s.d
           const cx = q.x + nx * (set + dd / 2) + q.dx * (s.w / 2), cz = q.z + nz * (set + dd / 2) + q.dz * (s.w / 2), yaw = Math.atan2(-nx, -nz)
           if (okAt(d, s, cx, cz, yaw, 0.2)) {
             emit(out, s, cx, cz, yaw, o.H, w, R)
-            o.occ.mark(cx, cz, yaw, s.w, dd, w > 0.7 ? 2.5 : 0.25)
-            sv += s.w + (w < 0.3 ? 0.1 : w < 0.66 ? R() * 1.5 : 3 + R() * 7)
+            o.occ.mark(cx, cz, yaw, s.w, dd, zn < 0.45 ? 0.15 : 0.8)
+            sv += s.w + (zn < 0.45 ? R() * 0.15 : zn < 0.75 ? 0.6 + R() * 2.5 : 4 + R() * 9) + (w > 0.75 ? 2 + R() * 5 : 0)
           } else sv += 2.5
         }
       }
     }
   }
-  // 2. back houses and courtyards in what is left
+  // 2. block interiors stay yards and gardens; only out at the edge do a few houses stand back from the street,
+  //    and on steep ground (cliff towns) houses stack up the slope wherever they fit
   for (const d of o.districts) {
     const [x0, z0, x1, z1] = d.bbox, step = 7
     const nx = Math.ceil((x1 - x0) / step), nz = Math.ceil((z1 - z0) / step), order = new Int32Array(nx * nz)
@@ -283,8 +290,8 @@ export function placeAll(o: PlaceIn): Out {
     for (let k = order.length - 1; k > 0; k--) { const r = Math.floor(R() * (k + 1)), t = order[k]; order[k] = order[r]; order[r] = t }
     for (const k of order) {
       if (out.count > o.max) break
-      if (R() > d.density * 0.38) continue // leave room for yards and courtyards
-      const x = x0 + (k % nx) * step + R() * step, z = z0 + Math.floor(k / nx) * step + R() * step
+      const x = x0 + (k % nx) * step + R() * step, z = z0 + Math.floor(k / nx) * step + R() * step, zn = d.zone?.(x, z) ?? 0.8
+      if (R() > d.density * (d.steep ? 0.5 : zn > 0.6 ? 0.16 : 0.03)) continue
       if (d.inside(x, z) > -4) continue
       const h = o.H(x, z), w = d.wealth(x, z, h), s = design(cultureAt(d, x, z), w, R, d.steep)
       const gx = o.H(x + 4, z) - o.H(x - 4, z), gz = o.H(x, z + 4) - o.H(x, z - 4)

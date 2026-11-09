@@ -129,7 +129,9 @@ export function terrainTiles(b: CityBuilt, mat: THREE.Material) {
       const m = T / step, pos: number[] = [], nr: number[] = [], col: number[] = [], sf: number[] = [], idx: number[] = []
       const vert = (i: number, j: number, drop: number) => {
         const a = j * w + i
-        pos.push(-size / 2 + i * c, heights[a] - drop, -size / 2 + j * c); nr.push(nor[a * 3], nor[a * 3 + 1], nor[a * 3 + 2]); col.push(colors[a * 3], colors[a * 3 + 1], colors[a * 3 + 2]); sf.push(surf[a * 4], surf[a * 4 + 1], surf[a * 4 + 2], surf[a * 4 + 3])
+        let hv = heights[a]
+        if (step > 1 && b.cliffMask?.[a]) for (let dj = -step; dj <= step; dj++) for (let di = -step; di <= step; di++) { const ii = i + di, jj = j + dj; if (ii >= 0 && jj >= 0 && ii <= N && jj <= N) hv = Math.min(hv, heights[jj * w + ii]) } // stay behind rock faces
+        pos.push(-size / 2 + i * c, hv - drop, -size / 2 + j * c); nr.push(nor[a * 3], nor[a * 3 + 1], nor[a * 3 + 2]); col.push(colors[a * 3], colors[a * 3 + 1], colors[a * 3 + 2]); sf.push(surf[a * 4], surf[a * 4 + 1], surf[a * 4 + 2], surf[a * 4 + 3])
         return pos.length / 3 - 1
       }
       for (let y = 0; y <= m; y++) for (let x = 0; x <= m; x++) vert(ti + x * step, tj + y * step, 0)

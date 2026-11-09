@@ -2,6 +2,7 @@
 //   node scripts/loc.ts brief                       (the recipe format and the rules)
 //   node scripts/loc.ts validate <location.json>
 //   node scripts/loc.ts describe <location.json>    (heights at every feature, buildings per district)
+//   node scripts/loc.ts check    <location.json>    (realism audit of the built place: rivers, lakes, sea, terrain, towns, roads)
 //   node scripts/loc.ts preview  <location.json> [out.png] [--w 1200] [--region W,E,S,N]   (top-down, hill-shaded)
 // <location.json> is one location as exported from the Locations page (or locations/<id>.json in the data repo).
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -14,7 +15,7 @@ const flag = (k: string) => { const i = args.indexOf(k); return i < 0 ? undefine
 const width = Number(flag('--w') ?? 1200), region = flag('--region')?.split(',').map(Number)
 const [cmd, file, out] = args
 if (cmd === 'brief') { console.log(brief()); process.exit(0) }
-if (!file) { console.log('commands: brief, validate, describe, preview'); process.exit(1) }
+if (!file) { console.log('commands: brief, validate, describe, check, preview'); process.exit(1) }
 const doc: LocationDoc = JSON.parse(readFileSync(file, 'utf8'))
 const v = validate(doc)
 const stage = (s: string) => process.stderr.write(`  ${s}...
@@ -24,6 +25,7 @@ for (const e of v.warnings) console.log('warning', e)
 if (v.errors.length) process.exit(1)
 if (cmd === 'validate') console.log(v.warnings.length ? `${v.warnings.length} warnings` : 'ok')
 else if (cmd === 'describe') console.log(describe(doc, buildCity(doc, stage)))
+else if (cmd === 'check') { const b = buildCity(doc, stage); for (const l of b.audit) console.log(l); const bad = b.audit.filter((l) => !l.startsWith('ok')).length; console.log(bad ? `${bad} to look at` : 'all checks pass') }
 else if (cmd === 'preview') {
   const b = buildCity(doc, stage), half = b.size / 2, [W0, E0, S0, N0] = region ?? [-half, half, -half, half]
   const w = width, h = Math.round((width * (N0 - S0)) / (E0 - W0)), rgb = new Uint8Array(w * h * 3), n = b.N + 1, cell = b.size / b.N

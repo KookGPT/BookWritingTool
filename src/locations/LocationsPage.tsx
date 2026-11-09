@@ -7,8 +7,10 @@ import { brief, BUILD_VERSION, MOOD_NAMES, SEASONS, validate, WEATHERS, type Cit
 import { LocScene, MOODS, STYLES, type Stats, type StyleName } from './scene'
 import { useLocal } from '../ui'
 import exampleRaw from '../../examples/showcase.json?raw'
+import activeRaw from '../../examples/active-lands.json?raw'
 
-const EXAMPLE: LocationDoc = JSON.parse(exampleRaw)
+/** Bundled demos: shown beside the book's own locations, saved into the book only if you change one (a view, an import). */
+const DEMOS: LocationDoc[] = [JSON.parse(exampleRaw), JSON.parse(activeRaw)]
 /** What the terrain and buildings depend on: names, notes, views and mood never trigger a rebuild. */
 const specOf = (d: LocationDoc) => JSON.stringify(d, (k, v) => (['name', 'note', 'views', 'mood', 'hour', 'weather', 'season'].includes(k) ? undefined : v))
 const hhmm = (h: number) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')}`
@@ -17,7 +19,7 @@ const hhmm = (h: number) => `${String(Math.floor(h)).padStart(2, '0')}:${String(
 export default function LocationsPage() {
   const { book, update } = useBook()
   const [params, setParams] = useSearchParams()
-  const docs = book.locations.length ? book.locations : [EXAMPLE]
+  const docs = [...book.locations, ...DEMOS.filter((d) => !book.locations.some((l) => l.id === d.id))]
   const doc = docs.find((d) => d.id === params.get('l')) ?? docs[0]
   const canvas = useRef<HTMLCanvasElement>(null)
   const page = useRef<HTMLDivElement>(null)
@@ -132,7 +134,7 @@ export default function LocationsPage() {
       <canvas ref={canvas} tabIndex={0} aria-label={`3D view of ${doc.name}. Drag to slide, right-drag to orbit, scroll to glide toward the cursor, double-click to fly there, W A S D Q E to fly.`} />
       <div className="maptest-bar glass">
         <strong><Icon name="map" /> Locations</strong>
-        <select value={doc.id} onChange={(e) => setParams({ l: e.target.value })} aria-label="Location">{docs.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</select>
+        <select value={doc.id} onChange={(e) => setParams({ l: e.target.value })} aria-label="Location">{docs.map((d) => <option key={d.id} value={d.id}>{d.name}{book.locations.some((l) => l.id === d.id) ? '' : ' (demo)'}</option>)}</select>
         <select value={mood} onChange={(e) => pickMood(e.target.value as MoodName)} aria-label="Mood">{mood === '' && <option value="">Custom</option>}{MOOD_NAMES.map((m) => <option key={m} value={m}>{MOODS[m].label}</option>)}</select>
         <label className="small loc-time" title="Time of day"><input type="range" min={0} max={24} step={0.05} value={hour} onChange={(e) => { setPlaying(false); setMood(''); setHour(Number(e.target.value)) }} aria-label="Time of day" /> {hhmm(hour)}</label>
         <button className="alt" aria-pressed={playing} title="Let the day pass" onClick={() => { setPlaying(!playing); setMood('') }}>{playing ? 'Pause' : 'Play'}</button>

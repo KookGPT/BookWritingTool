@@ -2,19 +2,20 @@
 // spray and lamp glows at night. Each is one draw call; positions are worked out in the vertex shader where possible.
 import * as THREE from 'three'
 
+const sstep01 = (a: number, b: number, x: number) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t) }
 const rnd = (s: number) => () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646 }
 
 /** Camera-facing soft puffs (clouds, mist, spray, smoke): per instance centre (xyz) + size (w), and a phase. */
 const PUFF_V = /* glsl */ `
 attribute vec4 iPuff; attribute float iPhase;
-uniform float uTime; uniform float uRise; uniform vec3 uWind;
-varying vec2 vUv; varying float vFade; varying vec3 vW; varying float vLife;
+uniform float uTime; uniform float uRise; uniform vec3 uWind; uniform float uClimb; uniform float uGrow;
+varying vec2 vUv; varying float vFade; varying vec3 vW; varying float vLife; varying float vPhase;
 void main() {
-  vUv = uv;
+  vUv = uv; vPhase = iPhase;
   float life = uRise > 0.0 ? fract(uTime * uRise + iPhase) : 0.0;
   vLife = life;
-  vec3 c = iPuff.xyz + uWind * (uRise > 0.0 ? life * 20.0 : uTime) + vec3(0.0, life * 26.0, 0.0);
-  float size = iPuff.w * (uRise > 0.0 ? 0.4 + life * 1.6 : 1.0);
+  vec3 c = iPuff.xyz + uWind * (uRise > 0.0 ? life * 20.0 * (uClimb / 26.0) : uTime) + vec3(0.0, life * uClimb, 0.0);
+  float size = iPuff.w * (uRise > 0.0 ? 0.4 + life * uGrow : 1.0);
   vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]), up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
   vec3 p = c + (right * position.x + up * position.y) * size;
   vW = p;
@@ -23,8 +24,8 @@ void main() {
   gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
 }`
 const PUFF_F = /* glsl */ `
-uniform vec3 uCol; uniform vec3 uLit; uniform vec3 uSun; uniform float uAlpha; uniform float uRise; uniform float uTime;
-varying vec2 vUv; varying float vFade; varying vec3 vW; varying float vLife;
+uniform vec3 uCol; uniform vec3 uLit; uniform vec3 uSun; uniform float uAlpha; uniform float uRise; uniform float uTime; uniform float uBase; uniform float uCover;
+varying vec2 vUv; varying float vFade; varying vec3 vW; varying float vLife; varying float vPhase;
 float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float n(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
 void main() {
@@ -32,8 +33,10 @@ void main() {
   float sh = n(vUv * 4.0 + vW.xz * 0.002 + uTime * 0.01) * 0.6 + n(vUv * 9.0 - uTime * 0.02) * 0.4;
   float a = smoothstep(1.0, 0.25, r + (sh - 0.5) * 0.6) * uAlpha * vFade;
   if (uRise > 0.0) a *= smoothstep(0.0, 0.1, vLife) * (1.0 - vLife);
+  float under = 0.0;
+  if (uBase > -1e8) { a *= step(vPhase, uCover) * smoothstep(uBase - 30.0, uBase + 90.0, vW.y); under = 1.0 - smoothstep(uBase, uBase + 500.0, vW.y); } // clouds: flat grey bases, as many as the weather brings
   if (a < 0.004) discard;
-  vec3 c = mix(uCol, uLit, clamp(0.5 + q.y * 1.2 + (sh - 0.5) * 0.5, 0.0, 1.0));
+  vec3 c = mix(uCol, uLit, clamp(0.5 + q.y * 1.2 + (sh - 0.5) * 0.5 - under * 0.6, 0.0, 1.0));
   gl_FragColor = vec4(c, a);
 }`
 function puffMesh(n: number, fill: (i: number) => [number, number, number, number, number], extra: Record<string, THREE.IUniform>) {
@@ -43,13 +46,13 @@ function puffMesh(n: number, fill: (i: number) => [number, number, number, numbe
   g.setAttribute('iPuff', new THREE.InstancedBufferAttribute(a, 4)); g.setAttribute('iPhase', new THREE.InstancedBufferAttribute(ph, 1)); g.instanceCount = n
   const m = new THREE.ShaderMaterial({
     vertexShader: PUFF_V, fragmentShader: PUFF_F, transparent: true, depthWrite: false,
-    uniforms: { uTime: { value: 0 }, uRise: { value: 0 }, uWind: { value: new THREE.Vector3() }, uCol: { value: new THREE.Color() }, uLit: { value: new THREE.Color() }, uSun: { value: new THREE.Vector3() }, uAlpha: { value: 1 }, ...extra },
+    uniforms: { uTime: { value: 0 }, uRise: { value: 0 }, uClimb: { value: 26 }, uGrow: { value: 1.6 }, uWind: { value: new THREE.Vector3() }, uCol: { value: new THREE.Color() }, uLit: { value: new THREE.Color() }, uSun: { value: new THREE.Vector3() }, uAlpha: { value: 1 }, uBase: { value: -1e9 }, uCover: { value: 1 }, ...extra },
   })
   const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false
   return mesh
 }
 
-export interface FxWorld { size: number; minH: number; maxH: number; chimneys: Float32Array; lamps: Float32Array; falls: Float32Array }
+export interface FxWorld { size: number; minH: number; maxH: number; chimneys: Float32Array; lamps: Float32Array; falls: Float32Array; steam?: Float32Array }
 export interface FxState { clouds: number; mist: number; fogBase: number; precip: 'none' | 'rain' | 'snow'; storm: boolean; night: number; cloudCol: THREE.Color; cloudLit: THREE.Color; sun: THREE.Vector3; wind: THREE.Vector3 }
 
 export class Fx {
@@ -61,6 +64,7 @@ export class Fx {
   private rain: THREE.LineSegments<THREE.BufferGeometry, THREE.ShaderMaterial>
   private snow: THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>
   private lamps?: THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial>
+  private vents: THREE.Mesh<THREE.InstancedBufferGeometry, THREE.ShaderMaterial>[] = []
   private birds: THREE.InstancedMesh
   private flocks: { c: THREE.Vector3; r: number; speed: number; n: number }[] = []
   private world?: FxWorld
@@ -111,10 +115,26 @@ export class Fx {
 
   setWorld(w: FxWorld) {
     this.world = w
-    for (const m of [this.clouds, this.mist, this.spray, this.lamps]) if (m) { this.group.remove(m); m.geometry.dispose(); m.material.dispose() }
+    for (const m of [this.clouds, this.mist, this.spray, this.lamps, ...this.vents]) if (m) { this.group.remove(m); m.geometry.dispose(); m.material.dispose() }
+    this.vents = []
     const R = rnd(11), half = w.size * 1.6, span = w.maxH - w.minH
+    // steam and ash: wisps over hot springs, a tall column over each geyser, a great plume over an active crater
+    const st = w.steam ?? new Float32Array(0)
+    for (const [kind, per, rise, climb, grow, alpha, col, lit] of [[0, 10, 0.05, 18, 2.2, 0.32, [0.85, 0.87, 0.88], [1, 1, 1]], [1, 48, 0.012, 1100, 5, 0.55, [0.36, 0.34, 0.33], [0.72, 0.7, 0.68]], [2, 20, 0.1, 70, 1.8, 0.5, [0.88, 0.9, 0.92], [1, 1, 1]]] as const) {
+      const list: number[] = []
+      for (let k = 0; k < st.length; k += 5) if (st[k + 4] === kind) list.push(k)
+      if (!list.length) continue
+      const m = puffMesh(list.length * per, (i) => { const k = list[Math.floor(i / per)]; return [st[k] + (R() - 0.5) * st[k + 3] * 0.6, st[k + 1], st[k + 2] + (R() - 0.5) * st[k + 3] * 0.6, st[k + 3], (i % per) / per + R() * 0.05] }, {})
+      const u = m.material.uniforms; u.uRise.value = rise; u.uClimb.value = climb; u.uGrow.value = grow; u.uAlpha.value = alpha; u.uCol.value.setRGB(...col); u.uLit.value.setRGB(...lit)
+      m.userData = { col, lit, kind }
+      this.vents.push(m); this.group.add(m)
+    }
     // cloud banks around and above the high ground, and mist puffs that pool in the valleys
-    this.clouds = puffMesh(700, () => [(R() - 0.5) * half * 2, w.maxH - span * 0.1 + R() * (span * 0.5 + 500), (R() - 0.5) * half * 2, 260 + R() * 700, R()], {})
+    // cumulus: 64 clouds of 12 puffs each, domed over a flat base above the peaks; each cloud shows only when the weather's
+    // cover reaches its number (iPhase), so a clear sky keeps a few and an overcast one all
+    const base = w.maxH + 250, cl = Array.from({ length: 64 }, () => ({ x: (R() - 0.5) * half * 2, z: (R() - 0.5) * half * 2, r: 350 + R() * 900, h: 250 + R() * 500, cover: R() }))
+    this.clouds = puffMesh(64 * 12, (i) => { const c = cl[Math.floor(i / 12)], a = R() * Math.PI * 2, d = Math.sqrt(R()), up = (1 - d * d) * c.h * (0.4 + R() * 0.6); return [c.x + Math.cos(a) * d * c.r, base + up + 60, c.z + Math.sin(a) * d * c.r * 0.7, c.r * (0.45 + 0.35 * (1 - d)) + R() * 120, c.cover] }, {})
+    this.clouds.material.uniforms.uBase.value = base
     this.mist = puffMesh(900, () => [(R() - 0.5) * w.size, 0, (R() - 0.5) * w.size, 180 + R() * 380, R()], {})
     const fa = w.falls, nf = Math.max(1, (fa.length / 4) * 10)
     this.spray = puffMesh(nf, (i) => { const k = Math.floor(i / 10) * 4; return fa.length ? [fa[k] + (R() - 0.5) * fa[k + 3], fa[k + 1] + R() * 6, fa[k + 2] + (R() - 0.5) * fa[k + 3], fa[k + 3] * (0.8 + R()), R()] : [0, -1e5, 0, 1, 0] }, {})
@@ -139,10 +159,15 @@ export class Fx {
   update(dt: number, time: number, cam: THREE.Vector3, viewport: number) {
     const s = this.state, w = this.world
     if (!s || !w) return
-    for (const m of [this.clouds, this.mist, this.spray, this.smoke]) if (m) { const u = m.material.uniforms; u.uTime.value = time; u.uSun.value.copy(s.sun); u.uWind.value.copy(s.wind) }
-    if (this.clouds) { const u = this.clouds.material.uniforms; u.uAlpha.value = Math.min(1, s.clouds * 1.15) * 0.75; u.uCol.value.copy(s.cloudCol); u.uLit.value.copy(s.cloudLit); u.uWind.value.copy(s.wind).multiplyScalar(0.8); this.clouds.visible = s.clouds > 0.05 }
+    for (const m of [this.clouds, this.mist, this.spray, this.smoke, ...this.vents]) if (m) { const u = m.material.uniforms; u.uTime.value = time; u.uSun.value.copy(s.sun); u.uWind.value.copy(s.wind) }
+    for (const m of this.vents) { // steam and ash go dark at night; a plume over an active crater glows from below
+      const { col, lit, kind } = m.userData as { col: number[]; lit: number[]; kind: number }, k = 1 - s.night * 0.85, u = m.material.uniforms
+      u.uCol.value.setRGB(col[0] * k, col[1] * k, col[2] * k).lerp(new THREE.Color(0.9, 0.3, 0.08), kind === 1 ? s.night * 0.55 : 0)
+      u.uLit.value.setRGB(lit[0] * k, lit[1] * k, lit[2] * k)
+    }
+    if (this.clouds) { const u = this.clouds.material.uniforms; u.uAlpha.value = 0.85; u.uCover.value = s.clouds < 0.5 ? s.clouds * 0.5 : s.clouds; u.uCol.value.copy(s.cloudCol); u.uLit.value.copy(s.cloudLit); u.uWind.value.copy(s.wind).multiplyScalar(0.8); this.clouds.visible = s.clouds > 0.05 }
     if (this.mist) {
-      const u = this.mist.material.uniforms; u.uAlpha.value = s.mist * 0.55; u.uCol.value.copy(s.cloudCol).lerp(s.cloudLit, 0.3); u.uLit.value.copy(s.cloudLit); u.uWind.value.copy(s.wind).multiplyScalar(0.25)
+      const u = this.mist.material.uniforms; u.uAlpha.value = sstep01(0.25, 0.8, s.mist) * 0.6; u.uCol.value.copy(s.cloudCol).lerp(s.cloudLit, 0.3); u.uLit.value.copy(s.cloudLit); u.uWind.value.copy(s.wind).multiplyScalar(0.25)
       const a = this.mist.geometry.getAttribute('iPuff') as THREE.InstancedBufferAttribute
       if (a.getY(0) !== s.fogBase) { for (let i = 0; i < a.count; i++) a.setY(i, s.fogBase - 40 + (i % 7) * 18); a.needsUpdate = true }
       this.mist.visible = s.mist > 0.05

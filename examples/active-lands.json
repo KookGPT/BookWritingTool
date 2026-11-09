@@ -1,0 +1,42 @@
+{
+ "id": "active-lands",
+ "name": "Active lands",
+ "note": "A demo of the living ground: an erupting stratovolcano with lava running to the sea, an old caldera holding a crater lake, a field of cold lava, hot-spring terraces and geysers above a spa town, a forest of karst towers with a river winding between them to a delta and its marsh, basalt columns on the shore, sea cliffs, stacks and black-sand beaches. Not Stones Hold.",
+ "seed": "active-1",
+ "size": 14000,
+ "base": 180,
+ "relief": 260,
+ "sea": 0,
+ "climate": "tropical",
+ "culture": "mediterranean",
+ "rock": "basalt",
+ "mood": "golden",
+ "terrain": [
+  { "id": "fire-mountain", "name": "Fire Mountain", "kind": "volcano", "at": [-800, 2600], "height": 2700, "radius": 4600, "active": true, "lava": 4, "cones": 4 },
+  { "id": "old-caldera", "name": "Old Caldera", "kind": "volcano", "at": [-5300, 5000], "height": 1450, "radius": 2700, "caldera": true, "cones": 2 },
+  { "id": "crater-lake", "name": "Crater Lake", "kind": "lake", "at": [-5300, 5000], "radius": 650, "depth": 90 },
+  { "id": "east-highlands", "name": "East Highlands", "kind": "ridge", "path": [[2600, 7400], [4200, 4200], [4600, 1200]], "height": 980, "width": 2200 },
+  { "id": "black-lava", "name": "Black Lava", "kind": "lavafield", "at": [1700, -1500], "radius": 900 },
+  { "id": "terraces", "name": "White Terraces", "kind": "springs", "at": [3150, 2650], "radius": 260, "step": 1.4 },
+  { "id": "old-faithful", "name": "Old Faithful", "kind": "geyser", "at": [3500, 1950] },
+  { "id": "twin-geyser", "name": "Twin Geyser", "kind": "geyser", "at": [3700, 2150], "radius": 24 },
+  { "id": "tower-forest", "name": "Tower Forest", "kind": "karst", "at": [-4400, -1300], "radius": 1500, "height": 190, "density": 1.2, "depth": 20 },
+  { "id": "jade-river", "name": "Jade River", "kind": "river", "path": [[-2600, 600], [-3800, -400], [-4600, -1500], [-4900, -2600], [-5400, -4200]], "width": 40, "meander": 1.2, "mouth": "delta" },
+  { "id": "the-coast", "name": "The Coast", "kind": "coast", "path": [[-7600, -2900], [-3000, -3500], [1000, -3900], [4200, -3000], [5900, 0], [5500, 3500], [6200, 7600]], "style": "mixed", "height": 45, "bays": 1, "stacks": 1.2, "rock": "basalt" },
+  { "id": "reed-marsh", "name": "Reed Marsh", "kind": "marsh", "at": [-3700, -2900], "radius": 600 },
+  { "id": "giants-steps", "name": "Giants' Steps", "kind": "columns", "at": [2200, -3600], "radius": 200, "height": 8 },
+  { "id": "terraced-rice", "name": "Rice Terraces", "kind": "fields", "at": [-2300, -1100], "radius": 500, "crop": "terraces" }
+ ],
+ "districts": [
+  { "id": "spa-town", "name": "Spa Town", "at": [2700, 2200], "radius": 450, "culture": "eastern", "density": 0.85 },
+  { "id": "harbour-town", "name": "Harbour Town", "at": [3400, -2350], "radius": 620, "culture": "mediterranean", "density": 0.9 },
+  { "id": "karst-village", "name": "Karst Village", "at": [-3700, -700], "radius": 300, "culture": "eastern", "density": 0.8 }
+ ],
+ "structures": [
+  { "id": "rim-temple", "name": "Rim Temple", "kind": "monastery", "at": [-6900, 4300], "facing": 60 },
+  { "id": "fire-watch", "name": "Fire Watch", "kind": "tower", "at": [1200, 800], "facing": 300, "height": 40, "width": 9 }
+ ],
+ "views": [
+  { "name": "The island", "at": [3000, -9500, 3200], "heading": 335, "pitch": -18, "note": "Fire Mountain smokes over the island: lava runs down its flanks, the old caldera holds a lake, karst towers stand in the west." }
+ ]
+}

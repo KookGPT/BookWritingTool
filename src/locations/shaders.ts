@@ -5,6 +5,7 @@
 import * as THREE from 'three'
 
 export const U = {
+  tField: { value: null as THREE.Texture | null }, tMarks: { value: null as THREE.Texture | null }, uMapSize: { value: 1 },
   uSun: { value: new THREE.Vector3(0, 1, 0) }, uFogCol: { value: new THREE.Color() }, uGlowCol: { value: new THREE.Color() },
   uFogD: { value: 0.0005 }, uFogFall: { value: 1 / 300 }, uFogBase: { value: 0 }, uHaze: { value: 0.00003 }, uNight: { value: 0 }, uTime: { value: 0 },
   uSnow: { value: 0 }, uSnowLine: { value: 1e5 }, uWet: { value: 0 }, uFoliage: { value: new THREE.Color() }, uBare: { value: 0 }, uSky: { value: new THREE.Color() },
@@ -72,20 +73,35 @@ export const MOTTLE = 'diffuseColor.rgb *= 0.9 + 0.12 * anoise(vAtmoPos * 0.35) 
 // ---------- terrain: colours arrive sRGB-encoded; the surface attribute marks ice, sand, farmland and scree ----------
 export const TERRAIN_VH = 'attribute vec4 surf; varying vec4 vSurf;\n'
 export const TERRAIN_V = 'vSurf = surf;'
-export const TERRAIN_FH = 'varying vec4 vSurf;\n'
+export const TERRAIN_FH = 'varying vec4 vSurf; uniform sampler2D tField; uniform sampler2D tMarks; uniform float uMapSize;\n'
 export const TERRAIN = /* glsl */ `
   diffuseColor.rgb = pow(diffuseColor.rgb, vec3(2.2));
   diffuseColor.rgb *= 0.9 + 0.18 * anoise(vec3(vAtmoPos.x * 0.006, vAtmoPos.y * 0.035 + anoise(vAtmoPos * 0.01) * 2.0, vAtmoPos.z * 0.006));
   diffuseColor.rgb *= 0.86 + 0.2 * afbm(vAtmoPos * 0.08) + 0.08 * anoise(vAtmoPos * 0.9);
+  // fields: crisp parcels from the field texture (inside the map only)
+  { vec2 fuv = (vAtmoPos.xz + uMapSize * 0.5) / uMapSize;
+    if (fuv.x > 0.0 && fuv.y > 0.0 && fuv.x < 1.0 && fuv.y < 1.0) { vec4 fld = texture2D(tField, fuv); diffuseColor.rgb = mix(diffuseColor.rgb, pow(fld.rgb, vec3(2.2)) * (0.92 + 0.16 * anoise(vAtmoPos * 0.05)), fld.a * 0.95); } }
+  // the living ground: lava (dark, rough, glowing in its cracks while fresh), mineral crusts round hot springs, wetland
+  { vec2 muv = (vAtmoPos.xz + uMapSize * 0.5) / uMapSize;
+    if (muv.x > 0.0 && muv.y > 0.0 && muv.x < 1.0 && muv.y < 1.0) { vec4 mk = texture2D(tMarks, muv);
+      if (mk.r > 0.02) {
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.055, 0.05, 0.048) * (0.75 + 0.6 * anoise(vAtmoPos * 0.35)), smoothstep(0.02, 0.25, mk.r));
+        float crack = 1.0 - smoothstep(0.0, 0.05, abs(anoise(vAtmoPos * vec3(0.18, 0.1, 0.18)) - 0.5)), hot = smoothstep(0.72, 1.0, mk.r);
+        atmoGlow = max(atmoGlow, hot * (crack * 1.2 + 0.3 + 0.25 * anoise(vAtmoPos * 0.05 + uTime * 0.05)));
+      }
+      if (mk.g > 0.02) diffuseColor.rgb = mix(diffuseColor.rgb, mix(vec3(0.9, 0.87, 0.8), vec3(0.76, 0.44, 0.2), smoothstep(0.5, 0.78, anoise(vAtmoPos * 0.06)) * 0.6), mk.g * 0.9);
+      if (mk.b > 0.02) diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.55, 0.64, 0.42), mk.b * 0.75);
+    } }
   float green = clamp((diffuseColor.g - diffuseColor.r) * 12.0, 0.0, 1.0) * (1.0 - vSurf.b);
   diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * uFoliage * 1.7, green * 0.45);
   atmoBump = afbm(vAtmoPos * 0.12) * 1.6 + anoise(vAtmoPos * 0.7) * 0.25;
   // cliffs: buttresses, gullies, ledges and strata, so a tall face is never one flat sheet
   { float up = dot(normalize(vNormal), normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz)), cl = smoothstep(0.72, 0.4, up);
     if (cl > 0.0) {
-      float strata = anoise(vec3(vAtmoPos.x * 0.004, vAtmoPos.y * 0.09 + anoise(vAtmoPos * 0.006) * 1.5, vAtmoPos.z * 0.004));
-      atmoBump += cl * (afbm(vAtmoPos * vec3(0.022, 0.009, 0.022)) * 10.0 + afbm(vAtmoPos * 0.08) * 2.2 + smoothstep(0.52, 0.6, strata) * 1.8);
-      diffuseColor.rgb *= mix(1.0, 0.8 + 0.32 * strata, cl);
+      float strata = anoise(vec3(vAtmoPos.x * 0.004, vAtmoPos.y * 0.07 + anoise(vAtmoPos * 0.004) * 5.0, vAtmoPos.z * 0.004));
+      float streak = anoise(vec3(vAtmoPos.x * 0.045, vAtmoPos.y * 0.003, vAtmoPos.z * 0.045)); // gullies and water streaks down the face
+      atmoBump += cl * (afbm(vAtmoPos * vec3(0.022, 0.009, 0.022)) * 10.0 + afbm(vAtmoPos * 0.08) * 2.2 + smoothstep(0.55, 0.62, strata) * 1.0 - smoothstep(0.6, 0.75, streak) * 2.0);
+      diffuseColor.rgb *= mix(1.0, (0.88 + 0.18 * strata) * (1.0 - 0.25 * smoothstep(0.55, 0.8, streak)), cl);
     } }
   // sand: wind ripples, lighter where dry
   if (vSurf.g > 0.02) { float rip = sin(dot(vAtmoPos.xz, vec2(0.83, 0.55)) * 3.2 + anoise(vAtmoPos * 0.2) * 6.0); atmoBump = mix(atmoBump, rip * 0.03, vSurf.g); diffuseColor.rgb *= 1.0 + 0.06 * rip * vSurf.g; }
@@ -101,22 +117,40 @@ export const TERRAIN_POST = /* glsl */ `
   if (vSurf.r > 0.02) {
     vec2 flow = normalize(-wN.xz + 1e-4);
     float c = dot(vAtmoPos.xz, flow) * 0.09 + anoise(vAtmoPos * 0.02) * 3.0, cr = smoothstep(0.9, 0.97, fract(c)) * smoothstep(0.02, 0.12, 1.0 - wN.y);
-    vec3 ice = mix(vec3(0.72, 0.84, 0.92), vec3(0.88, 0.93, 0.97), anoise(vAtmoPos * 0.05));
-    ice = mix(ice, vec3(0.1, 0.28, 0.4), cr);
+    vec3 ice = diffuseColor.rgb * (0.92 + 0.14 * anoise(vAtmoPos * 0.05)); // the painted ice: snow, blue ice or rubble
+    ice = mix(ice, vec3(0.1, 0.28, 0.4), cr * smoothstep(0.35, 0.6, ice.b - ice.r + 0.4));
     ice *= 1.0 - 0.18 * smoothstep(0.6, 0.8, anoise(vec3(c * 3.0, 0.0, 1.0)));
     diffuseColor.rgb = mix(diffuseColor.rgb, ice, vSurf.r);
     roughnessFactor = mix(roughnessFactor, 0.35, vSurf.r);
   }
   // steep ground shows its rock whatever the colour map says
+  // steep ground shows its rock: the location's own rock colour (painted on steep cells), varied, never a flat sheet
   float steepRock = smoothstep(0.8, 0.5, wN.y) * (1.0 - vSurf.r);
-  vec3 rock = mix(vec3(0.44, 0.41, 0.37), vec3(0.5, 0.47, 0.42), anoise(vAtmoPos * 0.004)) * (0.75 + 0.5 * anoise(vec3(vAtmoPos.x * 0.05, vAtmoPos.y * 0.4, vAtmoPos.z * 0.05)));
-  diffuseColor.rgb = mix(diffuseColor.rgb, rock, steepRock * 0.88);
+  vec3 rock = diffuseColor.rgb * (0.8 + 0.35 * anoise(vec3(vAtmoPos.x * 0.03, vAtmoPos.y * 0.12, vAtmoPos.z * 0.03))) * mix(0.85, 1.05, anoise(vAtmoPos * 0.004));
+  diffuseColor.rgb = mix(diffuseColor.rgb, rock, steepRock * 0.7);
 `
 
 export const STONE = MOTTLE + `
   { vec3 q = vAtmoPos * vec3(1.6, 2.6, 1.6); vec3 cell = floor(vec3(q.x + floor(q.y) * 0.5, q.y, q.z + floor(q.y) * 0.5));
     atmoBump = anoise(vAtmoPos * 1.4) * 0.05 - smoothstep(0.92, 1.0, max(fract(q.y), max(fract(q.x + floor(q.y) * 0.5), fract(q.z + floor(q.y) * 0.5)))) * 0.03;
     diffuseColor.rgb *= 0.94 + 0.1 * ahash(cell); }
+`
+// natural rock: bedding planes that wander, vertical joints, grain; lichen and grass on ledges (in ROCK_POST)
+export const ROCK = /* glsl */ `
+  { vec3 p = vAtmoPos;
+    float warp = anoise(p * 0.012) * 3.0 + anoise(p * 0.05) * 0.6;
+    float bed = p.y * 0.16 + warp, bf = fract(bed), bi = floor(bed);
+    float layer = 0.82 + 0.3 * ahash(vec3(bi, 1.0, 7.0)), seam = smoothstep(0.0, 0.08, bf) * smoothstep(1.0, 0.9, bf);
+    float joint = 1.0 - smoothstep(0.0, 0.06, abs(anoise(vec3(p.x * 0.07, p.y * 0.012, p.z * 0.07)) - 0.5));
+    float grain = afbm(p * 0.7);
+    diffuseColor.rgb *= layer * mix(0.62, 1.0, seam) * (1.0 - 0.45 * joint) * (0.86 + 0.24 * grain);
+    diffuseColor.rgb *= 0.9 + 0.2 * anoise(p * 0.02);
+    atmoBump = afbm(p * vec3(0.06, 0.14, 0.06)) * 2.4 + seam * 0.35 - joint * 0.5 + grain * 0.18; }
+`
+export const ROCK_POST = /* glsl */ `
+  { float up = smoothstep(0.55, 0.85, wN.y), patchy = smoothstep(0.45, 0.7, anoise(vAtmoPos * 0.09));
+    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.2, 0.25, 0.12), up * patchy * 0.8);
+    diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.95, 1.02, 0.9), (1.0 - up) * smoothstep(0.6, 0.8, anoise(vAtmoPos * 0.3)) * 0.5); }
 `
 export const ROAD = /* glsl */ `
   { vec2 q = vAtmoPos.xz * 2.2; vec2 c = floor(q + vec2(floor(q.y) * 0.5, 0.0)); vec2 f = fract(q + vec2(floor(q.y) * 0.5, 0.0));
