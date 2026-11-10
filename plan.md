@@ -380,7 +380,7 @@ These block or shape items. Answer any time; write the answer into section 7.
 
 ## 8. Session log (newest first)
 
-**2026-11-09: LOOK-1 ground, snow, air and light** (not committed yet).
+**2026-11-09: `23a0676` LOOK-1 ground, snow, air and light.**
 - The user asked for the biggest gains in detail and realism, not the next queue item. Method: shoot Stones Hold and the demos close and far, compare with the references, name what hurts most, confirm each cause in the live scene or by measurement before changing it.
 - Found and fixed (all general, in `shaders.ts`, `scene.ts`, `volume.ts`, `geometry.ts`):
   - **Speckled, sparkling ground at any distance** and black specks across far views: the terrain's bumps (up to 10 m of fake relief) and its snow and rock masks were never faded with distance, and the masks read the bumped normal. Now every detail fades by its size against the pixel (`bandOf`), masks read the smooth normal, and a degenerate bump can no longer give a black pixel.
@@ -396,7 +396,7 @@ These block or shape items. Answer any time; write the answer into section 7.
 - New problems P30-P35 (what the shots show next); the queue is reordered by visible gain.
 - Next: CITY-3 (houses on steep ground), then trees.
 
-**2026-11-09: SH-0 and SH-1 Stones Hold reference pack and blockout** (not committed yet).
+**2026-11-09: `ad5b7d1` SH-0 and SH-1 Stones Hold reference pack and blockout** (the reference images in `refs/` are kept on this machine, not in the public repository).
 - The user gave reference images; saved in `refs/stones-hold/`, read into SH-0 above.
 - `examples/stones-hold.json` from existing parts only: ranges and horns, two cliff-top benches (ragged outlines, plateau edge 350) with rises for the cathedrals, the trunk valley with cliffs both sides, a barrier ridge cut by a gorge, a glacier in a cirque, a head lake and a hanging lake, the river; slums on the valley floor, walled upper towns filling polygons on the benches, a cliffside town; two cathedrals facing each other, a Sagrada-style basilica, a domed church behind a colonnade, palaces, a peak monastery, two colossi, a 2.5 km high viaduct, a gorge bridge, an aqueduct from the hanging lake. Wealth by altitude [1050, 1450]. Bundled on the Locations page as a demo.
 - Learned: a district's `radius` overrides its `area` (remove it to fill a polygon); plateau `area` corners make ruler-straight cliffs (use many ragged points); bridge decks must come from the built ground (probe it), the validator reads the uneroded one.
