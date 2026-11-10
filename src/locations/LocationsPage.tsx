@@ -9,9 +9,10 @@ import { useLocal } from '../ui'
 import exampleRaw from '../../examples/showcase.json?raw'
 import activeRaw from '../../examples/active-lands.json?raw'
 import cliffRaw from '../../examples/cliff-test.json?raw'
+import stonesRaw from '../../examples/stones-hold.json?raw'
 
 /** Bundled demos: shown beside the book's own locations, saved into the book only if you change one (a view, an import). */
-const DEMOS: LocationDoc[] = [JSON.parse(exampleRaw), JSON.parse(activeRaw), JSON.parse(cliffRaw)]
+const DEMOS: LocationDoc[] = [JSON.parse(exampleRaw), JSON.parse(activeRaw), JSON.parse(cliffRaw), JSON.parse(stonesRaw)]
 /** What the terrain and buildings depend on: names, notes, views and mood never trigger a rebuild. */
 const specOf = (d: LocationDoc) => JSON.stringify(d, (k, v) => (['name', 'note', 'views', 'mood', 'hour', 'weather', 'season'].includes(k) ? undefined : v))
 const hhmm = (h: number) => `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')}`

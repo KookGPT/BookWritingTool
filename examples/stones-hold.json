@@ -1,0 +1,918 @@
+{
+  "id": "stones-hold",
+  "name": "Stones Hold",
+  "seed": "stones-hold-1",
+  "size": 12000,
+  "note": "SH-1 blockout from the reference pack (refs/stones-hold): a granite range cut by a deep cliff-walled valley. Slums on the valley floor along the river, walled upper districts on the cliff-top benches, rival cathedrals on the high points, colossal statues on the cliff edges, a high viaduct and a gorge bridge, glacial lakes in the side valleys. Wealth rises with altitude.",
+  "base": 1000,
+  "relief": 380,
+  "snowline": 2300,
+  "climate": "alpine",
+  "culture": "central",
+  "rock": "granite",
+  "wealth": [
+    1050,
+    1450
+  ],
+  "farms": false,
+  "forest": 0.8,
+  "hour": 17,
+  "weather": "cloudy",
+  "season": "winter",
+  "terrain": [
+    {
+      "id": "north-range",
+      "kind": "ridge",
+      "path": [
+        [
+          -6000,
+          5300
+        ],
+        [
+          -2500,
+          5600
+        ],
+        [
+          1500,
+          5400
+        ],
+        [
+          6000,
+          5600
+        ]
+      ],
+      "height": 3000,
+      "width": 2000
+    },
+    {
+      "id": "west-range",
+      "kind": "ridge",
+      "path": [
+        [
+          -4300,
+          4500
+        ],
+        [
+          -4500,
+          1000
+        ],
+        [
+          -4200,
+          -2500
+        ],
+        [
+          -4600,
+          -6000
+        ]
+      ],
+      "height": 2700,
+      "width": 2000
+    },
+    {
+      "id": "east-range",
+      "kind": "ridge",
+      "path": [
+        [
+          4400,
+          4500
+        ],
+        [
+          4300,
+          800
+        ],
+        [
+          4600,
+          -2800
+        ],
+        [
+          4300,
+          -6000
+        ]
+      ],
+      "height": 2800,
+      "width": 2000
+    },
+    {
+      "id": "north-west-horn",
+      "kind": "peak",
+      "at": [
+        -3600,
+        3800
+      ],
+      "height": 3150,
+      "radius": 1900,
+      "sharp": 1.6
+    },
+    {
+      "id": "north-east-horn",
+      "kind": "peak",
+      "at": [
+        3600,
+        4100
+      ],
+      "height": 3250,
+      "radius": 1900,
+      "sharp": 1.6
+    },
+    {
+      "id": "south-west-peak",
+      "kind": "peak",
+      "at": [
+        -4100,
+        -3000
+      ],
+      "height": 2650,
+      "radius": 1700,
+      "sharp": 1.3
+    },
+    {
+      "id": "south-east-peak",
+      "kind": "peak",
+      "at": [
+        4000,
+        -3300
+      ],
+      "height": 2550,
+      "radius": 1700,
+      "sharp": 1.3
+    },
+    {
+      "id": "west-bench",
+      "kind": "plateau",
+      "area": [
+        [
+          -3100,
+          3300
+        ],
+        [
+          -2200,
+          3450
+        ],
+        [
+          -1300,
+          3200
+        ],
+        [
+          -980,
+          2600
+        ],
+        [
+          -1050,
+          1700
+        ],
+        [
+          -930,
+          900
+        ],
+        [
+          -1000,
+          0
+        ],
+        [
+          -900,
+          -900
+        ],
+        [
+          -980,
+          -1700
+        ],
+        [
+          -1300,
+          -2500
+        ],
+        [
+          -2100,
+          -2800
+        ],
+        [
+          -2800,
+          -2500
+        ],
+        [
+          -3150,
+          -1500
+        ],
+        [
+          -2950,
+          -300
+        ],
+        [
+          -3250,
+          800
+        ],
+        [
+          -3000,
+          2000
+        ]
+      ],
+      "height": 1420,
+      "edge": 350
+    },
+    {
+      "id": "east-bench",
+      "kind": "plateau",
+      "area": [
+        [
+          1050,
+          3100
+        ],
+        [
+          1700,
+          3250
+        ],
+        [
+          2600,
+          3100
+        ],
+        [
+          3150,
+          2400
+        ],
+        [
+          2950,
+          1500
+        ],
+        [
+          3200,
+          500
+        ],
+        [
+          3050,
+          -600
+        ],
+        [
+          3250,
+          -1700
+        ],
+        [
+          2900,
+          -2600
+        ],
+        [
+          2100,
+          -2900
+        ],
+        [
+          1300,
+          -2600
+        ],
+        [
+          980,
+          -1800
+        ],
+        [
+          920,
+          -900
+        ],
+        [
+          1000,
+          0
+        ],
+        [
+          930,
+          900
+        ],
+        [
+          1020,
+          1900
+        ]
+      ],
+      "height": 1400,
+      "edge": 350
+    },
+    {
+      "id": "west-cathedral-hill",
+      "kind": "peak",
+      "at": [
+        -1750,
+        1500
+      ],
+      "height": 1500,
+      "radius": 600,
+      "sharp": 0.6
+    },
+    {
+      "id": "east-cathedral-hill",
+      "kind": "peak",
+      "at": [
+        2350,
+        1100
+      ],
+      "height": 1490,
+      "radius": 600,
+      "sharp": 0.6
+    },
+    {
+      "id": "great-valley",
+      "kind": "valley",
+      "path": [
+        [
+          0,
+          5000
+        ],
+        [
+          -100,
+          2500
+        ],
+        [
+          100,
+          0
+        ],
+        [
+          0,
+          -2500
+        ],
+        [
+          200,
+          -6000
+        ]
+      ],
+      "height": 1090,
+      "end": 820,
+      "width": 1000,
+      "edge": 320,
+      "meander": 0.4
+    },
+    {
+      "id": "west-wall",
+      "kind": "cliff",
+      "path": [
+        [
+          -900,
+          3600
+        ],
+        [
+          -950,
+          1000
+        ],
+        [
+          -850,
+          -1500
+        ],
+        [
+          -800,
+          -4200
+        ]
+      ],
+      "drop": 300,
+      "side": "left",
+      "extent": 900,
+      "rock": "granite"
+    },
+    {
+      "id": "east-wall",
+      "kind": "cliff",
+      "path": [
+        [
+          900,
+          3600
+        ],
+        [
+          950,
+          1000
+        ],
+        [
+          900,
+          -1500
+        ],
+        [
+          850,
+          -4200
+        ]
+      ],
+      "drop": 300,
+      "side": "right",
+      "extent": 900,
+      "rock": "granite"
+    },
+    {
+      "id": "cirque-valley",
+      "kind": "valley",
+      "path": [
+        [
+          -3300,
+          5300
+        ],
+        [
+          -2500,
+          4300
+        ],
+        [
+          -1500,
+          3600
+        ]
+      ],
+      "height": 2350,
+      "end": 1500,
+      "width": 700,
+      "edge": 100
+    },
+    {
+      "id": "north-west-glacier",
+      "kind": "glacier",
+      "path": [
+        [
+          -3300,
+          5300
+        ],
+        [
+          -2500,
+          4300
+        ],
+        [
+          -1500,
+          3600
+        ]
+      ],
+      "width": 300,
+      "height": 1750
+    },
+    {
+      "id": "hanging-valley",
+      "kind": "valley",
+      "path": [
+        [
+          3300,
+          4700
+        ],
+        [
+          2400,
+          3400
+        ],
+        [
+          1100,
+          2700
+        ]
+      ],
+      "height": 1850,
+      "end": 1460,
+      "width": 650,
+      "edge": 120
+    },
+    {
+      "id": "barrier",
+      "kind": "ridge",
+      "path": [
+        [
+          -1300,
+          -1800
+        ],
+        [
+          0,
+          -1750
+        ],
+        [
+          1300,
+          -1800
+        ]
+      ],
+      "height": 1300,
+      "width": 450
+    },
+    {
+      "id": "the-gorge",
+      "kind": "gorge",
+      "path": [
+        [
+          0,
+          -1050
+        ],
+        [
+          50,
+          -1800
+        ],
+        [
+          120,
+          -2550
+        ]
+      ],
+      "depth": 330,
+      "width": 130
+    },
+    {
+      "id": "head-lake",
+      "kind": "lake",
+      "at": [
+        0,
+        3900
+      ],
+      "radius": 550,
+      "depth": 45
+    },
+    {
+      "id": "hanging-lake",
+      "kind": "lake",
+      "path": [
+        [
+          2900,
+          4000
+        ],
+        [
+          2400,
+          3400
+        ]
+      ],
+      "radius": 330,
+      "depth": 50
+    },
+    {
+      "id": "the-river",
+      "kind": "river",
+      "path": [
+        [
+          0,
+          3400
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          50,
+          -1800
+        ],
+        [
+          200,
+          -5900
+        ]
+      ],
+      "width": 30,
+      "depth": 4,
+      "meander": 0.4,
+      "mouth": "none"
+    }
+  ],
+  "districts": [
+    {
+      "id": "north-slums",
+      "at": [
+        100,
+        800
+      ],
+      "radius": 1000,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.08,
+      "plan": "organic",
+      "farms": false
+    },
+    {
+      "id": "south-slums",
+      "at": [
+        250,
+        -3700
+      ],
+      "radius": 700,
+      "culture": "mountain",
+      "density": 0.9,
+      "wealth": 0.12,
+      "farms": false
+    },
+    {
+      "id": "cliffside",
+      "at": [
+        -760,
+        -600
+      ],
+      "radius": 350,
+      "culture": "mountain",
+      "steep": true,
+      "wealth": 0.3,
+      "farms": false
+    },
+    {
+      "id": "west-high-town",
+      "at": [
+        -1900,
+        600
+      ],
+      "culture": "central",
+      "walls": true,
+      "wealth": 0.85,
+      "farms": false,
+      "area": [
+        [
+          -2700,
+          2900
+        ],
+        [
+          -1250,
+          3000
+        ],
+        [
+          -1100,
+          1600
+        ],
+        [
+          -1100,
+          200
+        ],
+        [
+          -1250,
+          -1000
+        ],
+        [
+          -2000,
+          -1300
+        ],
+        [
+          -2700,
+          -600
+        ],
+        [
+          -2850,
+          1200
+        ]
+      ],
+      "density": 0.75
+    },
+    {
+      "id": "east-high-town",
+      "at": [
+        1900,
+        200
+      ],
+      "culture": "central",
+      "walls": true,
+      "wealth": 0.85,
+      "farms": false,
+      "area": [
+        [
+          1250,
+          2800
+        ],
+        [
+          2700,
+          2900
+        ],
+        [
+          2950,
+          1500
+        ],
+        [
+          2850,
+          0
+        ],
+        [
+          2600,
+          -900
+        ],
+        [
+          1700,
+          -1000
+        ],
+        [
+          1150,
+          -500
+        ],
+        [
+          1100,
+          1200
+        ]
+      ],
+      "density": 0.75
+    }
+  ],
+  "structures": [
+    {
+      "id": "west-cathedral",
+      "kind": "cathedral",
+      "at": [
+        -1750,
+        1500
+      ],
+      "facing": 90,
+      "scale": 2.3
+    },
+    {
+      "id": "east-cathedral",
+      "kind": "cathedral",
+      "at": [
+        2350,
+        1100
+      ],
+      "facing": 270,
+      "scale": 2.5
+    },
+    {
+      "id": "spire-basilica",
+      "kind": "basilica",
+      "at": [
+        -2300,
+        -1600
+      ],
+      "facing": 90,
+      "scale": 0.6
+    },
+    {
+      "id": "great-dome",
+      "kind": "dome",
+      "at": [
+        2400,
+        -1250
+      ],
+      "facing": 270,
+      "scale": 0.9,
+      "roof": "#5f8a78"
+    },
+    {
+      "id": "great-colonnade",
+      "kind": "colonnade",
+      "at": [
+        1900,
+        -1250
+      ],
+      "facing": 270,
+      "radius": 140,
+      "statues": true
+    },
+    {
+      "id": "west-palace",
+      "kind": "palace",
+      "at": [
+        -2700,
+        250
+      ],
+      "facing": 90,
+      "width": 120,
+      "depth": 90
+    },
+    {
+      "id": "east-palace",
+      "kind": "palace",
+      "at": [
+        2750,
+        -200
+      ],
+      "facing": 270,
+      "width": 110,
+      "depth": 84
+    },
+    {
+      "id": "peak-monastery",
+      "kind": "monastery",
+      "at": [
+        -3000,
+        2900
+      ],
+      "facing": 120
+    },
+    {
+      "id": "west-colossus",
+      "kind": "statue",
+      "at": [
+        -1080,
+        1150
+      ],
+      "facing": 90,
+      "height": 55,
+      "color": "#c8c2b4"
+    },
+    {
+      "id": "east-colossus",
+      "kind": "statue",
+      "at": [
+        1080,
+        -450
+      ],
+      "facing": 270,
+      "height": 55,
+      "color": "#c8c2b4"
+    },
+    {
+      "id": "high-bridge",
+      "kind": "bridge",
+      "at": [
+        -1250,
+        1950
+      ],
+      "to": [
+        1230,
+        1950
+      ],
+      "deck": [
+        1420,
+        1400
+      ],
+      "width": 18,
+      "span": 140,
+      "style": "gothic"
+    },
+    {
+      "id": "gorge-bridge",
+      "kind": "bridge",
+      "at": [
+        -470,
+        -1800
+      ],
+      "to": [
+        520,
+        -1800
+      ],
+      "width": 16,
+      "span": 90,
+      "style": "roman",
+      "deck": [
+        1010,
+        1045
+      ]
+    },
+    {
+      "id": "hanging-aqueduct",
+      "kind": "aqueduct",
+      "path": [
+        [
+          2300,
+          3100
+        ],
+        [
+          2150,
+          2100
+        ],
+        [
+          2250,
+          1500
+        ]
+      ],
+      "width": 6,
+      "span": 26,
+      "deck": [
+        1470,
+        1450
+      ],
+      "style": "segovia"
+    }
+  ],
+  "views": [
+    {
+      "name": "From the slums",
+      "at": [
+        260,
+        -700,
+        -5
+      ],
+      "heading": 350,
+      "pitch": 14,
+      "note": "The valley floor: smoke from a thousand chimneys, the cliffs and the walled city above, the high bridge against the sky.",
+      "hour": 17,
+      "weather": "cloudy",
+      "season": "winter"
+    },
+    {
+      "name": "Over the valley",
+      "at": [
+        -3300,
+        -4800,
+        2400
+      ],
+      "heading": 28,
+      "pitch": -17,
+      "note": "The whole hold: slums along the river, the benches and their walls, cathedrals on the heights, lakes in the side valleys.",
+      "hour": 17,
+      "weather": "cloudy",
+      "season": "winter"
+    },
+    {
+      "name": "The east wall",
+      "at": [
+        3200,
+        -3500,
+        2050
+      ],
+      "heading": 322,
+      "pitch": -15,
+      "note": "The east bench: the colonnade and dome, the walled town, the cliff dropping to the slums.",
+      "hour": 17,
+      "weather": "cloudy",
+      "season": "winter"
+    },
+    {
+      "name": "The gorge bridge",
+      "at": [
+        -900,
+        -2700,
+        1260
+      ],
+      "heading": 38,
+      "pitch": -4,
+      "note": "The river leaves the valley through a gorge cut in the barrier; the old bridge spans it.",
+      "hour": 17,
+      "weather": "cloudy",
+      "season": "winter"
+    },
+    {
+      "name": "Rival cathedrals",
+      "at": [
+        -200,
+        3000,
+        1650
+      ],
+      "heading": 180,
+      "pitch": -14,
+      "note": "West and east cathedrals face each other across the valley, the high bridge between them.",
+      "hour": 17,
+      "weather": "cloudy",
+      "season": "winter"
+    }
+  ]
+}
