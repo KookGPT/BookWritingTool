@@ -29,7 +29,7 @@ const KEYS: Key[] = [
   { el: 13, sun: '#ffd8b0', sunI: 3.4, zenith: '#5a84b8', horizon: '#c6d0da', glow: '#f4d2a6', hemi: '#b8c8e0', ground: '#5a5040', hemiI: 0.7, exposure: 0.95, night: 0, haze: 0.000011, sat: 1.05, tint: '#fff8f0' },
   { el: 55, sun: '#fff4e6', sunI: 3.8, zenith: '#3d6dae', horizon: '#bccfe0', glow: '#e8eef4', hemi: '#c0d4ec', ground: '#5e5444', hemiI: 0.65, exposure: 0.85, night: 0, haze: 0.000008, sat: 1.05, tint: '#ffffff' },
 ]
-export interface Atmos { hour: number; weather: Weather; season: Season; mist: number }
+export interface Atmos { hour: number; weather: Weather; season: Season; mist: number; /** Snow depth 0 (a dusting on level ground) .. 1 (deep); by season and weather when left out. */ snow?: number }
 export const MOODS: Record<MoodName, { label: string } & Omit<Atmos, 'season'>> = {
   morning: { label: 'Alpine morning', hour: 8.2, weather: 'clear', mist: 0.2 },
   noon: { label: 'Clear noon', hour: 12.5, weather: 'clear', mist: 0.05 },
@@ -40,7 +40,7 @@ export const MOODS: Record<MoodName, { label: string } & Omit<Atmos, 'season'>> 
 }
 const WEATHER: Record<Weather, { clouds: number; sun: number; fog: number; haze: number; wet: number; precip: 'none' | 'rain' | 'snow'; storm: boolean; grey: number }> = {
   clear: { clouds: 0.35, sun: 1, fog: 1, haze: 1, wet: 0, precip: 'none', storm: false, grey: 0 },
-  cloudy: { clouds: 0.8, sun: 0.55, fog: 1.6, haze: 1.3, wet: 0, precip: 'none', storm: false, grey: 0.35 },
+  cloudy: { clouds: 0.8, sun: 0.5, fog: 1.6, haze: 1.3, wet: 0, precip: 'none', storm: false, grey: 0.5 },
   rain: { clouds: 0.95, sun: 0.3, fog: 2.6, haze: 2.2, wet: 1, precip: 'rain', storm: false, grey: 0.6 },
   snow: { clouds: 0.92, sun: 0.4, fog: 2.2, haze: 2, wet: 0, precip: 'snow', storm: false, grey: 0.5 },
   storm: { clouds: 1, sun: 0.15, fog: 3.2, haze: 2.8, wet: 1, precip: 'rain', storm: true, grey: 0.8 },
@@ -102,7 +102,7 @@ export class LocScene {
   private wallMat = atmo(new THREE.MeshStandardMaterial({ roughness: 0.9 }), { surface: WALL, emissive: GLOW, vertex: WALL_V, vhead: WALL_VH, fhead: WALL_FH, snow: 0.4, weather: true })
   private roofMat = atmo(new THREE.MeshStandardMaterial({ roughness: 0.75, vertexColors: true }), { surface: ROOF, vertex: ROOF_V, vhead: ROOF_VH, fhead: ROOF_FH, weather: true })
   private partMat = atmo(new THREE.MeshStandardMaterial({ roughness: 0.85, vertexColors: true }), { surface: MOTTLE + 'atmoBump = anoise(vAtmoPos * 2.0) * 0.03;', weather: true })
-  private treeMat = atmo(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, flatShading: true }), { surface: TREE, vertex: TREE_V, vhead: TREE_VH, fhead: TREE_FH })
+  private treeMat = atmo(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }), { surface: TREE, vertex: TREE_V, vhead: TREE_VH, fhead: TREE_FH, snow: 0.8 })
   private rockMat = atmo(new THREE.MeshStandardMaterial({ color: 0x8a857c, roughness: 0.95, flatShading: true }), { surface: MOTTLE + 'atmoBump = afbm(vAtmoPos * 0.9) * 0.25;' })
   private lakeMat = waterMaterial(0, '#3c9c9a', '#0c3a4a')
   private seaMat = waterMaterial(0, '#3f8f8c', '#0b2a40', 1)
@@ -325,37 +325,44 @@ export class LocScene {
     const n = (p: 'sunI' | 'hemiI' | 'exposure' | 'night' | 'haze' | 'sat') => k0[p] + (k1[p] - k0[p]) * t
     const grey = (col: THREE.Color, g: number) => { const l = col.r * 0.3 + col.g * 0.59 + col.b * 0.11; return col.lerp(new THREE.Color(l, l, l * 1.04), g) }
     const night = n('night')
+    const lid = Math.min(1, wx.grey * 1.6), sunCol = grey(c('sun'), lid * 0.85) // heavy cloud takes the colour out of the light
     U.uDamp.value = DAMP[this.doc?.climate ?? 'temperate'] ?? 0.7
     this.sunDir.setFromSphericalCoords(1, (90 - el) * DEG, (180 - az) * DEG)
     // at night the moon lights the land from high in the south-west
     if (el < -6) this.lightDir.setFromSphericalCoords(1, 55 * DEG, (180 - 215) * DEG)
     else this.lightDir.copy(this.sunDir).setY(Math.max(0.12, this.sunDir.y)).normalize()
     U.uSun.value.copy(el < -6 ? this.lightDir : this.sunDir)
-    this.sun.color.copy(c('sun')); this.sun.intensity = n('sunI') * wx.sun * st.sun
+    this.sun.color.copy(sunCol); this.sun.intensity = n('sunI') * wx.sun * st.sun
     this.hemi.color.copy(grey(c('hemi'), wx.grey)); this.hemi.groundColor.copy(c('ground')); this.hemiBase = this.hemi.intensity = n('hemiI') * (1 + wx.grey * 0.6)
-    const horizon = grey(c('horizon'), wx.grey * 0.8)
-    U.uFogCol.value.copy(horizon); U.uGlowCol.value.copy(grey(c('glow'), wx.grey)); U.uHaze.value = n('haze') * wx.haze * st.haze; U.uNight.value = night
+    // under heavy cloud the sky loses its colour (no pink dusk through an overcast) and a third of its light
+    const horizon = grey(c('horizon'), lid).multiplyScalar(1 - wx.grey * 0.3)
+    U.uFogCol.value.copy(horizon); U.uGlowCol.value.copy(grey(c('glow'), lid)); U.uHaze.value = n('haze') * 2.5 * wx.haze * st.haze; U.uNight.value = night
     U.uSky.value.copy(grey(c('zenith'), wx.grey)).lerp(horizon, 0.5)
     const su = this.sky.material.uniforms
-    su.uZenith.value.copy(grey(c('zenith'), wx.grey * 0.9)); su.uHorizon.value.copy(horizon); su.uSunCol.value.copy(c('sun')); su.uClouds.value = wx.clouds
-    WATER_U.uZenith.value.copy(su.uZenith.value); WATER_U.uSunCol.value.copy(c('sun')); WATER_U.uSunI.value = n('sunI') * wx.sun
+    su.uZenith.value.copy(grey(c('zenith'), lid).multiplyScalar(1 - wx.grey * 0.3)); su.uHorizon.value.copy(horizon); su.uSunCol.value.copy(sunCol); su.uClouds.value = wx.clouds
+    WATER_U.uZenith.value.copy(su.uZenith.value); WATER_U.uSunCol.value.copy(sunCol); WATER_U.uSunI.value = n('sunI') * wx.sun
     WATER_U.uAmb.value.copy(grey(c('hemi'), wx.grey)).multiplyScalar(this.hemiBase * 0.55)
-    this.renderer.toneMappingExposure = n('exposure') * (1 + wx.grey * 0.25)
-    this.grade.uniforms.uSat.value = n('sat') * (1 - wx.grey * 0.25) * st.sat; this.grade.uniforms.uTint.value.copy(c('tint'))
+    this.renderer.toneMappingExposure = n('exposure') * (1 + wx.grey * 0.1)
+    // the warm tint of the highlights belongs to sunlight: under cloud it would turn snow and sky sepia
+    const white = new THREE.Color(1, 1, 1)
+    this.grade.uniforms.uSat.value = n('sat') * (1 - wx.grey * 0.25) * st.sat; this.grade.uniforms.uTint.value.copy(c('tint').lerp(white, lid)); this.grade.uniforms.uHigh.value.set(st.high).lerp(white, lid)
     // fog: a base by the hour, more with mist and bad weather; it pools in the valleys
     const lo = Math.max(b?.minH ?? 0, b?.sea ?? -Infinity), hi = b?.maxH ?? 2000 // the sea floor never counts as low ground
     U.uFogBase.value = lo + (0.06 + mist * 0.14) * (hi - lo)
-    U.uFogD.value = (0.000015 + mist * mist * 0.005) * wx.fog // valley fog only when there is mist (or weather)
+    // clear air is clear: valley fog only when there is real mist, a murk in bad weather (the air's own haze is uHaze)
+    U.uFogD.value = 0.00002 + (wx.fog - 1) * 0.00006 + mist ** 3 * 0.005 * wx.fog
     U.uFogFall.value = 1 / (900 - mist * 780)
     U.uWet.value = wx.wet
     // season: snow line (winter brings it right down), foliage colour, bare trees
     const winter = season === 'winter', snowFall = weather === 'snow'
-    U.uSnow.value = 1
+    // how deep the snow lies: deep while it falls and on the permanent snow of the heights; a settled winter cover leaves
+    // steep rock dark, with snow on its ledges
+    U.uSnow.value = this.atmos.snow ?? (snowFall || !winter ? 1 : 0.62)
     U.uSnowLine.value = winter ? lo + (hi - lo) * (snowFall ? -0.1 : 0.12) : snowFall ? lo + (hi - lo) * 0.45 : this.snowline
     U.uFoliage.value.set(FOLIAGE[season]); U.uBare.value = winter ? 1 : 0
     this.fx.state = {
       clouds: wx.clouds, mist, fogBase: U.uFogBase.value, precip: wx.precip, storm: wx.storm, night,
-      cloudCol: grey(horizon.clone().multiplyScalar(0.85), 0.2), cloudLit: c('sun').lerp(new THREE.Color(1, 1, 1), 0.5).multiplyScalar(night > 0.5 ? 0.2 : 1), sun: U.uSun.value.clone(),
+      cloudCol: grey(horizon.clone().multiplyScalar(0.85 * (1 - 0.4 * wx.grey)), 0.2), cloudLit: sunCol.clone().lerp(new THREE.Color(1, 1, 1), 0.5).multiplyScalar(Math.max(0.06, 1 - night * 1.25) * (1 - wx.grey * 0.4)), sun: U.uSun.value.clone(),
       wind: new THREE.Vector3(3, 0, 1.5).multiplyScalar(wx.storm ? 4 : weather === 'clear' ? 1 : 2),
     }
     // the sky's light for reflections, redone only when the hour or the weather changes noticeably

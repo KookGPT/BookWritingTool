@@ -3,7 +3,7 @@
 The plan, status and session log for the **Locations** tab (`/locations`, `src/locations/`).
 CLAUDE.md explains how the code works. This file covers what the tool is for, where it stands, and what comes next.
 
-Last updated: 2026-11-09, GFX-1b (surface detail up close).
+Last updated: 2026-11-09, LOOK-1 (ground, snow, air and light pass, picked by looking at the shots rather than the queue).
 
 ---
 
@@ -168,17 +168,23 @@ Each problem has an ID. Fix items refer to these IDs.
 | P11 | No cold/arid demo: fjords, mesas, canyons and dunes have never been looked at | no demo | medium |
 | P12 | No quays along town shores | missing feature | low |
 | P13 | Editing a location on two devices keeps an "(other device)" copy instead of merging | `merge.ts` | low |
+| P30 | Houses on steep ground are pasted boxes: pale flat-roofed cubes half buried in or floating off the slope, no terraces or footings (Stones Hold's cliffside town; every hill town to a degree) | `placeAll` levels nothing and steps nothing down a slope (CITY-3) | high |
+| P31 | Trees are still low-poly shapes (stacked cones, blobs): colours and shading are natural since LOOK-1, the silhouettes are not | `treeGeo` in `geometry.ts` (GFX-4) | high |
+| P32 | Districts filled from a recipe polygon read as straight-edged carpets of equal houses from the air (Stones Hold's upper towns) | `growTown` with `area`; no blocks, squares or density change inside (CITY-1, CITY-5) | high |
+| P33 | No shadows beyond the shadow box (far mountains are unshadowed) and no contact shading between houses | one 4096 shadow map round the camera; no ambient occlusion pass (GFX-5) | medium |
+| P34 | Great structures are blank from a few hundred metres: a cathedral front is a flat pale sheet until the camera is close | tier 1 and 2 detail stop at 2.6 km / 800 m and the massing has no relief or shade of its own (DET-2, KIT-4) | medium |
+| P35 | The flat land beyond the backdrop shows straight streaks of colour running out to the horizon (seen from high or far outside the map) | `skirtMesh` carries the rim's colours out along straight lines | low |
 | P15 | Houses are tier 0 in every scene, so small scenes are as plain as big ones | `buildings.ts` has no detail tiers (DET-1) | high |
-| P17 | Trees, ground cover and props are simple up close; no undergrowth, grass or scattered stones | `city.ts` trees, no ground-cover pass (GFX-4) | medium |
-| P18 | Light and render pipeline are basic: no bloom, no screen-space AO, limited shadow range, plain sky | `scene.ts` (GFX-5, ATM-4) | medium |
+| P17 | No ground cover with height: grass, shrubs, undergrowth and scattered stones are only drawn into the ground's surface (since LOOK-1), nothing stands up | no ground-cover pass (GFX-4) | medium |
+| P18 | Light and render pipeline are basic: no bloom, no screen-space AO, limited shadow range; the sky is a painted gradient with flat cloud (darker bases since LOOK-1) | `scene.ts` (GFX-5, ATM-4) | medium |
 | P19 | Port Town's square (showcase, shot `town-port-town`): bare levelled sand under a big dark slab overhead, rock wall behind, no market in view | the core sits on a slope (ground 10..63 m round it); the square's levelling vs the volume ground, maybe an overhang | medium |
-| P20 | Triangular rock facets on smooth grass slopes (showcase, below the aqueduct) | volume rock where the grid is steep, `volume.ts` | medium |
 | P21 | The build cache misses for showcase and active-lands: they rebuild on every visit in the pane (cliff-test hits) | `idbSet` in `LocationsPage.tsx` failing on big builds? Old builds are never deleted (IndexedDB held `loc-build:25..30:cliff-test` at once and no showcase entry), so storage likely fills up: delete other versions' keys when saving | medium |
 | P22 | A thin straight horizontal line across the far cliffs (cliff-test `view-sea-cliffs`, both grounds) | maybe the backdrop skirt or the sea plane edge (see P8) | low |
 | P23 | Floating grey quads near the river cathedral's base (showcase `structure-river-cathedral`) | a kit part or detail-tier chunk placed off the ground | low |
 | P25 | Deltas are a simple fan: channels from one apex, no real branching, no levees or bars (active-lands) | `carveDelta` in `hydro.ts`; see ENV-5 | medium |
 | P26 | Jade River reaches the sea over a cliff fall, so its delta starts under a plunge pool | the coast cliff is cut after the river's valley; the river does not cut its own way through the cliff | low |
 | P27 | A short flat ribbon ledge sticks out past the rock at the top of a fall | the last ribbon segment above the lip is drawn at full width | low |
+| P29 | `validate` checks bridge decks against the ground before erosion, so a deck set from the built ground is flagged and one that passes may float (Stones Hold gorge bridge) | the deck check in `validate` (`city.ts`) uses the landform function, not the eroded grid | medium |
 
 ---
 
@@ -188,10 +194,15 @@ Milestones are in order. Each milestone lists its items in order. An item is siz
 
 ### Next up (the short queue)
 
-1. **DET-1** Detail tiers by scene size (P15)
-2. **FIX-2** Glacier sits in its valley (P3)
-3. **PERF-1** Lighter volume ground (P6)
-4. **SH-0** Stones Hold reference pack (needs the user)
+Ordered by how much each would change the pictures (the user's rule since 2026-11-09: biggest visible gain first; the queue is a guide):
+
+1. **CITY-3** Building on steep ground (P30): the worst thing left in every hill-town shot
+2. **GFX-4** Vegetation, trees first (P31, P17)
+3. **DET-1** Detail tiers by scene size (P15)
+4. **CITY-1 + CITY-5** Districts with blocks, wealth and character instead of carpets (P32)
+5. **GFX-5** Far shadows and ambient occlusion (P33)
+6. **SH-2** Stones Hold: the gaps in the order the user picks (G1 is mostly done by LOOK-1)
+7. **FIX-2** Glacier sits in its valley (P3); **PERF-1** Lighter volume ground (P6)
 
 The rule for picking order: keep alternating between fixing what's wrong (realism), raising the look (quality and detail) and **adding new kinds of things** (environments, structures, details), so none of them falls behind. If no "new kind of thing" item was done in the last three sessions, the next one should be.
 
@@ -227,7 +238,7 @@ Raises the look of every scene at once. Each item is done when the standard shot
   - **GFX-1c Built ground.** Paving, steps, cobbles and kerbs in the same system (road and plaza surfaces), worn where feet go (centres of streets, thresholds), weeds in the joints by climate.
     - Done when: street-height shots in every town show paving with wear, fps within 15%.
 - **GFX-2 Stone that reads as built.** Masonry courses and blocks on great structures (on the carving tier); ashlar vs rubble by wealth and culture; mortar lines; worn edges.
-- **GFX-3 Ground close up.** Terrain texture at metre scale: soil, grass, scree, gravel, mud, snow, rock strata, blended by slope, wetness and wear (paths worn where streets and roads run).
+- **GFX-3 Ground close up.** ~~Turf, earth, rock grain, beds, sand and snow down to a hand's width, band-limited~~ (done in LOOK-1). Left: gravel and mud as their own surfaces, wetness, wear (paths worn where streets and roads run), scree as stones rather than noise.
 - **GFX-4 Vegetation.** Better trees by species and climate, with real crowns and up-close leaves; grass, shrubs, undergrowth and scattered stones as ground cover near the camera; forest edges and clearings that follow terrain and settlement.
 - **GFX-5 Render pipeline.** Tone mapping and colour grading per mood, screen-space ambient occlusion, cascaded shadows over the whole view, anti-aliasing without shimmer, bloom (shared with ATM-4).
 - **GFX-6 Water quality.** Reflections, refraction and depth colour, foam at rocks and falls, wet shore bands, ripples by wind, ice on cold lakes.
@@ -305,9 +316,23 @@ Each kit is done when: three seeds look different, they sit correctly on uneven 
 - **AUTH-3 Book links.** Link a location to wiki pages and scenes (later, like the Globe's places).
 
 ### M12 Stones Hold
-- **SH-0 Reference pack** (user). Images and notes for: the range's shape, the cathedrals, bridges, aqueducts, the square, the slums, the mood. Put them in `refs/stones-hold/`, and answer the questions in section 6.
-- **SH-1 Blockout.** A first recipe from existing parts only: the range, lakes, districts and placeholder megastructures. Its main output is a **gap list** added to this plan.
-- **SH-2 onward.** Fill the gaps in the order the user cares about most. Each session adds one megastructure or one district and re-shoots.
+- ~~SH-0 Reference pack~~ (done 2026-11-09): `refs/stones-hold/ref-1..3.webp` (a fourth was a copy of the first). What they show:
+  - a granite range cut by a deep, narrow, cliff-walled valley; a river on its floor; glacial lakes in the side valleys held by masonry dams with spillway falls;
+  - the slums packed on the valley floor and up its lower slopes: dark timber and rubble tenements, steep roofs, smoke from every chimney, washing lines, mud streets;
+  - the rich city on the cliff tops and spurs, behind colossal retaining walls with gates and banners, terraces stepping up to palaces;
+  - rival Gothic cathedrals with great rose and lancet windows lit from inside, on the highest points, and palaces and domes between them;
+  - colossal statues (60-100 m) on plinths at the cliff edges and gates; long many-arched viaducts and single giant arches across gorges from rim to rim;
+  - mood: winter, heavy overcast, dusk, snow lying on every ledge but the rock still dark, lamplight in thousands of windows, mist in the valley.
+- ~~SH-1 Blockout~~ (done 2026-11-09): `examples/stones-hold.json`, 12 km, 28,000 buildings, about 30 s in node and 60 s in the pane. Gap list (G-numbers), in the order the shots show them:
+  - **G1 Mood.** (Mostly done in LOOK-1: snow depth, dark rock with snow on ledges, grey overcast, a dusk that is dark with lit windows at about 19:40. Left: cathedral windows that read from afar, chimney smoke, a snow-depth control on the page and in views.) Winter covers everything in snow and the scene stays bright at 17:00; the references are dark rock with snow on ledges, dusk, lit windows by the thousand (ATM-2, ATM-5; needs a snow-amount control and a darker dusk).
+  - **G2 The rich city on the cliffs.** Upper districts are even carpets of small houses on flat snowfields; they need colossal retaining walls along the cliff edges with gates, terraces stepping up, mansions and gardens, wealth that shows (CITY-1, CITY-3, CITY-5, KIT-8).
+  - **G3 Slum houses.** The `mountain` culture gives pale whitewashed cubes on steep ground; the slums want dark tall timber-and-rubble tenements, crammed, smoking (ENV-4: a Stones Hold slum culture; ATM-3 smoke).
+  - **G4 Great single arches.** The bridge kit only makes tiers of equal arches; the references have single arches of 150-250 m across gorges and tall-pier viaducts with banners (KIT-1; depends on Q2).
+  - **G5 Dams.** Glacial lakes behind masonry dams with spillway falls (KIT-7).
+  - **G6 Colossi.** The statue kit is a 55 m figure that reads small at city scale; 60-100 m statues on plinths at cliff edges and gates (KIT-6).
+  - **G7 Cathedrals vanish at range scale.** They need to read from kilometres away: colossal scale (KIT-4), lit windows, focal detail (DET-2).
+  - **G8 Tool gaps.** `validate` checks bridge decks against the ground before erosion (P29); views can be placed inside rock or facing a wall with no warning (a view check); houses off streets 20-24% in the big towns (P5); 60 s builds (P9).
+- **SH-2 onward.** One gap per session, re-shooting the five Stones Hold views (`sh1-` is the first set) each time. Suggested order: G1 mood (cheap, changes every shot), G2 cliff walls and terraces, G3 slum culture, G4 great arches, G5 dams, G6 colossi, G7 cathedrals. The user may reorder.
 
 ### Later / ideas (not planned)
 Quays along town shores (P12); a field-wise merge for locations (P13); showing locations on the Map or Globe; scene and wiki pins.
@@ -316,6 +341,7 @@ Quays along town shores (P12); a field-wise merge for locations (P13); showing l
 - Tower furniture: clock faces, bells seen through belfry louvres, weather vanes and gilded crosses that catch the low sun.
 - Rivers by season: high water and brown floods in spring melt, low water with gravel bars showing in late summer (the season switch exists; the channel would need a bankfull and a low-water level).
 - Age as a recipe knob: a place (or one structure) says how old and how kept it is, and weathering, moss, missing render and broken tiles follow (feeds ENV-3 ruins).
+- Snow that knows the wind: cornices on the lee side of ridges, scoured rock to windward, drifts against walls and in street corners, avalanche tracks down gullies (the snow now only knows slope, ledges and height).
 - Rivers in winter: ice along the banks, frozen falls as hanging icicle curtains, snow on the gravel bars (the season switch already exists).
 
 ---
@@ -324,12 +350,12 @@ Quays along town shores (P12); a field-wise merge for locations (P13); showing l
 
 These block or shape items. Answer any time; write the answer into section 7.
 
-- **Q1 Size of Stones Hold.** How big is the range, roughly (10 km? 30 km?), and how many people live there? This drives PERF-4 and CITY-*.
-- **Q2 Engineering realism.** Eyaris has no fantasy features. Should megastructures stay within what pre-modern masonry could build (spans up to about 100 m per arch, viaducts many arches long), or are they allowed to be "heroic" beyond real engineering?
-- **Q3 Peak-to-peak bridges.** Should they be stone arches (many tiers deep, valley gets filled with piers), chain or suspension bridges, or both?
+- **Q1 Size of Stones Hold.** How big is the range, roughly (10 km? 30 km?), and how many people live there? This drives PERF-4 and CITY-*. (Blockout uses 12 km; the references read as roughly 10-20 km.)
+- **Q2 Engineering realism.** Eyaris has no fantasy features. Should megastructures stay within what pre-modern masonry could build (spans up to about 100 m per arch, viaducts many arches long), or are they allowed to be "heroic" beyond real engineering? (The references show heroic single arches of 150 m and more.)
+- **Q3 Peak-to-peak bridges.** Should they be stone arches (many tiers deep, valley gets filled with piers), chain or suspension bridges, or both? (The references: stone, both tall many-arched viaducts and single giant arches; no chains.)
 - **Q4 Era and technology.** Medieval, Renaissance, or early modern? This affects glass, iron, lifts and lighting.
 - **Q5 Cultures in the city.** Which of the four building cultures, or a new Stones Hold style of its own?
-- **Q6 Families.** How many rival families or cathedrals are there, and does each have a different style?
+- **Q6 Families.** How many rival families or cathedrals are there, and does each have a different style? (The references show at least two great Gothic cathedrals; the blockout adds a Sagrada-style basilica and a domed church as other families.)
 - **Q7 Performance floor.** What fps is acceptable while flying on your machine (30? 60?)?
 - **Q8 Priority after the fixes.** Megastructure kits first, or atmosphere first?
 
@@ -347,10 +373,35 @@ These block or shape items. Answer any time; write the answer into section 7.
 - 2026-11-09: The map is only a small margin wider than the place (`margin` 0.35 x size).
 - 2026-11-09: **Volume ground is the default** (one SDF surface for ground and rock). Reason: the height grid can't do overhangs, and the cliff sheets left seams. The grid stays available with `volume: false`.
 - 2026-11-09: Sessions are driven by this plan, one item each, with measurable "done when" checks.
+- 2026-11-09 (later): **Biggest visible gain first.** The user asked for the largest improvements in detail and realism without following the outline exactly. A session may start by shooting the demos, judging them against the references, and taking whatever hurts the pictures most; the queue in section 5 is ordered that way and is a guide, not a contract. What stays: general fixes only, a synthetic test where there is logic to test, shots before and after, this file updated.
+- 2026-11-09 (later): **Nothing is drawn finer than it can be seen.** Every shader detail fades by its own size against the pixel (`bandOf` in the terrain shader), and a feature thinner than its spacing (a crack, a seam) is not drawn at all: it cannot be band-limited and breaks into dots. Masks (snow, rock, moss) read the smooth normal, never the bumped one.
 
 ---
 
 ## 8. Session log (newest first)
+
+**2026-11-09: LOOK-1 ground, snow, air and light** (not committed yet).
+- The user asked for the biggest gains in detail and realism, not the next queue item. Method: shoot Stones Hold and the demos close and far, compare with the references, name what hurts most, confirm each cause in the live scene or by measurement before changing it.
+- Found and fixed (all general, in `shaders.ts`, `scene.ts`, `volume.ts`, `geometry.ts`):
+  - **Speckled, sparkling ground at any distance** and black specks across far views: the terrain's bumps (up to 10 m of fake relief) and its snow and rock masks were never faded with distance, and the masks read the bumped normal. Now every detail fades by its size against the pixel (`bandOf`), masks read the smooth normal, and a degenerate bump can no longer give a black pixel.
+  - **Nothing to see on the ground up close**: turf with dry and lush patches, tussocks and blades, worn through to earth where thin or steep; rock and scree with grain and lichen; beds of uneven thickness on faces; sand grains. It arrives only as the camera nears (within about 200 m, 40 m, 8 m), so far views cost less than before.
+  - **Snow**: a depth (`uSnow`, `Atmos.snow`; settled winter 0.62, falling or permanent snow 1) decides how steep a face holds it; it catches on rock ledges (`atmoLedge`), has a drifted edge, buries the small relief under it. Roofs lost their dotted snow, trees their mint colour. Dark rock with white ledges, as in the Stones Hold references.
+  - **Milky, beige air**: clear weather is clear now (valley fog only with real mist, a murk in bad weather); the air's own haze thins with height and scatters the sky's blue, ending in the horizon's colour, so ridges step back in layers and the land meets the sky without a line.
+  - **Overcast and dusk**: heavy cloud takes the colour out of the sun, sky and highlights (the warm highlight grade turned every overcast snow scene sepia) and a third of the light; cloud has dark bases; stars only in real night through gaps; cloud puffs no longer glow at dusk.
+  - **Blocky rock** (P20, and the "stairs of blocks" on every 45 to 60 degree slope): measured on a synthetic 55 degree slope, switching parts of the rock field off one at a time. It was the joint clefts: 11 m apart and under a cube wide, they covered every face in pits (facets turned 12 degrees on average; 0.6 without them). Now a few gullies metres wide and tens of metres apart (4 degrees); beds are rounder and about twice as thick; rock ledges start at 45 degrees, not 40; no light baked per vertex into the rock colour. Test: the facet-turn measure on the synthetic slope.
+  - **Trees**: natural dark conifer and olive colours (the old ones were pastel), smooth shading with clumps and gaps drawn into the foliage, more tiers on spruce and larch with shade under the boughs.
+- Shots: `a0-` (before), `a1-`, `a2-` (after) on Stones Hold (slums, slope, overview winter and summer, ground, cliff, dusk); `gb-cliff-test-*` and `gb-showcase-view-*` against `gfx1b-`.
+- Learned: the plan's own lesson again (masks from the bumped normal speckle), and new ones. Thin lines (cracks, seams) alias into dotted lines whatever their spacing is band-limited to: draw broad soft shapes or nothing. Single-octave noise in the rock field shows its lattice as diamonds. The "sepia" was the grade, found by printing every light and sky colour (all neutral) before blaming them. When shooting after switching demos, wait for the new build's size, not only the new recipe id.
+- Not done: no page control for snow depth; ground cover with height; the audit numbers are unchanged (no build change, `BUILD_VERSION` not bumped: the volume is meshed at run time).
+- New problems P30-P35 (what the shots show next); the queue is reordered by visible gain.
+- Next: CITY-3 (houses on steep ground), then trees.
+
+**2026-11-09: SH-0 and SH-1 Stones Hold reference pack and blockout** (not committed yet).
+- The user gave reference images; saved in `refs/stones-hold/`, read into SH-0 above.
+- `examples/stones-hold.json` from existing parts only: ranges and horns, two cliff-top benches (ragged outlines, plateau edge 350) with rises for the cathedrals, the trunk valley with cliffs both sides, a barrier ridge cut by a gorge, a glacier in a cirque, a head lake and a hanging lake, the river; slums on the valley floor, walled upper towns filling polygons on the benches, a cliffside town; two cathedrals facing each other, a Sagrada-style basilica, a domed church behind a colonnade, palaces, a peak monastery, two colossi, a 2.5 km high viaduct, a gorge bridge, an aqueduct from the hanging lake. Wealth by altitude [1050, 1450]. Bundled on the Locations page as a demo.
+- Learned: a district's `radius` overrides its `area` (remove it to fill a polygon); plateau `area` corners make ruler-straight cliffs (use many ragged points); bridge decks must come from the built ground (probe it), the validator reads the uneroded one.
+- Shots: `sh1-view-*` (five views at winter dusk). The slum view up the valley under the viaduct is the closest to the references; from above everything is white and flat.
+- Next: SH-2 (G1 mood), unless the user picks another gap.
 
 **2026-11-09: `e5a970e` GFX-1b surface detail up close.**
 - A `wood` material (`kit.ts` `MATS`): doors, belfry louvres, brackets, pier decks and piles, hulls, masts, stall posts and counters were all drawn as `roof`. A new kind of surface gets its own `Mat` rather than a hidden id per vertex.

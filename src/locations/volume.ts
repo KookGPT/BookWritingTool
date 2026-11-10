@@ -17,6 +17,8 @@ export interface FieldIn {
   wet?: Uint8Array
 }
 
+/** The slopes (rise over run) between which smooth ground turns into a rock face with ledges and clefts. */
+const STEEP0 = 1.0, STEEP1 = 1.9
 const sstep = (a: number, b: number, x: number) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t) }
 // corners of a cube (bit 1: +x, 2: +y, 4: +z) and its twelve edges
 const EDGES = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]]
@@ -54,13 +56,16 @@ export function volumeField(o: FieldIn) {
   // the layers: their spacing and how strongly they show vary over the face (massive here, thin-bedded there), they dip
   // and warp; broad buttresses and bays, and vertical joints that weather open into clefts
   const layers = (x: number, y: number, z: number) => {
-    const warp = fbm(nz1, x / 60, 3, z / 60, 2) * 8 + fbm(nz1, x / 260, 7, z / 260, 2) * 24, period = 4.5 + 5 * (fbm(nz2, x / 320, 1, z / 320, 2) + 0.5)
-    return (0.5 + 0.5 * Math.sin(((y + warp) / period) * Math.PI * 2)) ** 4 * sstep(-0.25, 0.25, fbm(nz2, x / 420, 11, z / 420, 2))
+    const warp = fbm(nz1, x / 60, 3, z / 60, 2) * 8 + fbm(nz1, x / 260, 7, z / 260, 2) * 24, period = 8 + 8 * (fbm(nz2, x / 320, 1, z / 320, 2) + 0.5)
+    return (0.5 + 0.5 * Math.sin(((y + warp) / period) * Math.PI * 2)) ** 2 * sstep(-0.25, 0.25, fbm(nz2, x / 420, 11, z / 420, 2))
   }
   /** Weathered rock, > 0 cuts into it. `fine` (0..1) fades in the small detail a coarse mesh could not show anyway. */
   const bedding = (x: number, y: number, z: number, amp: number, fine: number) => {
-    const butt = fbm(nz2, x / 55, y / 90, z / 55, 3) * 2, cleft = 1 - sstep(0, 0.05, Math.abs(fbm(nz1, x / 11, y / 140, z / 11, 2)))
-    return amp * (1.1 * layers(x, y, z) + 1.5 * butt + 1.3 * cleft * fine + 0.2 * fine * fbm(nz2, x / 4, y / 6, z / 4, 2) - 0.5)
+    // clefts: a few gullies along the joints, some metres wide and tens of metres apart (at 11 m apart and under a
+    // cube wide they covered the face in pits: a mesh of blocks); the ledges fade out of meshes too coarse to carry
+    // them, where the shader's strata take over
+    const butt = fbm(nz2, x / 55, y / 90, z / 55, 3) * 2, cleft = 1 - sstep(0, 0.035, Math.abs(fbm(nz1, x / 42, y / 300, z / 42, 2)))
+    return amp * (1.1 * layers(x, y, z) * (0.35 + 0.65 * fine) + 1.5 * butt + 1.8 * cleft * fine - 0.5)
   }
   const rockSDF = (x: number, y: number, z: number, fine: number) => {
     let d = Infinity
@@ -94,7 +99,7 @@ export function volumeField(o: FieldIn) {
   const dens = (x: number, y: number, z: number, fine = 1, hh?: number) => {
     const gx = bil(gxA, x, z), gz = bil(gzA, x, z), g = Math.hypot(gx, gz)
     let d = (y - (hh ?? H(x, z))) / Math.sqrt(1 + g * g)
-    const s = sstep(0.85, 1.7, g)
+    const s = sstep(STEEP0, STEEP1, g)
     if (s > 0) {
       d += bedding(x, y, z, 1.6 * s, fine)
       if (sea != null && bil(foot, x, z) < sea + 3) d += 3.2 * s * Math.exp(-(((y - sea - 1.3) / 2) ** 2)) // the sea's notch at the foot of its cliffs
@@ -112,7 +117,7 @@ export function volumeField(o: FieldIn) {
   /** Mesh the square from (x0, z0), `n` cubes of `v` metres a side (plus a cube of overlap all round, which hides the
    * cracks where squares of different sizes meet). Null if nothing of the surface is in it. */
   function mesh(x0: number, z0: number, n: number, v: number): VolumeChunk | null {
-    const fine = 1 - sstep(2.5, 8, v), M = 9 + 2 * v
+    const fine = 1 - sstep(1.5, 6, v), M = 9 + 2 * v
     const ia = -2, ib = n + 2, cw = ib - ia + 1 // columns, with the overlap cube and one more for the faces on its edge
     const col = (i: number) => x0 + i * v, row = (k: number) => z0 + k * v
     const Hc = new Float32Array((cw + 2) * (cw + 2)) // heights with one more ring for the neighbourhoods
@@ -173,7 +178,7 @@ export function volumeField(o: FieldIn) {
     }
     if (!I.length) return null
     // normals from the field itself (so neighbouring squares shade alike), colours from the ground map, rock where it is steep
-    const nv = P.length / 3, nor = new Float32Array(nv * 3), cl = new Uint8Array(nv * 3), sf = new Uint8Array(nv * 4), e = v * 0.5
+    const nv = P.length / 3, nor = new Float32Array(nv * 3), cl = new Uint8Array(nv * 3), sf = new Uint8Array(nv * 4), e = v
     for (let p = 0; p < nv; p++) {
       const x = P[p * 3], y = P[p * 3 + 1], z = P[p * 3 + 2]
       const hx0 = Hv(x - e, z, v), hx1 = Hv(x + e, z, v), hz0 = Hv(x, z - e, v), hz1 = Hv(x, z + e, v), h0 = Hv(x, z, v)
@@ -181,8 +186,8 @@ export function volumeField(o: FieldIn) {
       const l = Math.hypot(nx, ny, nzz) || 1
       nx /= l; ny /= l; nzz /= l
       nor[p * 3] = nx; nor[p * 3 + 1] = ny; nor[p * 3 + 2] = nzz
-      const steep = sstep(0.85, 1.7, Math.hypot(bil(gxA, x, z), bil(gzA, x, z))), rockness = Math.max(sstep(0.78, 0.5, ny), steep * sstep(0.95, 0.75, ny))
-      const band = 0.86 + 0.24 * layers(x, y, z) + 0.12 * fbm(nz2, x / 30, y / 8, z / 30, 2), shade = band * (0.55 + 0.45 * sstep(-0.6, 0.4, ny))
+      const steep = sstep(STEEP0, STEEP1, Math.hypot(bil(gxA, x, z), bil(gzA, x, z))), rockness = Math.max(sstep(0.78, 0.5, ny), steep * sstep(0.95, 0.75, ny))
+      const band = 0.86 + 0.24 * layers(x, y, z) + 0.12 * fbm(nz2, x / 30, y / 8, z / 30, 2), shade = band * (0.82 + 0.18 * sstep(-0.6, 0.4, ny))
       for (let t = 0; t < 3; t++) cl[p * 3 + t] = Math.round(Math.min(255, bilB(o.colors, 3, t, x, z) * (1 - rockness) + bilB(o.rockMap, 3, t, x, z) * shade * rockness))
       for (let t = 0; t < 4; t++) sf[p * 4 + t] = Math.round(bilB(o.surf, 4, t, x, z) * (1 - rockness))
     }

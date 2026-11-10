@@ -174,6 +174,25 @@ assert.ok(idx.near(roads[0].pts[3][0], roads[0].pts[3][2]).d < 0, 'a point on th
   assert.ok(Math.abs(lowest(volumeField({ ...base, wet }).mesh(-128, -128, 64, 4)) - 6) < 1.5, 'fine meshes are unchanged: the bed where it is')
 }
 {
+  // a rock face is ledges and a few gullies, not a mesh of blocks: on a plain 55 degree slope the facets of a 1 m mesh
+  // turn only a little from one to the next (clefts 11 m apart and under a cube wide gave 12 degrees: pits everywhere)
+  const N = 48, size = 384, w = N + 1, heights = new Float32Array(w * w)
+  for (let j = 0; j <= N; j++) for (let i = 0; i <= N; i++) heights[j * w + i] = 500 + i * (size / N) * 1.43
+  const m = volumeField({ N, size, heights, colors: new Uint8Array(w * w * 3), surf: new Uint8Array(w * w * 4), sea: null, rocks: [], rockMap: new Uint8Array(w * w * 3), seed: 7 }).mesh(-64, -64, 64, 1)!
+  const P = m.pos, fn: number[][] = [], edge = new Map<number, number>()
+  let turn = 0, cnt = 0
+  for (let t = 0; t < m.idx.length; t += 3) {
+    const [a, b, c] = [m.idx[t], m.idx[t + 1], m.idx[t + 2]], u = [0, 1, 2].map((q) => P[b * 3 + q] - P[a * 3 + q]), v = [0, 1, 2].map((q) => P[c * 3 + q] - P[a * 3 + q])
+    const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]], l = Math.hypot(...n) || 1
+    fn.push(n.map((x) => x / l))
+    for (const [p, q] of [[a, b], [b, c], [c, a]]) {
+      const k = Math.min(p, q) * 1e6 + Math.max(p, q), o = edge.get(k)
+      if (o == null) edge.set(k, t / 3); else { turn += Math.acos(Math.max(-1, Math.min(1, fn[o][0] * fn[t / 3][0] + fn[o][1] * fn[t / 3][1] + fn[o][2] * fn[t / 3][2]))); cnt++ }
+    }
+  }
+  assert.ok(((turn / cnt) * 180) / Math.PI < 7, `a rock slope meshes smoothly (facets turn ${(((turn / cnt) * 180) / Math.PI).toFixed(1)} degrees on average)`)
+}
+{
   // standard shots: every view, overview, low pass, every structure and town, unique names, compass headings
   const shots = standardShots(show, () => 100), names = shots.map((s) => s[0])
   assert.equal(new Set(names).size, names.length, 'shot names are unique')

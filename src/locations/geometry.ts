@@ -93,13 +93,13 @@ function treeGeo(kind: number, detail: number): G {
   const ico = (x: number, y: number, z: number, r: number, sy: number, f: number, col: [number, number, number], s: number) => tag(jitter(new THREE.IcosahedronGeometry(r, detail ? 1 : 0).scale(1, sy, 1).translate(x, y, z), 0.3, s), f, col)
   switch (kind) {
     case 0: trunk(4, 0.32); for (const [x, y, z, r] of detail ? [[0, 6.2, 0, 2.9], [1.5, 5.1, 0.7, 2.1], [-1.3, 5.3, -0.8, 2.2], [0.3, 4.8, -1.6, 1.9], [-0.4, 7.6, 0.4, 2.0], [0.9, 7, -0.6, 1.6]] : [[0, 6, 0, 3.2]]) ico(x, y, z, r, 1, 1, [1, 1, 1], x + y); break
-    case 1: trunk(3, 0.3); for (let i = 0; i < (detail ? 5 : 2); i++) { const k = detail ? i : i * 2; tag(jitter(new THREE.ConeGeometry(2.6 - k * 0.45, 4.2 - k * 0.35, detail ? 9 : 6).translate(0, 3.4 + k * 2.1, 0), 0.25, i), 2, [0.36, 0.5, 0.36]) } break
-    case 2: trunk(7.5, 0.3, [0.42, 0.3, 0.22]); for (const [x, y, z, r] of detail ? [[0, 8.6, 0, 3.4], [2.2, 8.1, 0.8, 2.4], [-2, 8.2, -0.6, 2.5], [0.4, 8.4, -2.1, 2.2]] : [[0, 8.4, 0, 4]]) ico(x, y, z, r, 0.42, 2, [0.5, 0.6, 0.38], x); break // umbrella pine
-    case 3: trunk(1.2, 0.2); tag(jitter(new THREE.CylinderGeometry(0.15, 1, 1, detail ? 10 : 6, detail ? 4 : 1).scale(1, 9, 1).translate(0, 5.6, 0), 0.18, 2), 2, [0.28, 0.4, 0.26]); break // cypress
-    case 4: trunk(3, 0.28); for (let i = 0; i < (detail ? 4 : 2); i++) { const k = detail ? i : i * 2; tag(jitter(new THREE.ConeGeometry(2.4 - k * 0.5, 4 - k * 0.4, detail ? 8 : 6).translate(0, 3.4 + k * 2.3, 0), 0.4, i + 9), 1, [1.15, 1.1, 0.95]) } break // larch: needles that turn gold and fall
+    case 1: trunk(3, 0.3); for (let i = 0; i < (detail ? 7 : 3); i++) { const k = detail ? i * 0.72 : i * 2, sh = 0.6 + 0.4 * (k / 4.3); tag(jitter(new THREE.ConeGeometry(2.7 - k * 0.5, 3.6 - k * 0.3, detail ? 11 : 6, detail ? 2 : 1).translate(0, 3.2 + k * 2.1, 0), 0.38, i), 2, [0.075 * sh, 0.135 * sh, 0.085 * sh]) } break // spruce: tiers of drooping boughs, darker below
+    case 2: trunk(7.5, 0.3, [0.42, 0.3, 0.22]); for (const [x, y, z, r] of detail ? [[0, 8.6, 0, 3.4], [2.2, 8.1, 0.8, 2.4], [-2, 8.2, -0.6, 2.5], [0.4, 8.4, -2.1, 2.2]] : [[0, 8.4, 0, 4]]) ico(x, y, z, r, 0.42, 2, [0.11, 0.19, 0.075], x); break // umbrella pine
+    case 3: trunk(1.2, 0.2); tag(jitter(new THREE.CylinderGeometry(0.15, 1, 1, detail ? 10 : 6, detail ? 4 : 1).scale(1, 9, 1).translate(0, 5.6, 0), 0.18, 2), 2, [0.05, 0.1, 0.055]); break // cypress
+    case 4: trunk(3, 0.28); for (let i = 0; i < (detail ? 6 : 2); i++) { const k = detail ? i * 0.66 : i * 2, sh = 0.65 + 0.35 * (k / 3.3); tag(jitter(new THREE.ConeGeometry(2.4 - k * 0.5, 3.4 - k * 0.3, detail ? 9 : 6, detail ? 2 : 1).translate(0, 3.2 + k * 2.3, 0), 0.5, i + 9), 1, [1.1 * sh, 1.05 * sh, 0.9 * sh]) } break // larch: needles that turn gold and fall
     case 5: trunk(1.6, 0.18); ico(0, 2.8, 0, 1.7, 0.85, 1, [1, 1, 1], 3); break // orchard tree
-    case 6: ico(0, 0.7, 0, 1.3, 0.6, 1, [0.85, 0.95, 0.8], 5); break // hedge bush
-    default: trunk(1.4, 0.26, [0.4, 0.35, 0.3]); for (const [x, y, z, r] of detail ? [[0, 2.6, 0, 1.6], [1, 2.3, 0.4, 1.1], [-0.9, 2.4, -0.5, 1.2]] : [[0, 2.5, 0, 1.9]]) ico(x, y, z, r, 0.75, 2, [0.6, 0.66, 0.5], x + 1) // olive
+    case 6: ico(0, 0.7, 0, 1.3, 0.6, 1, [0.7, 0.8, 0.65], 5); break // hedge bush
+    default: trunk(1.4, 0.26, [0.4, 0.35, 0.3]); for (const [x, y, z, r] of detail ? [[0, 2.6, 0, 1.6], [1, 2.3, 0.4, 1.1], [-0.9, 2.4, -0.5, 1.2]] : [[0, 2.5, 0, 1.9]]) ico(x, y, z, r, 0.75, 2, [0.2, 0.25, 0.17], x + 1) // olive
   }
   const g = mergeGeometries(parts)!
   g.computeVertexNormals()
