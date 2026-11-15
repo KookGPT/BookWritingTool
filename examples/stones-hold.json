@@ -1,915 +1,9501 @@
 {
   "id": "stones-hold",
   "name": "Stones Hold",
-  "seed": "stones-hold-1",
-  "size": 12000,
-  "note": "SH-1 blockout from the reference pack (refs/stones-hold): a granite range cut by a deep cliff-walled valley. Slums on the valley floor along the river, walled upper districts on the cliff-top benches, rival cathedrals on the high points, colossal statues on the cliff edges, a high viaduct and a gorge bridge, glacial lakes in the side valleys. Wealth rises with altitude.",
+  "seed": "stones-hold-3",
+  "size": 9600,
+  "note": "Stones Hold is two cities in a mountain range. The UNDER CITY (99% of the people) fills a maze of twelve valleys wall to wall, its streets running round every cliff and bench, with an alpine lake held above it by a dam. The UPPER CITY (1%) sits on eleven sites of different shapes and heights: crowns, shelves and terraces, a crescent crest, a palace spur, an arena bowl, a cascade of garden terraces, a monastery mesa; with cathedrals, basilicas, a great castle, plazas and statues everywhere, and bridges at shared levels tying them together, above all a statue-lined bridge from the Rival Cathedral to the Great Castle. Same layout as the Blender build (scripts/blender/sh_world.py); regenerate with scripts/blender/sh_recipe.py.",
   "base": 1000,
-  "relief": 380,
+  "relief": 160,
   "snowline": 2300,
   "climate": "alpine",
   "culture": "central",
   "rock": "granite",
   "wealth": [
-    1050,
-    1450
+    1000,
+    1300
   ],
   "farms": false,
-  "forest": 0.8,
+  "forest": 0.5,
   "hour": 17,
   "weather": "cloudy",
   "season": "winter",
   "terrain": [
     {
-      "id": "north-range",
+      "id": "range-1",
       "kind": "ridge",
       "path": [
         [
-          -6000,
-          5300
-        ],
-        [
-          -2500,
-          5600
-        ],
-        [
-          1500,
-          5400
-        ],
-        [
-          6000,
-          5600
-        ]
-      ],
-      "height": 3000,
-      "width": 2000
-    },
-    {
-      "id": "west-range",
-      "kind": "ridge",
-      "path": [
-        [
-          -4300,
-          4500
-        ],
-        [
-          -4500,
-          1000
-        ],
-        [
-          -4200,
-          -2500
-        ],
-        [
-          -4600,
-          -6000
-        ]
-      ],
-      "height": 2700,
-      "width": 2000
-    },
-    {
-      "id": "east-range",
-      "kind": "ridge",
-      "path": [
-        [
-          4400,
-          4500
-        ],
-        [
-          4300,
-          800
-        ],
-        [
-          4600,
+          -3500,
           -2800
         ],
         [
-          4300,
-          -6000
-        ]
-      ],
-      "height": 2800,
-      "width": 2000
-    },
-    {
-      "id": "north-west-horn",
-      "kind": "peak",
-      "at": [
-        -3600,
-        3800
-      ],
-      "height": 3150,
-      "radius": 1900,
-      "sharp": 1.6
-    },
-    {
-      "id": "north-east-horn",
-      "kind": "peak",
-      "at": [
-        3600,
-        4100
-      ],
-      "height": 3250,
-      "radius": 1900,
-      "sharp": 1.6
-    },
-    {
-      "id": "south-west-peak",
-      "kind": "peak",
-      "at": [
-        -4100,
-        -3000
-      ],
-      "height": 2650,
-      "radius": 1700,
-      "sharp": 1.3
-    },
-    {
-      "id": "south-east-peak",
-      "kind": "peak",
-      "at": [
-        4000,
-        -3300
-      ],
-      "height": 2550,
-      "radius": 1700,
-      "sharp": 1.3
-    },
-    {
-      "id": "west-bench",
-      "kind": "plateau",
-      "area": [
-        [
-          -3100,
-          3300
-        ],
-        [
-          -2200,
-          3450
-        ],
-        [
-          -1300,
-          3200
-        ],
-        [
-          -980,
-          2600
-        ],
-        [
-          -1050,
-          1700
-        ],
-        [
-          -930,
-          900
-        ],
-        [
-          -1000,
+          -3700,
           0
         ],
         [
-          -900,
-          -900
+          -3500,
+          2700
         ],
         [
-          -980,
-          -1700
-        ],
-        [
-          -1300,
-          -2500
-        ],
-        [
-          -2100,
-          -2800
-        ],
-        [
-          -2800,
-          -2500
-        ],
-        [
-          -3150,
-          -1500
-        ],
-        [
-          -2950,
-          -300
-        ],
-        [
-          -3250,
-          800
-        ],
-        [
-          -3000,
-          2000
+          -2300,
+          4300
         ]
       ],
-      "height": 1420,
-      "edge": 350
+      "height": 2300,
+      "width": 1000
     },
     {
-      "id": "east-bench",
-      "kind": "plateau",
-      "area": [
-        [
-          1050,
-          3100
-        ],
-        [
-          1700,
-          3250
-        ],
-        [
-          2600,
-          3100
-        ],
-        [
-          3150,
-          2400
-        ],
-        [
-          2950,
-          1500
-        ],
-        [
-          3200,
-          500
-        ],
-        [
-          3050,
-          -600
-        ],
-        [
-          3250,
-          -1700
-        ],
-        [
-          2900,
-          -2600
-        ],
-        [
-          2100,
-          -2900
-        ],
-        [
-          1300,
-          -2600
-        ],
-        [
-          980,
-          -1800
-        ],
-        [
-          920,
-          -900
-        ],
-        [
-          1000,
-          0
-        ],
-        [
-          930,
-          900
-        ],
-        [
-          1020,
-          1900
-        ]
-      ],
-      "height": 1400,
-      "edge": 350
-    },
-    {
-      "id": "west-cathedral-hill",
-      "kind": "peak",
-      "at": [
-        -1750,
-        1500
-      ],
-      "height": 1500,
-      "radius": 600,
-      "sharp": 0.6
-    },
-    {
-      "id": "east-cathedral-hill",
-      "kind": "peak",
-      "at": [
-        2350,
-        1100
-      ],
-      "height": 1490,
-      "radius": 600,
-      "sharp": 0.6
-    },
-    {
-      "id": "great-valley",
-      "kind": "valley",
+      "id": "range-2",
+      "kind": "ridge",
       "path": [
         [
-          0,
-          5000
-        ],
-        [
-          -100,
-          2500
-        ],
-        [
-          100,
-          0
-        ],
-        [
-          0,
-          -2500
-        ],
-        [
-          200,
-          -6000
-        ]
-      ],
-      "height": 1090,
-      "end": 820,
-      "width": 1000,
-      "edge": 320,
-      "meander": 0.4
-    },
-    {
-      "id": "west-wall",
-      "kind": "cliff",
-      "path": [
-        [
-          -900,
-          3600
-        ],
-        [
-          -950,
-          1000
-        ],
-        [
-          -850,
-          -1500
-        ],
-        [
-          -800,
-          -4200
-        ]
-      ],
-      "drop": 300,
-      "side": "left",
-      "extent": 900,
-      "rock": "granite"
-    },
-    {
-      "id": "east-wall",
-      "kind": "cliff",
-      "path": [
-        [
-          900,
-          3600
-        ],
-        [
-          950,
-          1000
-        ],
-        [
-          900,
-          -1500
-        ],
-        [
-          850,
-          -4200
-        ]
-      ],
-      "drop": 300,
-      "side": "right",
-      "extent": 900,
-      "rock": "granite"
-    },
-    {
-      "id": "cirque-valley",
-      "kind": "valley",
-      "path": [
-        [
-          -3300,
-          5300
-        ],
-        [
-          -2500,
+          -2300,
           4300
         ],
         [
-          -1500,
-          3600
-        ]
-      ],
-      "height": 2350,
-      "end": 1500,
-      "width": 700,
-      "edge": 100
-    },
-    {
-      "id": "north-west-glacier",
-      "kind": "glacier",
-      "path": [
-        [
-          -3300,
-          5300
-        ],
-        [
-          -2500,
-          4300
-        ],
-        [
-          -1500,
-          3600
-        ]
-      ],
-      "width": 300,
-      "height": 1750
-    },
-    {
-      "id": "hanging-valley",
-      "kind": "valley",
-      "path": [
-        [
-          3300,
+          -300,
           4700
         ],
         [
-          2400,
-          3400
+          1800,
+          4500
         ],
         [
-          1100,
-          2700
+          3300,
+          3700
         ]
       ],
-      "height": 1850,
-      "end": 1460,
-      "width": 650,
-      "edge": 120
+      "height": 2300,
+      "width": 1000
     },
     {
-      "id": "barrier",
+      "id": "range-3",
       "kind": "ridge",
       "path": [
         [
-          -1300,
-          -1800
+          3300,
+          3700
         ],
         [
-          0,
-          -1750
+          3600,
+          2200
         ],
         [
-          1300,
-          -1800
+          3700,
+          -200
+        ],
+        [
+          3500,
+          -2800
         ]
       ],
-      "height": 1300,
-      "width": 450
+      "height": 2300,
+      "width": 1000
     },
     {
-      "id": "the-gorge",
-      "kind": "gorge",
+      "id": "range-4",
+      "kind": "ridge",
       "path": [
         [
-          0,
-          -1050
+          3500,
+          -2800
         ],
         [
-          50,
-          -1800
+          1200,
+          -3500
         ],
         [
-          120,
-          -2550
+          -1600,
+          -3400
+        ],
+        [
+          -3500,
+          -2800
         ]
       ],
-      "depth": 330,
-      "width": 130
+      "height": 2300,
+      "width": 1000
     },
     {
-      "id": "head-lake",
-      "kind": "lake",
+      "id": "horn-1",
+      "kind": "peak",
       "at": [
-        0,
+        -3300,
+        2400
+      ],
+      "height": 2900,
+      "radius": 1300,
+      "sharp": 1.5
+    },
+    {
+      "id": "horn-2",
+      "kind": "peak",
+      "at": [
+        3200,
+        2200
+      ],
+      "height": 2800,
+      "radius": 1300,
+      "sharp": 1.5
+    },
+    {
+      "id": "horn-3",
+      "kind": "peak",
+      "at": [
+        3300,
+        -2300
+      ],
+      "height": 2650,
+      "radius": 1300,
+      "sharp": 1.5
+    },
+    {
+      "id": "horn-4",
+      "kind": "peak",
+      "at": [
+        -3200,
+        -2400
+      ],
+      "height": 2750,
+      "radius": 1300,
+      "sharp": 1.5
+    },
+    {
+      "id": "horn-5",
+      "kind": "peak",
+      "at": [
+        -1900,
         3900
       ],
-      "radius": 550,
-      "depth": 45
+      "height": 2950,
+      "radius": 1300,
+      "sharp": 1.5
     },
     {
-      "id": "hanging-lake",
+      "id": "horn-6",
+      "kind": "peak",
+      "at": [
+        1700,
+        4000
+      ],
+      "height": 2850,
+      "radius": 1300,
+      "sharp": 1.5
+    },
+    {
+      "id": "massif-1",
+      "kind": "peak",
+      "at": [
+        3600,
+        -3900
+      ],
+      "height": 2405,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-2",
+      "kind": "peak",
+      "at": [
+        -3300,
+        3900
+      ],
+      "height": 2350,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-3",
+      "kind": "peak",
+      "at": [
+        3600,
+        3600
+      ],
+      "height": 2302,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-4",
+      "kind": "peak",
+      "at": [
+        -3900,
+        3300
+      ],
+      "height": 2274,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-5",
+      "kind": "peak",
+      "at": [
+        -3600,
+        -3900
+      ],
+      "height": 2217,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-6",
+      "kind": "peak",
+      "at": [
+        -3900,
+        -2400
+      ],
+      "height": 2201,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-7",
+      "kind": "peak",
+      "at": [
+        3000,
+        -3600
+      ],
+      "height": 2175,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-8",
+      "kind": "peak",
+      "at": [
+        3900,
+        -3300
+      ],
+      "height": 2162,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-9",
+      "kind": "peak",
+      "at": [
+        3900,
+        -2400
+      ],
+      "height": 2089,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-10",
+      "kind": "peak",
+      "at": [
+        3000,
+        3900
+      ],
+      "height": 2077,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-11",
+      "kind": "peak",
+      "at": [
+        -3600,
+        2400
+      ],
+      "height": 2071,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-12",
+      "kind": "peak",
+      "at": [
+        3900,
+        3000
+      ],
+      "height": 2056,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-13",
+      "kind": "peak",
+      "at": [
+        -3900,
+        -3300
+      ],
+      "height": 2046,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-14",
+      "kind": "peak",
+      "at": [
+        -3300,
+        3000
+      ],
+      "height": 2011,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-15",
+      "kind": "peak",
+      "at": [
+        -3900,
+        -900
+      ],
+      "height": 2011,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-16",
+      "kind": "peak",
+      "at": [
+        3300,
+        -3000
+      ],
+      "height": 1973,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-17",
+      "kind": "peak",
+      "at": [
+        3900,
+        2100
+      ],
+      "height": 1963,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-18",
+      "kind": "peak",
+      "at": [
+        3900,
+        1200
+      ],
+      "height": 1959,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-19",
+      "kind": "peak",
+      "at": [
+        -2700,
+        -3900
+      ],
+      "height": 1936,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-20",
+      "kind": "peak",
+      "at": [
+        -2400,
+        3900
+      ],
+      "height": 1931,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-21",
+      "kind": "peak",
+      "at": [
+        -3900,
+        1500
+      ],
+      "height": 1931,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-22",
+      "kind": "peak",
+      "at": [
+        3900,
+        -1500
+      ],
+      "height": 1917,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-23",
+      "kind": "peak",
+      "at": [
+        2400,
+        3600
+      ],
+      "height": 1913,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-24",
+      "kind": "peak",
+      "at": [
+        2400,
+        -3900
+      ],
+      "height": 1904,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-25",
+      "kind": "peak",
+      "at": [
+        3000,
+        3000
+      ],
+      "height": 1896,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-26",
+      "kind": "peak",
+      "at": [
+        -2700,
+        3300
+      ],
+      "height": 1841,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-27",
+      "kind": "peak",
+      "at": [
+        3900,
+        0
+      ],
+      "height": 1825,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-28",
+      "kind": "peak",
+      "at": [
+        -3300,
+        -1800
+      ],
+      "height": 1822,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-29",
+      "kind": "peak",
+      "at": [
+        3300,
+        2400
+      ],
+      "height": 1820,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-30",
+      "kind": "peak",
+      "at": [
+        -3900,
+        0
+      ],
+      "height": 1814,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-31",
+      "kind": "peak",
+      "at": [
+        2400,
+        -3000
+      ],
+      "height": 1807,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-32",
+      "kind": "peak",
+      "at": [
+        -1800,
+        -3900
+      ],
+      "height": 1803,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-33",
+      "kind": "peak",
+      "at": [
+        -3600,
+        900
+      ],
+      "height": 1777,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-34",
+      "kind": "peak",
+      "at": [
+        -1500,
+        3900
+      ],
+      "height": 1758,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-35",
+      "kind": "peak",
+      "at": [
+        1800,
+        3900
+      ],
+      "height": 1756,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-36",
+      "kind": "peak",
+      "at": [
+        1500,
+        -3900
+      ],
+      "height": 1754,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-37",
+      "kind": "peak",
+      "at": [
+        3600,
+        600
+      ],
+      "height": 1745,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-38",
+      "kind": "peak",
+      "at": [
+        -3000,
+        -2400
+      ],
+      "height": 1735,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-39",
+      "kind": "peak",
+      "at": [
+        -3300,
+        1800
+      ],
+      "height": 1712,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-40",
+      "kind": "peak",
+      "at": [
+        -2700,
+        2100
+      ],
+      "height": 1692,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-41",
+      "kind": "peak",
+      "at": [
+        2100,
+        3000
+      ],
+      "height": 1675,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-42",
+      "kind": "peak",
+      "at": [
+        1200,
+        3600
+      ],
+      "height": 1665,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-43",
+      "kind": "peak",
+      "at": [
+        -600,
+        3900
+      ],
+      "height": 1658,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-44",
+      "kind": "peak",
+      "at": [
+        3300,
+        -1200
+      ],
+      "height": 1654,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-45",
+      "kind": "peak",
+      "at": [
+        -2400,
+        -2700
+      ],
+      "height": 1646,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-46",
+      "kind": "peak",
+      "at": [
+        -900,
+        -3900
+      ],
+      "height": 1644,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-47",
+      "kind": "peak",
+      "at": [
+        600,
+        -3900
+      ],
+      "height": 1643,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-48",
+      "kind": "peak",
+      "at": [
+        -3300,
+        -600
+      ],
+      "height": 1643,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-49",
+      "kind": "peak",
+      "at": [
+        -3000,
+        1200
+      ],
+      "height": 1619,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-50",
+      "kind": "peak",
+      "at": [
+        -2400,
+        0
+      ],
+      "height": 1615,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-51",
+      "kind": "peak",
+      "at": [
+        300,
+        1800
+      ],
+      "height": 1610,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-52",
+      "kind": "peak",
+      "at": [
+        1200,
+        -3300
+      ],
+      "height": 1599,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-53",
+      "kind": "peak",
+      "at": [
+        -1200,
+        600
+      ],
+      "height": 1590,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-54",
+      "kind": "peak",
+      "at": [
+        2400,
+        1800
+      ],
+      "height": 1582,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-55",
+      "kind": "peak",
+      "at": [
+        -1200,
+        3300
+      ],
+      "height": 1581,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-56",
+      "kind": "peak",
+      "at": [
+        600,
+        2400
+      ],
+      "height": 1580,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-57",
+      "kind": "peak",
+      "at": [
+        3600,
+        -600
+      ],
+      "height": 1578,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-58",
+      "kind": "peak",
+      "at": [
+        1500,
+        2700
+      ],
+      "height": 1574,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-59",
+      "kind": "peak",
+      "at": [
+        900,
+        300
+      ],
+      "height": 1574,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-60",
+      "kind": "peak",
+      "at": [
+        -900,
+        2700
+      ],
+      "height": 1572,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-61",
+      "kind": "peak",
+      "at": [
+        1200,
+        1800
+      ],
+      "height": 1570,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-62",
+      "kind": "peak",
+      "at": [
+        2700,
+        -900
+      ],
+      "height": 1558,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-63",
+      "kind": "peak",
+      "at": [
+        -600,
+        900
+      ],
+      "height": 1553,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-64",
+      "kind": "peak",
+      "at": [
+        -600,
+        -300
+      ],
+      "height": 1550,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-65",
+      "kind": "peak",
+      "at": [
+        -2100,
+        3000
+      ],
+      "height": 1548,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-66",
+      "kind": "peak",
+      "at": [
+        -900,
+        -900
+      ],
+      "height": 1546,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-67",
+      "kind": "peak",
+      "at": [
+        -2100,
+        -2100
+      ],
+      "height": 1545,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-68",
+      "kind": "peak",
+      "at": [
+        900,
+        -900
+      ],
+      "height": 1544,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-69",
+      "kind": "peak",
+      "at": [
+        1500,
+        -1500
+      ],
+      "height": 1542,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-70",
+      "kind": "peak",
+      "at": [
+        900,
+        3000
+      ],
+      "height": 1539,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-71",
+      "kind": "peak",
+      "at": [
+        3000,
+        900
+      ],
+      "height": 1536,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-72",
+      "kind": "peak",
+      "at": [
+        -900,
+        -2400
+      ],
+      "height": 1535,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-73",
+      "kind": "peak",
+      "at": [
+        -2700,
+        -900
+      ],
+      "height": 1533,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-74",
+      "kind": "peak",
+      "at": [
+        1800,
+        -2700
+      ],
+      "height": 1531,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-75",
+      "kind": "peak",
+      "at": [
+        -900,
+        1500
+      ],
+      "height": 1529,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-76",
+      "kind": "peak",
+      "at": [
+        -1500,
+        -300
+      ],
+      "height": 1523,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-77",
+      "kind": "peak",
+      "at": [
+        -2400,
+        1500
+      ],
+      "height": 1519,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-78",
+      "kind": "peak",
+      "at": [
+        2400,
+        600
+      ],
+      "height": 1515,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-79",
+      "kind": "peak",
+      "at": [
+        600,
+        -1500
+      ],
+      "height": 1511,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-80",
+      "kind": "peak",
+      "at": [
+        1500,
+        0
+      ],
+      "height": 1508,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-81",
+      "kind": "peak",
+      "at": [
+        2700,
+        -1800
+      ],
+      "height": 1507,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-82",
+      "kind": "peak",
+      "at": [
+        -1500,
+        1200
+      ],
+      "height": 1507,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-83",
+      "kind": "peak",
+      "at": [
+        600,
+        -3000
+      ],
+      "height": 1502,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-84",
+      "kind": "peak",
+      "at": [
+        -1500,
+        -1800
+      ],
+      "height": 1498,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-85",
+      "kind": "peak",
+      "at": [
+        1800,
+        900
+      ],
+      "height": 1445,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-86",
+      "kind": "peak",
+      "at": [
+        -1500,
+        2400
+      ],
+      "height": 1437,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-87",
+      "kind": "peak",
+      "at": [
+        -3300,
+        300
+      ],
+      "height": 1401,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-88",
+      "kind": "peak",
+      "at": [
+        -300,
+        3300
+      ],
+      "height": 1394,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-89",
+      "kind": "peak",
+      "at": [
+        3000,
+        0
+      ],
+      "height": 1389,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-90",
+      "kind": "peak",
+      "at": [
+        3300,
+        1500
+      ],
+      "height": 1369,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-91",
+      "kind": "peak",
+      "at": [
+        3000,
+        -2400
+      ],
+      "height": 1320,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-92",
+      "kind": "peak",
+      "at": [
+        -300,
+        2400
+      ],
+      "height": 1306,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-93",
+      "kind": "peak",
+      "at": [
+        600,
+        3900
+      ],
+      "height": 1303,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-94",
+      "kind": "peak",
+      "at": [
+        300,
+        600
+      ],
+      "height": 1293,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-95",
+      "kind": "peak",
+      "at": [
+        -600,
+        -1800
+      ],
+      "height": 1281,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-96",
+      "kind": "peak",
+      "at": [
+        2100,
+        -600
+      ],
+      "height": 1264,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-97",
+      "kind": "peak",
+      "at": [
+        -2100,
+        -600
+      ],
+      "height": 1262,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-98",
+      "kind": "peak",
+      "at": [
+        1200,
+        -2400
+      ],
+      "height": 1231,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "massif-99",
+      "kind": "peak",
+      "at": [
+        -1500,
+        -3300
+      ],
+      "height": 1211,
+      "radius": 480,
+      "sharp": 1.0
+    },
+    {
+      "id": "peak-a1",
+      "kind": "peak",
+      "at": [
+        -600,
+        -300
+      ],
+      "height": 1640,
+      "radius": 520,
+      "sharp": 0.9
+    },
+    {
+      "id": "peak-a2",
+      "kind": "peak",
+      "at": [
+        650,
+        -700
+      ],
+      "height": 1580,
+      "radius": 520,
+      "sharp": 0.9
+    },
+    {
+      "id": "peak-a3",
+      "kind": "peak",
+      "at": [
+        700,
+        700
+      ],
+      "height": 1700,
+      "radius": 520,
+      "sharp": 0.9
+    },
+    {
+      "id": "peak-a4",
+      "kind": "peak",
+      "at": [
+        -1080,
+        700
+      ],
+      "height": 1680,
+      "radius": 520,
+      "sharp": 0.9
+    },
+    {
+      "id": "peak-a6",
+      "kind": "peak",
+      "at": [
+        -420,
+        1560
+      ],
+      "height": 1780,
+      "radius": 520,
+      "sharp": 0.9
+    },
+    {
+      "id": "peak-a7",
+      "kind": "peak",
+      "at": [
+        330,
+        1720
+      ],
+      "height": 1700,
+      "radius": 520,
+      "sharp": 0.9
+    },
+    {
+      "id": "crest-a5",
+      "kind": "ridge",
+      "path": [
+        [
+          -1166,
+          -433
+        ],
+        [
+          -1198,
+          -396
+        ],
+        [
+          -1236,
+          -364
+        ],
+        [
+          -1276,
+          -336
+        ],
+        [
+          -1318,
+          -312
+        ],
+        [
+          -1359,
+          -288
+        ],
+        [
+          -1400,
+          -265
+        ],
+        [
+          -1440,
+          -240
+        ],
+        [
+          -1480,
+          -215
+        ],
+        [
+          -1521,
+          -190
+        ],
+        [
+          -1565,
+          -167
+        ],
+        [
+          -1611,
+          -149
+        ],
+        [
+          -1658,
+          -138
+        ],
+        [
+          -1707,
+          -134
+        ],
+        [
+          -1757,
+          -138
+        ]
+      ],
+      "height": 1600,
+      "width": 420
+    },
+    {
+      "id": "spur-a8",
+      "kind": "ridge",
+      "path": [
+        [
+          1900,
+          -1250
+        ],
+        [
+          1480,
+          -1290
+        ],
+        [
+          1075,
+          -1325
+        ]
+      ],
+      "height": 1380,
+      "width": 300
+    },
+    {
+      "id": "shoulder-a9",
+      "kind": "peak",
+      "at": [
+        1850,
+        250
+      ],
+      "height": 1480,
+      "radius": 620,
+      "sharp": 0.7
+    },
+    {
+      "id": "slope-a10",
+      "kind": "peak",
+      "at": [
+        -2330,
+        -1330
+      ],
+      "height": 1470,
+      "radius": 650,
+      "sharp": 0.8
+    },
+    {
+      "id": "main-valley",
+      "kind": "valley",
+      "path": [
+        [
+          -80,
+          -3750
+        ],
+        [
+          17,
+          -3309
+        ],
+        [
+          15,
+          -2866
+        ],
+        [
+          -95,
+          -2424
+        ],
+        [
+          -79,
+          -1977
+        ],
+        [
+          25,
+          -1525
+        ],
+        [
+          113,
+          -1076
+        ],
+        [
+          172,
+          -634
+        ],
+        [
+          93,
+          -200
+        ],
+        [
+          -37,
+          236
+        ],
+        [
+          -107,
+          682
+        ],
+        [
+          -129,
+          1129
+        ],
+        [
+          -58,
+          1598
+        ],
+        [
+          19,
+          2049
+        ],
+        [
+          64,
+          2487
+        ]
+      ],
+      "height": 964,
+      "end": 1120,
+      "width": 375,
+      "edge": 78,
+      "meander": 0.3
+    },
+    {
+      "id": "sw-valley",
+      "kind": "valley",
+      "path": [
+        [
+          40,
+          -3050
+        ],
+        [
+          -430,
+          -3172
+        ],
+        [
+          -903,
+          -3160
+        ],
+        [
+          -1375,
+          -3004
+        ],
+        [
+          -1807,
+          -3125
+        ],
+        [
+          -2247,
+          -3345
+        ],
+        [
+          -2695,
+          -3252
+        ],
+        [
+          -3150,
+          -3050
+        ]
+      ],
+      "height": 983,
+      "end": 1154,
+      "width": 272,
+      "edge": 57,
+      "meander": 0.3
+    },
+    {
+      "id": "e1-valley",
+      "kind": "valley",
+      "path": [
+        [
+          -110,
+          -2250
+        ],
+        [
+          391,
+          -2325
+        ],
+        [
+          871,
+          -2295
+        ],
+        [
+          1314,
+          -2045
+        ],
+        [
+          1760,
+          -2067
+        ],
+        [
+          2232,
+          -2284
+        ],
+        [
+          2694,
+          -2214
+        ],
+        [
+          3150,
+          -2000
+        ]
+      ],
+      "height": 1003,
+      "end": 1179,
+      "width": 252,
+      "edge": 52,
+      "meander": 0.3
+    },
+    {
+      "id": "w1-valley",
+      "kind": "valley",
+      "path": [
+        [
+          60,
+          -1350
+        ],
+        [
+          -423,
+          -1426
+        ],
+        [
+          -913,
+          -1434
+        ],
+        [
+          -1381,
+          -1281
+        ],
+        [
+          -1856,
+          -1315
+        ],
+        [
+          -2317,
+          -1493
+        ],
+        [
+          -2788,
+          -1418
+        ],
+        [
+          -3250,
+          -1250
+        ]
+      ],
+      "height": 1029,
+      "end": 1203,
+      "width": 281,
+      "edge": 59,
+      "meander": 0.3
+    },
+    {
+      "id": "e2-valley",
+      "kind": "valley",
+      "path": [
+        [
+          170,
+          -550
+        ],
+        [
+          683,
+          -343
+        ],
+        [
+          1204,
+          -442
+        ],
+        [
+          1739,
+          -476
+        ],
+        [
+          2232,
+          -167
+        ],
+        [
+          2728,
+          -186
+        ],
+        [
+          3250,
+          -420
+        ]
+      ],
+      "height": 1049,
+      "end": 1214,
+      "width": 268,
+      "edge": 56,
+      "meander": 0.3
+    },
+    {
+      "id": "w2-valley",
+      "kind": "valley",
+      "path": [
+        [
+          -40,
+          250
+        ],
+        [
+          -556,
+          386
+        ],
+        [
+          -1080,
+          371
+        ],
+        [
+          -1586,
+          321
+        ],
+        [
+          -2065,
+          561
+        ],
+        [
+          -2581,
+          632
+        ],
+        [
+          -3100,
+          520
+        ]
+      ],
+      "height": 1065,
+      "end": 1224,
+      "width": 248,
+      "edge": 52,
+      "meander": 0.3
+    },
+    {
+      "id": "e3-valley",
+      "kind": "valley",
+      "path": [
+        [
+          -130,
+          1100
+        ],
+        [
+          397,
+          1021
+        ],
+        [
+          907,
+          1009
+        ],
+        [
+          1404,
+          1213
+        ],
+        [
+          1912,
+          1264
+        ],
+        [
+          2420,
+          1090
+        ],
+        [
+          2845,
+          1320
+        ],
+        [
+          3250,
+          1700
+        ]
+      ],
+      "height": 1085,
+      "end": 1271,
+      "width": 261,
+      "edge": 54,
+      "meander": 0.3
+    },
+    {
+      "id": "w3-valley",
+      "kind": "valley",
+      "path": [
+        [
+          0,
+          1900
+        ],
+        [
+          -497,
+          2038
+        ],
+        [
+          -994,
+          2047
+        ],
+        [
+          -1492,
+          1893
+        ],
+        [
+          -1932,
+          2072
+        ],
+        [
+          -2350,
+          2400
+        ]
+      ],
+      "height": 1108,
+      "end": 1235,
+      "width": 247,
+      "edge": 51,
+      "meander": 0.3
+    },
+    {
+      "id": "w1b-valley",
+      "kind": "valley",
+      "path": [
+        [
+          -1627,
+          -1252
+        ],
+        [
+          -1818,
+          -908
+        ],
+        [
+          -1918,
+          -548
+        ],
+        [
+          -1950,
+          -150
+        ]
+      ],
+      "height": 1118,
+      "end": 1183,
+      "width": 187,
+      "edge": 39,
+      "meander": 0.3
+    },
+    {
+      "id": "e2b-valley",
+      "kind": "valley",
+      "path": [
+        [
+          1586,
+          -522
+        ],
+        [
+          1788,
+          -871
+        ],
+        [
+          2002,
+          -1191
+        ],
+        [
+          2250,
+          -1500
+        ]
+      ],
+      "height": 1127,
+      "end": 1191,
+      "width": 166,
+      "edge": 35,
+      "meander": 0.3
+    },
+    {
+      "id": "e3b-valley",
+      "kind": "valley",
+      "path": [
+        [
+          1312,
+          1169
+        ],
+        [
+          1669,
+          1652
+        ],
+        [
+          2002,
+          2122
+        ],
+        [
+          2300,
+          2600
+        ]
+      ],
+      "height": 1164,
+      "end": 1257,
+      "width": 167,
+      "edge": 35,
+      "meander": 0.3
+    },
+    {
+      "id": "w2b-valley",
+      "kind": "valley",
+      "path": [
+        [
+          -1725,
+          379
+        ],
+        [
+          -1931,
+          824
+        ],
+        [
+          -1965,
+          1250
+        ],
+        [
+          -1700,
+          1650
+        ]
+      ],
+      "height": 1151,
+      "end": 1228,
+      "width": 160,
+      "edge": 33,
+      "meander": 0.3
+    },
+    {
+      "id": "lake-trough",
+      "kind": "valley",
+      "path": [
+        [
+          68,
+          2520
+        ],
+        [
+          109,
+          2889
+        ],
+        [
+          157,
+          3302
+        ],
+        [
+          218,
+          3680
+        ],
+        [
+          298,
+          4068
+        ],
+        [
+          390,
+          4450
+        ]
+      ],
+      "height": 1194,
+      "end": 1194,
+      "width": 420,
+      "edge": 110,
+      "meander": 0.15
+    },
+    {
+      "id": "cut-a1-a2",
+      "kind": "valley",
+      "path": [
+        [
+          -350,
+          -380
+        ],
+        [
+          497,
+          -651
+        ]
+      ],
+      "height": 1369,
+      "end": 1369,
+      "width": 150,
+      "edge": 30,
+      "meander": 0
+    },
+    {
+      "id": "cut-a1-a3",
+      "kind": "valley",
+      "path": [
+        [
+          -459,
+          -191
+        ],
+        [
+          565,
+          596
+        ]
+      ],
+      "height": 1449,
+      "end": 1449,
+      "width": 150,
+      "edge": 30,
+      "meander": 0
+    },
+    {
+      "id": "cut-a2-a3",
+      "kind": "valley",
+      "path": [
+        [
+          657,
+          -494
+        ],
+        [
+          692,
+          481
+        ]
+      ],
+      "height": 1369,
+      "end": 1369,
+      "width": 150,
+      "edge": 30,
+      "meander": 0
+    },
+    {
+      "id": "cut-a1-a4",
+      "kind": "valley",
+      "path": [
+        [
+          -670,
+          -154
+        ],
+        [
+          -1005,
+          544
+        ]
+      ],
+      "height": 1449,
+      "end": 1449,
+      "width": 150,
+      "edge": 30,
+      "meander": 0
+    },
+    {
+      "id": "cut-a5-a1",
+      "kind": "valley",
+      "path": [
+        [
+          -1291,
+          -239
+        ],
+        [
+          -847,
+          -278
+        ]
+      ],
+      "height": 1369,
+      "end": 1369,
+      "width": 150,
+      "edge": 30,
+      "meander": 0
+    },
+    {
+      "id": "cut-a4-a6",
+      "kind": "valley",
+      "path": [
+        [
+          -924,
+          903
+        ],
+        [
+          -488,
+          1471
+        ]
+      ],
+      "height": 1449,
+      "end": 1449,
+      "width": 150,
+      "edge": 30,
+      "meander": 0
+    },
+    {
+      "id": "cut-a6-a7",
+      "kind": "valley",
+      "path": [
+        [
+          -312,
+          1583
+        ],
+        [
+          92,
+          1669
+        ]
+      ],
+      "height": 1449,
+      "end": 1449,
+      "width": 150,
+      "edge": 30,
+      "meander": 0
+    },
+    {
+      "id": "cut-a3-a7",
+      "kind": "valley",
+      "path": [
+        [
+          661,
+          807
+        ],
+        [
+          387,
+          1563
+        ]
+      ],
+      "height": 1589,
+      "end": 1589,
+      "width": 150,
+      "edge": 30,
+      "meander": 0
+    },
+    {
+      "id": "cut-a2-a8",
+      "kind": "valley",
+      "path": [
+        [
+          839,
+          -848
+        ],
+        [
+          1356,
+          -1255
+        ]
+      ],
+      "height": 1299,
+      "end": 1299,
+      "width": 150,
+      "edge": 30,
+      "meander": 0
+    },
+    {
+      "id": "cut-a3-a9",
+      "kind": "valley",
+      "path": [
+        [
+          922,
+          613
+        ],
+        [
+          1577,
+          357
+        ]
+      ],
+      "height": 1369,
+      "end": 1369,
+      "width": 150,
+      "edge": 30,
+      "meander": 0
+    },
+    {
+      "id": "cut-a5-a10",
+      "kind": "valley",
+      "path": [
+        [
+          -1496,
+          -292
+        ],
+        [
+          -2332,
+          -1159
+        ]
+      ],
+      "height": 1369,
+      "end": 1369,
+      "width": 150,
+      "edge": 30,
+      "meander": 0
+    },
+    {
+      "id": "plat-a10_x3",
+      "kind": "plateau",
+      "area": [
+        [
+          -2043,
+          -1580
+        ],
+        [
+          -2074,
+          -1548
+        ],
+        [
+          -2136,
+          -1535
+        ],
+        [
+          -2210,
+          -1558
+        ],
+        [
+          -2248,
+          -1604
+        ],
+        [
+          -2255,
+          -1646
+        ],
+        [
+          -2230,
+          -1680
+        ],
+        [
+          -2168,
+          -1692
+        ],
+        [
+          -2095,
+          -1669
+        ],
+        [
+          -2043,
+          -1625
+        ]
+      ],
+      "height": 1248,
+      "edge": 25
+    },
+    {
+      "id": "plat-a10_x2",
+      "kind": "plateau",
+      "area": [
+        [
+          -2106,
+          -1485
+        ],
+        [
+          -2127,
+          -1444
+        ],
+        [
+          -2199,
+          -1445
+        ],
+        [
+          -2272,
+          -1462
+        ],
+        [
+          -2321,
+          -1507
+        ],
+        [
+          -2336,
+          -1556
+        ],
+        [
+          -2301,
+          -1592
+        ],
+        [
+          -2231,
+          -1599
+        ],
+        [
+          -2157,
+          -1572
+        ],
+        [
+          -2099,
+          -1530
+        ]
+      ],
+      "height": 1286,
+      "edge": 25
+    },
+    {
+      "id": "plat-a10_x1",
+      "kind": "plateau",
+      "area": [
+        [
+          -2155,
+          -1385
+        ],
+        [
+          -2190,
+          -1349
+        ],
+        [
+          -2258,
+          -1337
+        ],
+        [
+          -2332,
+          -1368
+        ],
+        [
+          -2389,
+          -1410
+        ],
+        [
+          -2395,
+          -1459
+        ],
+        [
+          -2365,
+          -1498
+        ],
+        [
+          -2293,
+          -1502
+        ],
+        [
+          -2220,
+          -1476
+        ],
+        [
+          -2164,
+          -1434
+        ]
+      ],
+      "height": 1324,
+      "edge": 25
+    },
+    {
+      "id": "plat-a10_x0",
+      "kind": "plateau",
+      "area": [
+        [
+          -2218,
+          -1289
+        ],
+        [
+          -2248,
+          -1250
+        ],
+        [
+          -2321,
+          -1245
+        ],
+        [
+          -2397,
+          -1269
+        ],
+        [
+          -2457,
+          -1314
+        ],
+        [
+          -2474,
+          -1368
+        ],
+        [
+          -2434,
+          -1407
+        ],
+        [
+          -2356,
+          -1411
+        ],
+        [
+          -2274,
+          -1388
+        ],
+        [
+          -2223,
+          -1338
+        ]
+      ],
+      "height": 1362,
+      "edge": 25
+    },
+    {
+      "id": "plat-a2_2",
+      "kind": "plateau",
+      "area": [
+        [
+          750,
+          -443
+        ],
+        [
+          655,
+          -428
+        ],
+        [
+          558,
+          -463
+        ],
+        [
+          463,
+          -527
+        ],
+        [
+          413,
+          -641
+        ],
+        [
+          378,
+          -766
+        ],
+        [
+          429,
+          -871
+        ],
+        [
+          505,
+          -939
+        ],
+        [
+          597,
+          -968
+        ],
+        [
+          699,
+          -985
+        ],
+        [
+          794,
+          -915
+        ],
+        [
+          870,
+          -819
+        ],
+        [
+          892,
+          -699
+        ],
+        [
+          878,
+          -588
+        ],
+        [
+          834,
+          -491
+        ]
+      ],
+      "height": 1330,
+      "edge": 50
+    },
+    {
+      "id": "plat-a1_2",
+      "kind": "plateau",
+      "area": [
+        [
+          -354,
+          -196
+        ],
+        [
+          -415,
+          -121
+        ],
+        [
+          -505,
+          -77
+        ],
+        [
+          -610,
+          -45
+        ],
+        [
+          -725,
+          -81
+        ],
+        [
+          -794,
+          -172
+        ],
+        [
+          -851,
+          -259
+        ],
+        [
+          -874,
+          -361
+        ],
+        [
+          -836,
+          -455
+        ],
+        [
+          -749,
+          -513
+        ],
+        [
+          -646,
+          -543
+        ],
+        [
+          -532,
+          -538
+        ],
+        [
+          -435,
+          -474
+        ],
+        [
+          -344,
+          -398
+        ],
+        [
+          -339,
+          -292
+        ]
+      ],
+      "height": 1400,
+      "edge": 50
+    },
+    {
+      "id": "plat-a3_2",
+      "kind": "plateau",
+      "area": [
+        [
+          961,
+          753
+        ],
+        [
+          897,
+          831
+        ],
+        [
+          829,
+          896
+        ],
+        [
+          732,
+          923
+        ],
+        [
+          631,
+          912
+        ],
+        [
+          525,
+          882
+        ],
+        [
+          452,
+          800
+        ],
+        [
+          452,
+          698
+        ],
+        [
+          450,
+          597
+        ],
+        [
+          511,
+          512
+        ],
+        [
+          614,
+          474
+        ],
+        [
+          719,
+          475
+        ],
+        [
+          829,
+          486
+        ],
+        [
+          895,
+          569
+        ],
+        [
+          960,
+          651
+        ]
+      ],
+      "height": 1400,
+      "edge": 50
+    },
+    {
+      "id": "plat-a4_2",
+      "kind": "plateau",
+      "area": [
+        [
+          -799,
+          1055
+        ],
+        [
+          -922,
+          1066
+        ],
+        [
+          -1054,
+          1031
+        ],
+        [
+          -1190,
+          956
+        ],
+        [
+          -1310,
+          825
+        ],
+        [
+          -1371,
+          674
+        ],
+        [
+          -1426,
+          518
+        ],
+        [
+          -1395,
+          393
+        ],
+        [
+          -1297,
+          340
+        ],
+        [
+          -1176,
+          334
+        ],
+        [
+          -1036,
+          386
+        ],
+        [
+          -903,
+          502
+        ],
+        [
+          -822,
+          653
+        ],
+        [
+          -750,
+          805
+        ],
+        [
+          -774,
+          926
+        ]
+      ],
+      "height": 1400,
+      "edge": 50
+    },
+    {
+      "id": "plat-a7_2",
+      "kind": "plateau",
+      "area": [
+        [
+          693,
+          1608
+        ],
+        [
+          728,
+          1725
+        ],
+        [
+          638,
+          1843
+        ],
+        [
+          527,
+          1945
+        ],
+        [
+          375,
+          2007
+        ],
+        [
+          211,
+          2026
+        ],
+        [
+          86,
+          1965
+        ],
+        [
+          8,
+          1877
+        ],
+        [
+          -44,
+          1775
+        ],
+        [
+          5,
+          1659
+        ],
+        [
+          81,
+          1549
+        ],
+        [
+          204,
+          1454
+        ],
+        [
+          364,
+          1439
+        ],
+        [
+          522,
+          1434
+        ],
+        [
+          644,
+          1499
+        ]
+      ],
+      "height": 1400,
+      "edge": 50
+    },
+    {
+      "id": "plat-a9_1",
+      "kind": "plateau",
+      "area": [
+        [
+          2148,
+          250
+        ],
+        [
+          2141,
+          297
+        ],
+        [
+          2135,
+          345
+        ],
+        [
+          2121,
+          388
+        ],
+        [
+          2088,
+          427
+        ],
+        [
+          2063,
+          458
+        ],
+        [
+          2026,
+          491
+        ],
+        [
+          1985,
+          520
+        ],
+        [
+          1942,
+          531
+        ],
+        [
+          1897,
+          551
+        ],
+        [
+          1850,
+          546
+        ],
+        [
+          1804,
+          546
+        ],
+        [
+          1757,
+          534
+        ],
+        [
+          1712,
+          518
+        ],
+        [
+          1672,
+          493
+        ],
+        [
+          1637,
+          461
+        ],
+        [
+          1611,
+          428
+        ],
+        [
+          1579,
+          387
+        ],
+        [
+          1566,
+          341
+        ],
+        [
+          1557,
+          297
+        ],
+        [
+          1548,
+          250
+        ],
+        [
+          1548,
+          203
+        ],
+        [
+          1562,
+          155
+        ],
+        [
+          1581,
+          114
+        ],
+        [
+          1610,
+          72
+        ],
+        [
+          1636,
+          34
+        ],
+        [
+          1671,
+          7
+        ],
+        [
+          1712,
+          -22
+        ],
+        [
+          1758,
+          -37
+        ],
+        [
+          1803,
+          -46
+        ],
+        [
+          1850,
+          -47
+        ],
+        [
+          1896,
+          -44
+        ],
+        [
+          1943,
+          -37
+        ],
+        [
+          1988,
+          -15
+        ],
+        [
+          2026,
+          8
+        ],
+        [
+          2059,
+          34
+        ],
+        [
+          2091,
+          72
+        ],
+        [
+          2119,
+          112
+        ],
+        [
+          2139,
+          156
+        ],
+        [
+          2144,
+          203
+        ]
+      ],
+      "height": 1400,
+      "edge": 40
+    },
+    {
+      "id": "plat-k2_1",
+      "kind": "plateau",
+      "area": [
+        [
+          -470,
+          -2650
+        ],
+        [
+          -472,
+          -2635
+        ],
+        [
+          -480,
+          -2621
+        ],
+        [
+          -491,
+          -2610
+        ],
+        [
+          -505,
+          -2602
+        ],
+        [
+          -520,
+          -2600
+        ],
+        [
+          -535,
+          -2602
+        ],
+        [
+          -550,
+          -2610
+        ],
+        [
+          -561,
+          -2621
+        ],
+        [
+          -567,
+          -2634
+        ],
+        [
+          -569,
+          -2650
+        ],
+        [
+          -567,
+          -2666
+        ],
+        [
+          -561,
+          -2680
+        ],
+        [
+          -549,
+          -2690
+        ],
+        [
+          -535,
+          -2698
+        ],
+        [
+          -520,
+          -2700
+        ],
+        [
+          -504,
+          -2698
+        ],
+        [
+          -491,
+          -2690
+        ],
+        [
+          -480,
+          -2680
+        ],
+        [
+          -472,
+          -2665
+        ]
+      ],
+      "height": 1058,
+      "edge": 40
+    },
+    {
+      "id": "plat-k1_1",
+      "kind": "plateau",
+      "area": [
+        [
+          388,
+          -1800
+        ],
+        [
+          384,
+          -1782
+        ],
+        [
+          376,
+          -1766
+        ],
+        [
+          364,
+          -1754
+        ],
+        [
+          348,
+          -1744
+        ],
+        [
+          330,
+          -1742
+        ],
+        [
+          312,
+          -1745
+        ],
+        [
+          296,
+          -1752
+        ],
+        [
+          283,
+          -1766
+        ],
+        [
+          274,
+          -1782
+        ],
+        [
+          271,
+          -1800
+        ],
+        [
+          275,
+          -1818
+        ],
+        [
+          283,
+          -1835
+        ],
+        [
+          295,
+          -1847
+        ],
+        [
+          312,
+          -1855
+        ],
+        [
+          330,
+          -1858
+        ],
+        [
+          348,
+          -1855
+        ],
+        [
+          364,
+          -1847
+        ],
+        [
+          376,
+          -1834
+        ],
+        [
+          386,
+          -1818
+        ]
+      ],
+      "height": 1078,
+      "edge": 40
+    },
+    {
+      "id": "plat-k4_1",
+      "kind": "plateau",
+      "area": [
+        [
+          86,
+          700
+        ],
+        [
+          84,
+          714
+        ],
+        [
+          77,
+          727
+        ],
+        [
+          67,
+          737
+        ],
+        [
+          54,
+          744
+        ],
+        [
+          40,
+          747
+        ],
+        [
+          26,
+          744
+        ],
+        [
+          12,
+          738
+        ],
+        [
+          3,
+          727
+        ],
+        [
+          -4,
+          714
+        ],
+        [
+          -6,
+          700
+        ],
+        [
+          -4,
+          686
+        ],
+        [
+          3,
+          673
+        ],
+        [
+          13,
+          663
+        ],
+        [
+          26,
+          656
+        ],
+        [
+          40,
+          654
+        ],
+        [
+          54,
+          656
+        ],
+        [
+          67,
+          663
+        ],
+        [
+          77,
+          673
+        ],
+        [
+          84,
+          686
+        ]
+      ],
+      "height": 1137,
+      "edge": 40
+    },
+    {
+      "id": "plat-k3_1",
+      "kind": "plateau",
+      "area": [
+        [
+          1905,
+          -2050
+        ],
+        [
+          1900,
+          -2033
+        ],
+        [
+          1894,
+          -2018
+        ],
+        [
+          1882,
+          -2006
+        ],
+        [
+          1867,
+          -1998
+        ],
+        [
+          1850,
+          -1997
+        ],
+        [
+          1833,
+          -1999
+        ],
+        [
+          1818,
+          -2006
+        ],
+        [
+          1807,
+          -2019
+        ],
+        [
+          1798,
+          -2034
+        ],
+        [
+          1797,
+          -2050
+        ],
+        [
+          1798,
+          -2066
+        ],
+        [
+          1806,
+          -2081
+        ],
+        [
+          1818,
+          -2095
+        ],
+        [
+          1833,
+          -2102
+        ],
+        [
+          1850,
+          -2103
+        ],
+        [
+          1867,
+          -2102
+        ],
+        [
+          1882,
+          -2094
+        ],
+        [
+          1893,
+          -2082
+        ],
+        [
+          1901,
+          -2067
+        ]
+      ],
+      "height": 1168,
+      "edge": 40
+    },
+    {
+      "id": "plat-k5_1",
+      "kind": "plateau",
+      "area": [
+        [
+          -1647,
+          120
+        ],
+        [
+          -1651,
+          136
+        ],
+        [
+          -1659,
+          151
+        ],
+        [
+          -1669,
+          163
+        ],
+        [
+          -1684,
+          169
+        ],
+        [
+          -1700,
+          172
+        ],
+        [
+          -1716,
+          170
+        ],
+        [
+          -1730,
+          161
+        ],
+        [
+          -1742,
+          150
+        ],
+        [
+          -1750,
+          136
+        ],
+        [
+          -1751,
+          120
+        ],
+        [
+          -1749,
+          104
+        ],
+        [
+          -1742,
+          90
+        ],
+        [
+          -1731,
+          78
+        ],
+        [
+          -1716,
+          70
+        ],
+        [
+          -1700,
+          67
+        ],
+        [
+          -1684,
+          70
+        ],
+        [
+          -1669,
+          78
+        ],
+        [
+          -1658,
+          90
+        ],
+        [
+          -1650,
+          104
+        ]
+      ],
+      "height": 1207,
+      "edge": 40
+    },
+    {
+      "id": "plat-k6_1",
+      "kind": "plateau",
+      "area": [
+        [
+          1548,
+          1150
+        ],
+        [
+          1545,
+          1165
+        ],
+        [
+          1538,
+          1179
+        ],
+        [
+          1529,
+          1189
+        ],
+        [
+          1515,
+          1197
+        ],
+        [
+          1500,
+          1198
+        ],
+        [
+          1485,
+          1196
+        ],
+        [
+          1472,
+          1188
+        ],
+        [
+          1461,
+          1178
+        ],
+        [
+          1455,
+          1165
+        ],
+        [
+          1451,
+          1150
+        ],
+        [
+          1455,
+          1135
+        ],
+        [
+          1460,
+          1122
+        ],
+        [
+          1472,
+          1111
+        ],
+        [
+          1485,
+          1104
+        ],
+        [
+          1500,
+          1102
+        ],
+        [
+          1515,
+          1104
+        ],
+        [
+          1528,
+          1111
+        ],
+        [
+          1538,
+          1122
+        ],
+        [
+          1545,
+          1135
+        ]
+      ],
+      "height": 1232,
+      "edge": 40
+    },
+    {
+      "id": "plat-a8_1",
+      "kind": "plateau",
+      "area": [
+        [
+          1906,
+          -1316
+        ],
+        [
+          1778,
+          -1314
+        ],
+        [
+          1652,
+          -1339
+        ],
+        [
+          1525,
+          -1357
+        ],
+        [
+          1398,
+          -1373
+        ],
+        [
+          1272,
+          -1389
+        ],
+        [
+          1144,
+          -1394
+        ],
+        [
+          1016,
+          -1396
+        ],
+        [
+          956,
+          -1335
+        ],
+        [
+          1004,
+          -1263
+        ],
+        [
+          1132,
+          -1264
+        ],
+        [
+          1260,
+          -1257
+        ],
+        [
+          1387,
+          -1245
+        ],
+        [
+          1513,
+          -1221
+        ],
+        [
+          1639,
+          -1193
+        ],
+        [
+          1766,
+          -1180
+        ],
+        [
+          1891,
+          -1154
+        ]
+      ],
+      "height": 1330,
+      "edge": 40
+    },
+    {
+      "id": "plat-a9_x0",
+      "kind": "plateau",
+      "area": [
+        [
+          2120,
+          250
+        ],
+        [
+          2112,
+          291
+        ],
+        [
+          2106,
+          334
+        ],
+        [
+          2087,
+          371
+        ],
+        [
+          2068,
+          407
+        ],
+        [
+          2039,
+          439
+        ],
+        [
+          2005,
+          467
+        ],
+        [
+          1971,
+          488
+        ],
+        [
+          1933,
+          506
+        ],
+        [
+          1892,
+          517
+        ],
+        [
+          1850,
+          519
+        ],
+        [
+          1808,
+          517
+        ],
+        [
+          1766,
+          501
+        ],
+        [
+          1727,
+          487
+        ],
+        [
+          1692,
+          469
+        ],
+        [
+          1659,
+          442
+        ],
+        [
+          1632,
+          409
+        ],
+        [
+          1611,
+          371
+        ],
+        [
+          1598,
+          333
+        ],
+        [
+          1583,
+          292
+        ],
+        [
+          1581,
+          250
+        ],
+        [
+          1582,
+          208
+        ],
+        [
+          1593,
+          167
+        ],
+        [
+          1609,
+          129
+        ],
+        [
+          1636,
+          93
+        ],
+        [
+          1661,
+          61
+        ],
+        [
+          1690,
+          34
+        ],
+        [
+          1727,
+          14
+        ],
+        [
+          1767,
+          -4
+        ],
+        [
+          1808,
+          -14
+        ],
+        [
+          1850,
+          -19
+        ],
+        [
+          1892,
+          -17
+        ],
+        [
+          1933,
+          -2
+        ],
+        [
+          1970,
+          10
+        ],
+        [
+          2007,
+          35
+        ],
+        [
+          2042,
+          62
+        ],
+        [
+          2069,
+          93
+        ],
+        [
+          2091,
+          128
+        ],
+        [
+          2101,
+          167
+        ],
+        [
+          2113,
+          208
+        ]
+      ],
+      "height": 1368,
+      "edge": 25
+    },
+    {
+      "id": "plat-a2_1",
+      "kind": "plateau",
+      "area": [
+        [
+          723,
+          -511
+        ],
+        [
+          638,
+          -479
+        ],
+        [
+          548,
+          -523
+        ],
+        [
+          501,
+          -616
+        ],
+        [
+          474,
+          -708
+        ],
+        [
+          477,
+          -806
+        ],
+        [
+          527,
+          -889
+        ],
+        [
+          617,
+          -903
+        ],
+        [
+          704,
+          -889
+        ],
+        [
+          788,
+          -839
+        ],
+        [
+          818,
+          -739
+        ],
+        [
+          846,
+          -638
+        ],
+        [
+          810,
+          -542
+        ]
+      ],
+      "height": 1400,
+      "edge": 40
+    },
+    {
+      "id": "plat-a5_1",
+      "kind": "plateau",
+      "area": [
+        [
+          -1107,
+          -456
+        ],
+        [
+          -1121,
+          -402
+        ],
+        [
+          -1147,
+          -355
+        ],
+        [
+          -1185,
+          -317
+        ],
+        [
+          -1223,
+          -280
+        ],
+        [
+          -1261,
+          -242
+        ],
+        [
+          -1314,
+          -224
+        ],
+        [
+          -1355,
+          -191
+        ],
+        [
+          -1404,
+          -169
+        ],
+        [
+          -1454,
+          -154
+        ],
+        [
+          -1503,
+          -138
+        ],
+        [
+          -1552,
+          -121
+        ],
+        [
+          -1602,
+          -106
+        ],
+        [
+          -1653,
+          -91
+        ],
+        [
+          -1705,
+          -83
+        ],
+        [
+          -1758,
+          -82
+        ],
+        [
+          -1810,
+          -89
+        ],
+        [
+          -1803,
+          -180
+        ],
+        [
+          -1757,
+          -187
+        ],
+        [
+          -1712,
+          -200
+        ],
+        [
+          -1669,
+          -216
+        ],
+        [
+          -1627,
+          -232
+        ],
+        [
+          -1588,
+          -252
+        ],
+        [
+          -1549,
+          -271
+        ],
+        [
+          -1512,
+          -291
+        ],
+        [
+          -1476,
+          -311
+        ],
+        [
+          -1437,
+          -327
+        ],
+        [
+          -1390,
+          -333
+        ],
+        [
+          -1357,
+          -361
+        ],
+        [
+          -1312,
+          -375
+        ],
+        [
+          -1273,
+          -400
+        ],
+        [
+          -1243,
+          -434
+        ],
+        [
+          -1212,
+          -467
+        ],
+        [
+          -1179,
+          -500
+        ]
+      ],
+      "height": 1400,
+      "edge": 40
+    },
+    {
+      "id": "plat-a1_1",
+      "kind": "plateau",
+      "area": [
+        [
+          -429,
+          -228
+        ],
+        [
+          -470,
+          -155
+        ],
+        [
+          -552,
+          -114
+        ],
+        [
+          -645,
+          -135
+        ],
+        [
+          -732,
+          -172
+        ],
+        [
+          -779,
+          -250
+        ],
+        [
+          -804,
+          -337
+        ],
+        [
+          -760,
+          -414
+        ],
+        [
+          -697,
+          -478
+        ],
+        [
+          -600,
+          -471
+        ],
+        [
+          -516,
+          -442
+        ],
+        [
+          -445,
+          -388
+        ],
+        [
+          -400,
+          -308
+        ]
+      ],
+      "height": 1480,
+      "edge": 40
+    },
+    {
+      "id": "plat-a3_1",
+      "kind": "plateau",
+      "area": [
+        [
+          891,
+          739
+        ],
+        [
+          837,
+          807
+        ],
+        [
+          773,
+          859
+        ],
+        [
+          688,
+          867
+        ],
+        [
+          598,
+          855
+        ],
+        [
+          541,
+          786
+        ],
+        [
+          507,
+          705
+        ],
+        [
+          543,
+          628
+        ],
+        [
+          580,
+          549
+        ],
+        [
+          666,
+          515
+        ],
+        [
+          752,
+          547
+        ],
+        [
+          835,
+          577
+        ],
+        [
+          881,
+          652
+        ]
+      ],
+      "height": 1480,
+      "edge": 40
+    },
+    {
+      "id": "plat-a4_1",
+      "kind": "plateau",
+      "area": [
+        [
+          -917,
+          905
+        ],
+        [
+          -986,
+          955
+        ],
+        [
+          -1095,
+          922
+        ],
+        [
+          -1202,
+          842
+        ],
+        [
+          -1280,
+          726
+        ],
+        [
+          -1304,
+          607
+        ],
+        [
+          -1282,
+          513
+        ],
+        [
+          -1225,
+          446
+        ],
+        [
+          -1121,
+          447
+        ],
+        [
+          -1015,
+          527
+        ],
+        [
+          -911,
+          612
+        ],
+        [
+          -853,
+          737
+        ],
+        [
+          -873,
+          836
+        ]
+      ],
+      "height": 1480,
+      "edge": 40
+    },
+    {
+      "id": "plat-a6_1",
+      "kind": "plateau",
+      "area": [
+        [
+          -300,
+          1560
+        ],
+        [
+          -307,
+          1594
+        ],
+        [
+          -319,
+          1624
+        ],
+        [
+          -340,
+          1652
+        ],
+        [
+          -371,
+          1670
+        ],
+        [
+          -403,
+          1680
+        ],
+        [
+          -437,
+          1680
+        ],
+        [
+          -471,
+          1671
+        ],
+        [
+          -499,
+          1649
+        ],
+        [
+          -521,
+          1624
+        ],
+        [
+          -537,
+          1594
+        ],
+        [
+          -540,
+          1560
+        ],
+        [
+          -533,
+          1526
+        ],
+        [
+          -522,
+          1495
+        ],
+        [
+          -499,
+          1469
+        ],
+        [
+          -469,
+          1450
+        ],
+        [
+          -437,
+          1440
+        ],
+        [
+          -403,
+          1439
+        ],
+        [
+          -369,
+          1449
+        ],
+        [
+          -340,
+          1469
+        ],
+        [
+          -320,
+          1496
+        ],
+        [
+          -304,
+          1526
+        ]
+      ],
+      "height": 1480,
+      "edge": 40
+    },
+    {
+      "id": "plat-a7_1",
+      "kind": "plateau",
+      "area": [
+        [
+          581,
+          1642
+        ],
+        [
+          584,
+          1740
+        ],
+        [
+          542,
+          1844
+        ],
+        [
+          433,
+          1928
+        ],
+        [
+          291,
+          1951
+        ],
+        [
+          158,
+          1932
+        ],
+        [
+          92,
+          1845
+        ],
+        [
+          62,
+          1751
+        ],
+        [
+          90,
+          1649
+        ],
+        [
+          175,
+          1559
+        ],
+        [
+          299,
+          1504
+        ],
+        [
+          437,
+          1492
+        ],
+        [
+          532,
+          1558
+        ]
+      ],
+      "height": 1480,
+      "edge": 40
+    },
+    {
+      "id": "plat-k2_c",
+      "kind": "plateau",
+      "area": [
+        [
+          -488,
+          -2650
+        ],
+        [
+          -489,
+          -2639
+        ],
+        [
+          -495,
+          -2629
+        ],
+        [
+          -504,
+          -2621
+        ],
+        [
+          -514,
+          -2618
+        ],
+        [
+          -526,
+          -2618
+        ],
+        [
+          -536,
+          -2621
+        ],
+        [
+          -545,
+          -2629
+        ],
+        [
+          -551,
+          -2639
+        ],
+        [
+          -552,
+          -2650
+        ],
+        [
+          -550,
+          -2661
+        ],
+        [
+          -545,
+          -2671
+        ],
+        [
+          -536,
+          -2679
+        ],
+        [
+          -526,
+          -2682
+        ],
+        [
+          -514,
+          -2683
+        ],
+        [
+          -504,
+          -2678
+        ],
+        [
+          -495,
+          -2671
+        ],
+        [
+          -489,
+          -2661
+        ]
+      ],
+      "height": 1074,
+      "edge": 28
+    },
+    {
+      "id": "plat-k1_c",
+      "kind": "plateau",
+      "area": [
+        [
+          369,
+          -1800
+        ],
+        [
+          366,
+          -1787
+        ],
+        [
+          360,
+          -1775
+        ],
+        [
+          349,
+          -1767
+        ],
+        [
+          337,
+          -1763
+        ],
+        [
+          323,
+          -1762
+        ],
+        [
+          311,
+          -1767
+        ],
+        [
+          301,
+          -1775
+        ],
+        [
+          293,
+          -1787
+        ],
+        [
+          292,
+          -1800
+        ],
+        [
+          294,
+          -1813
+        ],
+        [
+          300,
+          -1824
+        ],
+        [
+          311,
+          -1833
+        ],
+        [
+          323,
+          -1837
+        ],
+        [
+          337,
+          -1837
+        ],
+        [
+          349,
+          -1833
+        ],
+        [
+          359,
+          -1825
+        ],
+        [
+          366,
+          -1813
+        ]
+      ],
+      "height": 1094,
+      "edge": 28
+    },
+    {
+      "id": "plat-k4_c",
+      "kind": "plateau",
+      "area": [
+        [
+          71,
+          700
+        ],
+        [
+          68,
+          711
+        ],
+        [
+          63,
+          719
+        ],
+        [
+          55,
+          726
+        ],
+        [
+          45,
+          730
+        ],
+        [
+          35,
+          730
+        ],
+        [
+          25,
+          726
+        ],
+        [
+          17,
+          719
+        ],
+        [
+          12,
+          711
+        ],
+        [
+          9,
+          700
+        ],
+        [
+          11,
+          689
+        ],
+        [
+          17,
+          680
+        ],
+        [
+          25,
+          674
+        ],
+        [
+          35,
+          670
+        ],
+        [
+          45,
+          670
+        ],
+        [
+          55,
+          674
+        ],
+        [
+          63,
+          681
+        ],
+        [
+          69,
+          690
+        ]
+      ],
+      "height": 1153,
+      "edge": 28
+    },
+    {
+      "id": "plat-k3_c",
+      "kind": "plateau",
+      "area": [
+        [
+          1885,
+          -2050
+        ],
+        [
+          1884,
+          -2038
+        ],
+        [
+          1878,
+          -2027
+        ],
+        [
+          1868,
+          -2019
+        ],
+        [
+          1856,
+          -2015
+        ],
+        [
+          1844,
+          -2014
+        ],
+        [
+          1832,
+          -2019
+        ],
+        [
+          1822,
+          -2027
+        ],
+        [
+          1817,
+          -2038
+        ],
+        [
+          1814,
+          -2050
+        ],
+        [
+          1817,
+          -2062
+        ],
+        [
+          1823,
+          -2073
+        ],
+        [
+          1832,
+          -2081
+        ],
+        [
+          1844,
+          -2085
+        ],
+        [
+          1856,
+          -2085
+        ],
+        [
+          1868,
+          -2081
+        ],
+        [
+          1877,
+          -2073
+        ],
+        [
+          1884,
+          -2062
+        ]
+      ],
+      "height": 1184,
+      "edge": 28
+    },
+    {
+      "id": "plat-k5_c",
+      "kind": "plateau",
+      "area": [
+        [
+          -1665,
+          120
+        ],
+        [
+          -1667,
+          132
+        ],
+        [
+          -1674,
+          142
+        ],
+        [
+          -1683,
+          150
+        ],
+        [
+          -1694,
+          154
+        ],
+        [
+          -1706,
+          154
+        ],
+        [
+          -1717,
+          150
+        ],
+        [
+          -1726,
+          142
+        ],
+        [
+          -1732,
+          132
+        ],
+        [
+          -1735,
+          120
+        ],
+        [
+          -1732,
+          108
+        ],
+        [
+          -1726,
+          98
+        ],
+        [
+          -1717,
+          90
+        ],
+        [
+          -1706,
+          87
+        ],
+        [
+          -1694,
+          86
+        ],
+        [
+          -1683,
+          90
+        ],
+        [
+          -1674,
+          98
+        ],
+        [
+          -1668,
+          108
+        ]
+      ],
+      "height": 1223,
+      "edge": 28
+    },
+    {
+      "id": "plat-k6_c",
+      "kind": "plateau",
+      "area": [
+        [
+          1532,
+          1150
+        ],
+        [
+          1529,
+          1161
+        ],
+        [
+          1525,
+          1170
+        ],
+        [
+          1516,
+          1177
+        ],
+        [
+          1505,
+          1181
+        ],
+        [
+          1494,
+          1181
+        ],
+        [
+          1484,
+          1177
+        ],
+        [
+          1476,
+          1170
+        ],
+        [
+          1471,
+          1161
+        ],
+        [
+          1468,
+          1150
+        ],
+        [
+          1470,
+          1139
+        ],
+        [
+          1476,
+          1130
+        ],
+        [
+          1484,
+          1123
+        ],
+        [
+          1495,
+          1119
+        ],
+        [
+          1505,
+          1119
+        ],
+        [
+          1516,
+          1123
+        ],
+        [
+          1525,
+          1130
+        ],
+        [
+          1529,
+          1139
+        ]
+      ],
+      "height": 1248,
+      "edge": 28
+    },
+    {
+      "id": "plat-a11_c",
+      "kind": "plateau",
+      "area": [
+        [
+          -731,
+          -2195
+        ],
+        [
+          -772,
+          -2120
+        ],
+        [
+          -853,
+          -2074
+        ],
+        [
+          -938,
+          -2033
+        ],
+        [
+          -1043,
+          -2037
+        ],
+        [
+          -1135,
+          -2082
+        ],
+        [
+          -1212,
+          -2141
+        ],
+        [
+          -1256,
+          -2219
+        ],
+        [
+          -1253,
+          -2301
+        ],
+        [
+          -1224,
+          -2378
+        ],
+        [
+          -1156,
+          -2437
+        ],
+        [
+          -1062,
+          -2468
+        ],
+        [
+          -959,
+          -2452
+        ],
+        [
+          -864,
+          -2419
+        ],
+        [
+          -787,
+          -2360
+        ],
+        [
+          -734,
+          -2282
+        ]
+      ],
+      "height": 1330,
+      "edge": 28
+    },
+    {
+      "id": "plat-a9_c",
+      "kind": "plateau",
+      "area": [
+        [
+          2087,
+          250
+        ],
+        [
+          2083,
+          290
+        ],
+        [
+          2072,
+          332
+        ],
+        [
+          2053,
+          366
+        ],
+        [
+          2032,
+          402
+        ],
+        [
+          2000,
+          431
+        ],
+        [
+          1969,
+          452
+        ],
+        [
+          1931,
+          472
+        ],
+        [
+          1890,
+          479
+        ],
+        [
+          1850,
+          484
+        ],
+        [
+          1809,
+          483
+        ],
+        [
+          1770,
+          468
+        ],
+        [
+          1733,
+          453
+        ],
+        [
+          1698,
+          431
+        ],
+        [
+          1670,
+          400
+        ],
+        [
+          1645,
+          366
+        ],
+        [
+          1628,
+          330
+        ],
+        [
+          1618,
+          291
+        ],
+        [
+          1617,
+          250
+        ],
+        [
+          1618,
+          209
+        ],
+        [
+          1632,
+          170
+        ],
+        [
+          1644,
+          132
+        ],
+        [
+          1670,
+          99
+        ],
+        [
+          1698,
+          71
+        ],
+        [
+          1732,
+          49
+        ],
+        [
+          1769,
+          26
+        ],
+        [
+          1809,
+          22
+        ],
+        [
+          1850,
+          16
+        ],
+        [
+          1891,
+          22
+        ],
+        [
+          1929,
+          32
+        ],
+        [
+          1967,
+          44
+        ],
+        [
+          2001,
+          69
+        ],
+        [
+          2028,
+          100
+        ],
+        [
+          2053,
+          132
+        ],
+        [
+          2072,
+          169
+        ],
+        [
+          2080,
+          210
+        ]
+      ],
+      "height": 1352,
+      "edge": 28
+    },
+    {
+      "id": "plat-a10_c",
+      "kind": "plateau",
+      "area": [
+        [
+          -2258,
+          -1186
+        ],
+        [
+          -2313,
+          -1156
+        ],
+        [
+          -2381,
+          -1140
+        ],
+        [
+          -2464,
+          -1168
+        ],
+        [
+          -2525,
+          -1217
+        ],
+        [
+          -2523,
+          -1268
+        ],
+        [
+          -2487,
+          -1304
+        ],
+        [
+          -2417,
+          -1313
+        ],
+        [
+          -2331,
+          -1297
+        ],
+        [
+          -2282,
+          -1242
+        ]
+      ],
+      "height": 1400,
+      "edge": 28
+    },
+    {
+      "id": "plat-a8_c",
+      "kind": "plateau",
+      "area": [
+        [
+          1157,
+          -1325
+        ],
+        [
+          1152,
+          -1300
+        ],
+        [
+          1143,
+          -1277
+        ],
+        [
+          1123,
+          -1258
+        ],
+        [
+          1100,
+          -1248
+        ],
+        [
+          1075,
+          -1242
+        ],
+        [
+          1049,
+          -1246
+        ],
+        [
+          1026,
+          -1260
+        ],
+        [
+          1008,
+          -1276
+        ],
+        [
+          997,
+          -1300
+        ],
+        [
+          994,
+          -1325
+        ],
+        [
+          996,
+          -1350
+        ],
+        [
+          1008,
+          -1372
+        ],
+        [
+          1027,
+          -1391
+        ],
+        [
+          1050,
+          -1403
+        ],
+        [
+          1075,
+          -1408
+        ],
+        [
+          1100,
+          -1404
+        ],
+        [
+          1123,
+          -1392
+        ],
+        [
+          1142,
+          -1372
+        ],
+        [
+          1152,
+          -1351
+        ]
+      ],
+      "height": 1430,
+      "edge": 28
+    },
+    {
+      "id": "plat-a2_c",
+      "kind": "plateau",
+      "area": [
+        [
+          699,
+          -574
+        ],
+        [
+          629,
+          -570
+        ],
+        [
+          561,
+          -602
+        ],
+        [
+          519,
+          -672
+        ],
+        [
+          519,
+          -754
+        ],
+        [
+          571,
+          -807
+        ],
+        [
+          634,
+          -848
+        ],
+        [
+          712,
+          -832
+        ],
+        [
+          758,
+          -763
+        ],
+        [
+          775,
+          -688
+        ],
+        [
+          756,
+          -616
+        ]
+      ],
+      "height": 1500,
+      "edge": 28
+    },
+    {
+      "id": "plat-a4_c2",
+      "kind": "plateau",
+      "area": [
+        [
+          -1121,
+          540
+        ],
+        [
+          -1136,
+          594
+        ],
+        [
+          -1184,
+          621
+        ],
+        [
+          -1236,
+          620
+        ],
+        [
+          -1288,
+          597
+        ],
+        [
+          -1294,
+          540
+        ],
+        [
+          -1286,
+          485
+        ],
+        [
+          -1237,
+          458
+        ],
+        [
+          -1181,
+          449
+        ],
+        [
+          -1134,
+          485
+        ]
+      ],
+      "height": 1540,
+      "edge": 25
+    },
+    {
+      "id": "plat-a1_c",
+      "kind": "plateau",
+      "area": [
+        [
+          -478,
+          -248
+        ],
+        [
+          -530,
+          -203
+        ],
+        [
+          -594,
+          -176
+        ],
+        [
+          -663,
+          -198
+        ],
+        [
+          -706,
+          -251
+        ],
+        [
+          -731,
+          -317
+        ],
+        [
+          -702,
+          -381
+        ],
+        [
+          -639,
+          -411
+        ],
+        [
+          -569,
+          -423
+        ],
+        [
+          -515,
+          -375
+        ],
+        [
+          -473,
+          -319
+        ]
+      ],
+      "height": 1560,
+      "edge": 28
+    },
+    {
+      "id": "plat-a5_c",
+      "kind": "plateau",
+      "area": [
+        [
+          -1152,
+          -423
+        ],
+        [
+          -1179,
+          -380
+        ],
+        [
+          -1217,
+          -347
+        ],
+        [
+          -1256,
+          -314
+        ],
+        [
+          -1297,
+          -286
+        ],
+        [
+          -1341,
+          -263
+        ],
+        [
+          -1383,
+          -237
+        ],
+        [
+          -1425,
+          -212
+        ],
+        [
+          -1468,
+          -187
+        ],
+        [
+          -1511,
+          -160
+        ],
+        [
+          -1557,
+          -139
+        ],
+        [
+          -1605,
+          -122
+        ],
+        [
+          -1655,
+          -113
+        ],
+        [
+          -1706,
+          -113
+        ],
+        [
+          -1757,
+          -119
+        ],
+        [
+          -1756,
+          -158
+        ],
+        [
+          -1709,
+          -156
+        ],
+        [
+          -1662,
+          -163
+        ],
+        [
+          -1616,
+          -176
+        ],
+        [
+          -1572,
+          -195
+        ],
+        [
+          -1532,
+          -220
+        ],
+        [
+          -1492,
+          -243
+        ],
+        [
+          -1454,
+          -269
+        ],
+        [
+          -1416,
+          -293
+        ],
+        [
+          -1377,
+          -314
+        ],
+        [
+          -1338,
+          -337
+        ],
+        [
+          -1297,
+          -359
+        ],
+        [
+          -1254,
+          -382
+        ],
+        [
+          -1218,
+          -412
+        ],
+        [
+          -1180,
+          -443
+        ]
+      ],
+      "height": 1560,
+      "edge": 28
+    },
+    {
+      "id": "plat-a4_c",
+      "kind": "plateau",
+      "area": [
+        [
+          -980,
+          826
+        ],
+        [
+          -1041,
+          841
+        ],
+        [
+          -1114,
+          811
+        ],
+        [
+          -1170,
+          744
+        ],
+        [
+          -1198,
+          671
+        ],
+        [
+          -1206,
+          592
+        ],
+        [
+          -1155,
+          555
+        ],
+        [
+          -1082,
+          568
+        ],
+        [
+          -1011,
+          616
+        ],
+        [
+          -957,
+          691
+        ],
+        [
+          -947,
+          772
+        ]
+      ],
+      "height": 1600,
+      "edge": 28
+    },
+    {
+      "id": "plat-a3_c",
+      "kind": "plateau",
+      "area": [
+        [
+          820,
+          724
+        ],
+        [
+          783,
+          781
+        ],
+        [
+          729,
+          823
+        ],
+        [
+          659,
+          814
+        ],
+        [
+          604,
+          774
+        ],
+        [
+          575,
+          711
+        ],
+        [
+          595,
+          644
+        ],
+        [
+          642,
+          597
+        ],
+        [
+          707,
+          586
+        ],
+        [
+          765,
+          610
+        ],
+        [
+          817,
+          655
+        ]
+      ],
+      "height": 1620,
+      "edge": 28
+    },
+    {
+      "id": "plat-a7_c",
+      "kind": "plateau",
+      "area": [
+        [
+          528,
+          1659
+        ],
+        [
+          531,
+          1756
+        ],
+        [
+          443,
+          1825
+        ],
+        [
+          349,
+          1872
+        ],
+        [
+          240,
+          1875
+        ],
+        [
+          157,
+          1821
+        ],
+        [
+          137,
+          1733
+        ],
+        [
+          174,
+          1646
+        ],
+        [
+          256,
+          1576
+        ],
+        [
+          368,
+          1549
+        ],
+        [
+          470,
+          1583
+        ]
+      ],
+      "height": 1620,
+      "edge": 28
+    },
+    {
+      "id": "plat-a6_c",
+      "kind": "plateau",
+      "area": [
+        [
+          -366,
+          1560
+        ],
+        [
+          -369,
+          1576
+        ],
+        [
+          -376,
+          1591
+        ],
+        [
+          -388,
+          1603
+        ],
+        [
+          -403,
+          1612
+        ],
+        [
+          -420,
+          1615
+        ],
+        [
+          -437,
+          1612
+        ],
+        [
+          -451,
+          1604
+        ],
+        [
+          -463,
+          1591
+        ],
+        [
+          -471,
+          1577
+        ],
+        [
+          -474,
+          1560
+        ],
+        [
+          -471,
+          1543
+        ],
+        [
+          -464,
+          1528
+        ],
+        [
+          -452,
+          1516
+        ],
+        [
+          -437,
+          1508
+        ],
+        [
+          -420,
+          1506
+        ],
+        [
+          -404,
+          1509
+        ],
+        [
+          -388,
+          1517
+        ],
+        [
+          -377,
+          1529
+        ],
+        [
+          -370,
+          1543
+        ]
+      ],
+      "height": 1700,
+      "edge": 28
+    },
+    {
+      "id": "lake",
       "kind": "lake",
       "path": [
         [
-          2900,
-          4000
+          68,
+          2520
         ],
         [
-          2400,
-          3400
+          138,
+          3156
+        ],
+        [
+          244,
+          3822
+        ],
+        [
+          390,
+          4450
         ]
       ],
-      "radius": 330,
-      "depth": 50
+      "radius": 230,
+      "level": 1238,
+      "depth": 44
+    },
+    {
+      "id": "glacier-head",
+      "kind": "glacier",
+      "path": [
+        [
+          250,
+          4800
+        ],
+        [
+          320,
+          4650
+        ],
+        [
+          380,
+          4470
+        ]
+      ],
+      "width": 300,
+      "height": 1278,
+      "depth": 60
     },
     {
       "id": "the-river",
       "kind": "river",
       "path": [
         [
-          0,
-          3400
+          62,
+          2469
         ],
         [
-          0,
-          0
+          -38,
+          1695
         ],
         [
-          50,
-          -1800
+          -126,
+          893
         ],
         [
-          200,
-          -5900
+          -8,
+          111
+        ],
+        [
+          172,
+          -634
+        ],
+        [
+          48,
+          -1416
+        ],
+        [
+          -108,
+          -2197
+        ],
+        [
+          34,
+          -2972
+        ],
+        [
+          -80,
+          -3750
+        ],
+        [
+          -80,
+          -4790
         ]
       ],
-      "width": 30,
+      "width": 24,
       "depth": 4,
-      "meander": 0.4,
+      "meander": 0.3,
       "mouth": "none"
     }
   ],
   "districts": [
     {
-      "id": "north-slums",
+      "id": "under-main-0",
       "at": [
-        100,
-        800
+        -22,
+        -3488
       ],
-      "radius": 1000,
+      "radius": 360,
       "culture": "mountain",
       "density": 0.95,
-      "wealth": 0.08,
+      "wealth": 0.06,
       "plan": "organic",
+      "steep": false,
       "farms": false
     },
     {
-      "id": "south-slums",
+      "id": "under-main-1",
       "at": [
-        250,
-        -3700
+        12,
+        -2853
       ],
-      "radius": 700,
+      "radius": 360,
       "culture": "mountain",
-      "density": 0.9,
-      "wealth": 0.12,
+      "density": 0.95,
+      "wealth": 0.06,
+      "plan": "organic",
+      "steep": false,
       "farms": false
     },
     {
-      "id": "cliffside",
+      "id": "under-main-2",
       "at": [
-        -760,
-        -600
+        -109,
+        -2210
       ],
-      "radius": 350,
+      "radius": 360,
       "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.06,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-main-3",
+      "at": [
+        12,
+        -1581
+      ],
+      "radius": 360,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.06,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-main-4",
+      "at": [
+        140,
+        -937
+      ],
+      "radius": 360,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.06,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-main-5",
+      "at": [
+        122,
+        -294
+      ],
+      "radius": 360,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.06,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-main-6",
+      "at": [
+        -55,
+        332
+      ],
+      "radius": 360,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.06,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-main-7",
+      "at": [
+        -130,
+        977
+      ],
+      "radius": 360,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.06,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-main-8",
+      "at": [
+        -52,
+        1626
+      ],
+      "radius": 360,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.06,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-main-9",
+      "at": [
+        42,
+        2268
+      ],
+      "radius": 360,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.06,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-sw-0",
+      "at": [
+        -223,
+        -3118
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-sw-1",
+      "at": [
+        -862,
+        -3172
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-sw-2",
+      "at": [
+        -1472,
+        -2998
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-sw-3",
+      "at": [
+        -2064,
+        -3279
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-sw-4",
+      "at": [
+        -2682,
+        -3258
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e1-0",
+      "at": [
+        334,
+        -2317
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e1-1",
+      "at": [
+        962,
+        -2251
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e1-2",
+      "at": [
+        1550,
+        -2003
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e1-3",
+      "at": [
+        2152,
+        -2258
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e1-4",
+      "at": [
+        2773,
+        -2178
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w1-0",
+      "at": [
+        -295,
+        -1406
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w1-1",
+      "at": [
+        -941,
+        -1428
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w1-2",
+      "at": [
+        -1559,
+        -1250
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w1-3",
+      "at": [
+        -2166,
+        -1451
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w1-4",
+      "at": [
+        -2801,
+        -1414
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e2-0",
+      "at": [
+        586,
+        -370
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e2-1",
+      "at": [
+        1204,
+        -442
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e2-2",
+      "at": [
+        1827,
+        -428
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e2-3",
+      "at": [
+        2387,
+        -121
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e2-4",
+      "at": [
+        3010,
+        -316
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w2-0",
+      "at": [
+        -305,
+        320
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w2-1",
+      "at": [
+        -942,
+        407
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w2-2",
+      "at": [
+        -1573,
+        317
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w2-3",
+      "at": [
+        -2157,
+        601
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w2-4",
+      "at": [
+        -2791,
+        587
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e3-0",
+      "at": [
+        225,
+        1048
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e3-1",
+      "at": [
+        864,
+        1002
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e3-2",
+      "at": [
+        1468,
+        1241
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e3-3",
+      "at": [
+        2092,
+        1188
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-e3-4",
+      "at": [
+        2702,
+        1202
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w3-0",
+      "at": [
+        -262,
+        1972
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w3-1",
+      "at": [
+        -897,
+        2071
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w3-2",
+      "at": [
+        -1519,
+        1892
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w3-3",
+      "at": [
+        -2083,
+        2192
+      ],
+      "radius": 320,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "organic",
+      "steep": false,
+      "farms": false
+    },
+    {
+      "id": "under-w1b-0",
+      "at": [
+        -1841,
+        -857
+      ],
+      "radius": 260,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "terraced",
       "steep": true,
-      "wealth": 0.3,
       "farms": false
     },
     {
-      "id": "west-high-town",
+      "id": "under-e2b-0",
       "at": [
-        -1900,
-        600
+        1766,
+        -834
       ],
-      "culture": "central",
-      "walls": true,
-      "wealth": 0.85,
-      "farms": false,
-      "area": [
-        [
-          -2700,
-          2900
-        ],
-        [
-          -1250,
-          3000
-        ],
-        [
-          -1100,
-          1600
-        ],
-        [
-          -1100,
-          200
-        ],
-        [
-          -1250,
-          -1000
-        ],
-        [
-          -2000,
-          -1300
-        ],
-        [
-          -2700,
-          -600
-        ],
-        [
-          -2850,
-          1200
-        ]
-      ],
-      "density": 0.75
+      "radius": 260,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "terraced",
+      "steep": true,
+      "farms": false
     },
     {
-      "id": "east-high-town",
+      "id": "under-e3b-0",
       "at": [
-        1900,
-        200
+        1582,
+        1534
       ],
-      "culture": "central",
-      "walls": true,
-      "wealth": 0.85,
-      "farms": false,
+      "radius": 260,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "terraced",
+      "steep": true,
+      "farms": false
+    },
+    {
+      "id": "under-e3b-1",
+      "at": [
+        1958,
+        2056
+      ],
+      "radius": 260,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "terraced",
+      "steep": true,
+      "farms": false
+    },
+    {
+      "id": "under-w2b-0",
+      "at": [
+        -1914,
+        784
+      ],
+      "radius": 260,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "terraced",
+      "steep": true,
+      "farms": false
+    },
+    {
+      "id": "under-w2b-1",
+      "at": [
+        -1877,
+        1398
+      ],
+      "radius": 260,
+      "culture": "mountain",
+      "density": 0.95,
+      "wealth": 0.1,
+      "plan": "terraced",
+      "steep": true,
+      "farms": false
+    },
+    {
+      "id": "upper-a1",
       "area": [
         [
-          1250,
-          2800
+          -354,
+          -196
         ],
         [
-          2700,
-          2900
+          -415,
+          -121
         ],
         [
-          2950,
-          1500
+          -505,
+          -77
         ],
         [
-          2850,
-          0
+          -610,
+          -45
         ],
         [
-          2600,
-          -900
+          -725,
+          -81
         ],
         [
-          1700,
-          -1000
+          -794,
+          -172
         ],
         [
-          1150,
-          -500
+          -851,
+          -259
         ],
         [
-          1100,
-          1200
+          -874,
+          -361
+        ],
+        [
+          -836,
+          -455
+        ],
+        [
+          -749,
+          -513
+        ],
+        [
+          -646,
+          -543
+        ],
+        [
+          -532,
+          -538
+        ],
+        [
+          -435,
+          -474
+        ],
+        [
+          -344,
+          -398
+        ],
+        [
+          -339,
+          -292
         ]
       ],
-      "density": 0.75
+      "culture": "central",
+      "density": 0.7,
+      "wealth": 0.9,
+      "plan": "radial",
+      "farms": false,
+      "walls": true
+    },
+    {
+      "id": "upper-a2",
+      "area": [
+        [
+          750,
+          -443
+        ],
+        [
+          655,
+          -428
+        ],
+        [
+          558,
+          -463
+        ],
+        [
+          463,
+          -527
+        ],
+        [
+          413,
+          -641
+        ],
+        [
+          378,
+          -766
+        ],
+        [
+          429,
+          -871
+        ],
+        [
+          505,
+          -939
+        ],
+        [
+          597,
+          -968
+        ],
+        [
+          699,
+          -985
+        ],
+        [
+          794,
+          -915
+        ],
+        [
+          870,
+          -819
+        ],
+        [
+          892,
+          -699
+        ],
+        [
+          878,
+          -588
+        ],
+        [
+          834,
+          -491
+        ]
+      ],
+      "culture": "central",
+      "density": 0.7,
+      "wealth": 0.9,
+      "plan": "radial",
+      "farms": false,
+      "walls": true
+    },
+    {
+      "id": "upper-a3",
+      "area": [
+        [
+          961,
+          753
+        ],
+        [
+          897,
+          831
+        ],
+        [
+          829,
+          896
+        ],
+        [
+          732,
+          923
+        ],
+        [
+          631,
+          912
+        ],
+        [
+          525,
+          882
+        ],
+        [
+          452,
+          800
+        ],
+        [
+          452,
+          698
+        ],
+        [
+          450,
+          597
+        ],
+        [
+          511,
+          512
+        ],
+        [
+          614,
+          474
+        ],
+        [
+          719,
+          475
+        ],
+        [
+          829,
+          486
+        ],
+        [
+          895,
+          569
+        ],
+        [
+          960,
+          651
+        ]
+      ],
+      "culture": "central",
+      "density": 0.7,
+      "wealth": 0.9,
+      "plan": "radial",
+      "farms": false,
+      "walls": true
+    },
+    {
+      "id": "upper-a4",
+      "area": [
+        [
+          -799,
+          1055
+        ],
+        [
+          -922,
+          1066
+        ],
+        [
+          -1054,
+          1031
+        ],
+        [
+          -1190,
+          956
+        ],
+        [
+          -1310,
+          825
+        ],
+        [
+          -1371,
+          674
+        ],
+        [
+          -1426,
+          518
+        ],
+        [
+          -1395,
+          393
+        ],
+        [
+          -1297,
+          340
+        ],
+        [
+          -1176,
+          334
+        ],
+        [
+          -1036,
+          386
+        ],
+        [
+          -903,
+          502
+        ],
+        [
+          -822,
+          653
+        ],
+        [
+          -750,
+          805
+        ],
+        [
+          -774,
+          926
+        ]
+      ],
+      "culture": "central",
+      "density": 0.7,
+      "wealth": 0.9,
+      "plan": "radial",
+      "farms": false,
+      "walls": true
+    },
+    {
+      "id": "upper-a5",
+      "area": [
+        [
+          -1107,
+          -456
+        ],
+        [
+          -1121,
+          -402
+        ],
+        [
+          -1147,
+          -355
+        ],
+        [
+          -1185,
+          -317
+        ],
+        [
+          -1223,
+          -280
+        ],
+        [
+          -1261,
+          -242
+        ],
+        [
+          -1314,
+          -224
+        ],
+        [
+          -1355,
+          -191
+        ],
+        [
+          -1404,
+          -169
+        ],
+        [
+          -1454,
+          -154
+        ],
+        [
+          -1503,
+          -138
+        ],
+        [
+          -1552,
+          -121
+        ],
+        [
+          -1602,
+          -106
+        ],
+        [
+          -1653,
+          -91
+        ],
+        [
+          -1705,
+          -83
+        ],
+        [
+          -1758,
+          -82
+        ],
+        [
+          -1810,
+          -89
+        ],
+        [
+          -1803,
+          -180
+        ],
+        [
+          -1757,
+          -187
+        ],
+        [
+          -1712,
+          -200
+        ],
+        [
+          -1669,
+          -216
+        ],
+        [
+          -1627,
+          -232
+        ],
+        [
+          -1588,
+          -252
+        ],
+        [
+          -1549,
+          -271
+        ],
+        [
+          -1512,
+          -291
+        ],
+        [
+          -1476,
+          -311
+        ],
+        [
+          -1437,
+          -327
+        ],
+        [
+          -1390,
+          -333
+        ],
+        [
+          -1357,
+          -361
+        ],
+        [
+          -1312,
+          -375
+        ],
+        [
+          -1273,
+          -400
+        ],
+        [
+          -1243,
+          -434
+        ],
+        [
+          -1212,
+          -467
+        ],
+        [
+          -1179,
+          -500
+        ]
+      ],
+      "culture": "central",
+      "density": 0.7,
+      "wealth": 0.9,
+      "plan": "radial",
+      "farms": false,
+      "walls": true
+    },
+    {
+      "id": "upper-a6",
+      "area": [
+        [
+          -300,
+          1560
+        ],
+        [
+          -307,
+          1594
+        ],
+        [
+          -319,
+          1624
+        ],
+        [
+          -340,
+          1652
+        ],
+        [
+          -371,
+          1670
+        ],
+        [
+          -403,
+          1680
+        ],
+        [
+          -437,
+          1680
+        ],
+        [
+          -471,
+          1671
+        ],
+        [
+          -499,
+          1649
+        ],
+        [
+          -521,
+          1624
+        ],
+        [
+          -537,
+          1594
+        ],
+        [
+          -540,
+          1560
+        ],
+        [
+          -533,
+          1526
+        ],
+        [
+          -522,
+          1495
+        ],
+        [
+          -499,
+          1469
+        ],
+        [
+          -469,
+          1450
+        ],
+        [
+          -437,
+          1440
+        ],
+        [
+          -403,
+          1439
+        ],
+        [
+          -369,
+          1449
+        ],
+        [
+          -340,
+          1469
+        ],
+        [
+          -320,
+          1496
+        ],
+        [
+          -304,
+          1526
+        ]
+      ],
+      "culture": "central",
+      "density": 0.7,
+      "wealth": 0.9,
+      "plan": "radial",
+      "farms": false,
+      "walls": true
+    },
+    {
+      "id": "upper-a7",
+      "area": [
+        [
+          693,
+          1608
+        ],
+        [
+          728,
+          1725
+        ],
+        [
+          638,
+          1843
+        ],
+        [
+          527,
+          1945
+        ],
+        [
+          375,
+          2007
+        ],
+        [
+          211,
+          2026
+        ],
+        [
+          86,
+          1965
+        ],
+        [
+          8,
+          1877
+        ],
+        [
+          -44,
+          1775
+        ],
+        [
+          5,
+          1659
+        ],
+        [
+          81,
+          1549
+        ],
+        [
+          204,
+          1454
+        ],
+        [
+          364,
+          1439
+        ],
+        [
+          522,
+          1434
+        ],
+        [
+          644,
+          1499
+        ]
+      ],
+      "culture": "central",
+      "density": 0.7,
+      "wealth": 0.9,
+      "plan": "radial",
+      "farms": false,
+      "walls": true
+    },
+    {
+      "id": "upper-a8",
+      "area": [
+        [
+          1906,
+          -1316
+        ],
+        [
+          1778,
+          -1314
+        ],
+        [
+          1652,
+          -1339
+        ],
+        [
+          1525,
+          -1357
+        ],
+        [
+          1398,
+          -1373
+        ],
+        [
+          1272,
+          -1389
+        ],
+        [
+          1144,
+          -1394
+        ],
+        [
+          1016,
+          -1396
+        ],
+        [
+          956,
+          -1335
+        ],
+        [
+          1004,
+          -1263
+        ],
+        [
+          1132,
+          -1264
+        ],
+        [
+          1260,
+          -1257
+        ],
+        [
+          1387,
+          -1245
+        ],
+        [
+          1513,
+          -1221
+        ],
+        [
+          1639,
+          -1193
+        ],
+        [
+          1766,
+          -1180
+        ],
+        [
+          1891,
+          -1154
+        ]
+      ],
+      "culture": "central",
+      "density": 0.7,
+      "wealth": 0.9,
+      "plan": "radial",
+      "farms": false,
+      "walls": true
+    },
+    {
+      "id": "upper-a9",
+      "area": [
+        [
+          2148,
+          250
+        ],
+        [
+          2141,
+          297
+        ],
+        [
+          2135,
+          345
+        ],
+        [
+          2121,
+          388
+        ],
+        [
+          2088,
+          427
+        ],
+        [
+          2063,
+          458
+        ],
+        [
+          2026,
+          491
+        ],
+        [
+          1985,
+          520
+        ],
+        [
+          1942,
+          531
+        ],
+        [
+          1897,
+          551
+        ],
+        [
+          1850,
+          546
+        ],
+        [
+          1804,
+          546
+        ],
+        [
+          1757,
+          534
+        ],
+        [
+          1712,
+          518
+        ],
+        [
+          1672,
+          493
+        ],
+        [
+          1637,
+          461
+        ],
+        [
+          1611,
+          428
+        ],
+        [
+          1579,
+          387
+        ],
+        [
+          1566,
+          341
+        ],
+        [
+          1557,
+          297
+        ],
+        [
+          1548,
+          250
+        ],
+        [
+          1548,
+          203
+        ],
+        [
+          1562,
+          155
+        ],
+        [
+          1581,
+          114
+        ],
+        [
+          1610,
+          72
+        ],
+        [
+          1636,
+          34
+        ],
+        [
+          1671,
+          7
+        ],
+        [
+          1712,
+          -22
+        ],
+        [
+          1758,
+          -37
+        ],
+        [
+          1803,
+          -46
+        ],
+        [
+          1850,
+          -47
+        ],
+        [
+          1896,
+          -44
+        ],
+        [
+          1943,
+          -37
+        ],
+        [
+          1988,
+          -15
+        ],
+        [
+          2026,
+          8
+        ],
+        [
+          2059,
+          34
+        ],
+        [
+          2091,
+          72
+        ],
+        [
+          2119,
+          112
+        ],
+        [
+          2139,
+          156
+        ],
+        [
+          2144,
+          203
+        ]
+      ],
+      "culture": "central",
+      "density": 0.7,
+      "wealth": 0.9,
+      "plan": "radial",
+      "farms": false,
+      "walls": true
     }
   ],
   "structures": [
     {
-      "id": "west-cathedral",
+      "id": "cathedral-a1",
       "kind": "cathedral",
       "at": [
-        -1750,
-        1500
+        -600,
+        -300
       ],
-      "facing": 90,
-      "scale": 2.3
+      "facing": 14,
+      "scale": 1.5
     },
     {
-      "id": "east-cathedral",
-      "kind": "cathedral",
-      "at": [
-        2350,
-        1100
-      ],
-      "facing": 270,
-      "scale": 2.5
-    },
-    {
-      "id": "spire-basilica",
+      "id": "basilica-a2",
       "kind": "basilica",
       "at": [
-        -2300,
-        -1600
+        650,
+        -700
       ],
-      "facing": 90,
-      "scale": 0.6
+      "facing": 337,
+      "scale": 0.5
     },
     {
-      "id": "great-dome",
-      "kind": "dome",
+      "id": "rival-basilica-a3",
+      "kind": "basilica",
       "at": [
-        2400,
-        -1250
+        700,
+        700
       ],
-      "facing": 270,
-      "scale": 0.9,
-      "roof": "#5f8a78"
+      "facing": 340,
+      "scale": 0.55
     },
     {
-      "id": "great-colonnade",
-      "kind": "colonnade",
-      "at": [
-        1900,
-        -1250
-      ],
-      "facing": 270,
-      "radius": 140,
-      "statues": true
-    },
-    {
-      "id": "west-palace",
-      "kind": "palace",
-      "at": [
-        -2700,
-        250
-      ],
-      "facing": 90,
-      "width": 120,
-      "depth": 90
-    },
-    {
-      "id": "east-palace",
-      "kind": "palace",
-      "at": [
-        2750,
-        -200
-      ],
-      "facing": 270,
-      "width": 110,
-      "depth": 84
-    },
-    {
-      "id": "peak-monastery",
-      "kind": "monastery",
-      "at": [
-        -3000,
-        2900
-      ],
-      "facing": 120
-    },
-    {
-      "id": "west-colossus",
-      "kind": "statue",
+      "id": "cathedral-a4",
+      "kind": "cathedral",
       "at": [
         -1080,
-        1150
+        700
       ],
-      "facing": 90,
-      "height": 55,
-      "color": "#c8c2b4"
+      "facing": 165,
+      "scale": 1.25
     },
     {
-      "id": "east-colossus",
-      "kind": "statue",
+      "id": "basilica-a4-b",
+      "kind": "basilica",
       "at": [
-        1080,
-        -450
+        -1210,
+        540
       ],
-      "facing": 270,
-      "height": 55,
-      "color": "#c8c2b4"
+      "facing": 165,
+      "scale": 0.42
     },
     {
-      "id": "high-bridge",
-      "kind": "bridge",
-      "at": [
-        -1250,
-        1950
+      "id": "rampart-wall",
+      "kind": "wall",
+      "path": [
+        [
+          -1166,
+          -433
+        ],
+        [
+          -1198,
+          -396
+        ],
+        [
+          -1236,
+          -364
+        ],
+        [
+          -1276,
+          -336
+        ],
+        [
+          -1318,
+          -312
+        ],
+        [
+          -1359,
+          -288
+        ],
+        [
+          -1400,
+          -265
+        ],
+        [
+          -1440,
+          -240
+        ],
+        [
+          -1480,
+          -215
+        ],
+        [
+          -1521,
+          -190
+        ],
+        [
+          -1565,
+          -167
+        ],
+        [
+          -1611,
+          -149
+        ],
+        [
+          -1658,
+          -138
+        ],
+        [
+          -1707,
+          -134
+        ],
+        [
+          -1757,
+          -138
+        ]
       ],
-      "to": [
-        1230,
-        1950
-      ],
-      "deck": [
-        1420,
-        1400
-      ],
-      "width": 18,
-      "span": 140,
-      "style": "gothic"
+      "height": 30
     },
     {
-      "id": "gorge-bridge",
-      "kind": "bridge",
+      "id": "rampart-tower-1",
+      "kind": "tower",
       "at": [
-        -470,
-        -1800
+        -1198,
+        -396
       ],
-      "to": [
-        520,
-        -1800
+      "facing": 266,
+      "width": 14,
+      "height": 62
+    },
+    {
+      "id": "rampart-tower-2",
+      "kind": "tower",
+      "at": [
+        -1236,
+        -364
       ],
+      "facing": 266,
+      "width": 14,
+      "height": 62
+    },
+    {
+      "id": "rampart-tower-3",
+      "kind": "tower",
+      "at": [
+        -1276,
+        -336
+      ],
+      "facing": 266,
+      "width": 14,
+      "height": 62
+    },
+    {
+      "id": "rampart-tower-4",
+      "kind": "tower",
+      "at": [
+        -1318,
+        -312
+      ],
+      "facing": 266,
+      "width": 14,
+      "height": 62
+    },
+    {
+      "id": "rampart-tower-5",
+      "kind": "tower",
+      "at": [
+        -1359,
+        -288
+      ],
+      "facing": 266,
+      "width": 14,
+      "height": 62
+    },
+    {
+      "id": "rampart-tower-6",
+      "kind": "tower",
+      "at": [
+        -1400,
+        -265
+      ],
+      "facing": 266,
+      "width": 14,
+      "height": 62
+    },
+    {
+      "id": "rampart-tower-7",
+      "kind": "tower",
+      "at": [
+        -1440,
+        -240
+      ],
+      "facing": 266,
+      "width": 24,
+      "height": 106
+    },
+    {
+      "id": "rampart-tower-8",
+      "kind": "tower",
+      "at": [
+        -1480,
+        -215
+      ],
+      "facing": 266,
+      "width": 14,
+      "height": 62
+    },
+    {
+      "id": "rampart-tower-9",
+      "kind": "tower",
+      "at": [
+        -1521,
+        -190
+      ],
+      "facing": 266,
+      "width": 14,
+      "height": 62
+    },
+    {
+      "id": "rampart-tower-10",
+      "kind": "tower",
+      "at": [
+        -1565,
+        -167
+      ],
+      "facing": 266,
+      "width": 14,
+      "height": 62
+    },
+    {
+      "id": "rampart-tower-11",
+      "kind": "tower",
+      "at": [
+        -1611,
+        -149
+      ],
+      "facing": 266,
+      "width": 14,
+      "height": 62
+    },
+    {
+      "id": "rampart-tower-12",
+      "kind": "tower",
+      "at": [
+        -1658,
+        -138
+      ],
+      "facing": 266,
+      "width": 14,
+      "height": 62
+    },
+    {
+      "id": "rampart-tower-13",
+      "kind": "tower",
+      "at": [
+        -1707,
+        -134
+      ],
+      "facing": 266,
+      "width": 14,
+      "height": 62
+    },
+    {
+      "id": "needle-a6",
+      "kind": "tower",
+      "at": [
+        -420,
+        1560
+      ],
+      "facing": 100,
       "width": 16,
-      "span": 90,
-      "style": "roman",
-      "deck": [
-        1010,
-        1045
+      "height": 190
+    },
+    {
+      "id": "castle-outer-wall",
+      "kind": "wall",
+      "path": [
+        [
+          467,
+          1737
+        ],
+        [
+          461,
+          1676
+        ],
+        [
+          429,
+          1624
+        ],
+        [
+          377,
+          1590
+        ],
+        [
+          316,
+          1583
+        ],
+        [
+          258,
+          1602
+        ],
+        [
+          214,
+          1645
+        ],
+        [
+          193,
+          1703
+        ],
+        [
+          199,
+          1764
+        ],
+        [
+          231,
+          1816
+        ],
+        [
+          283,
+          1850
+        ],
+        [
+          344,
+          1857
+        ],
+        [
+          402,
+          1838
+        ],
+        [
+          446,
+          1795
+        ],
+        [
+          467,
+          1737
+        ]
+      ],
+      "height": 18,
+      "gates": [
+        [
+          376,
+          1594
+        ]
       ]
     },
     {
-      "id": "hanging-aqueduct",
-      "kind": "aqueduct",
+      "id": "castle-outer-tower-0",
+      "kind": "tower",
+      "at": [
+        467,
+        1737
+      ],
+      "facing": 160,
+      "width": 14,
+      "height": 36
+    },
+    {
+      "id": "castle-outer-tower-1",
+      "kind": "tower",
+      "at": [
+        461,
+        1676
+      ],
+      "facing": 160,
+      "width": 14,
+      "height": 36
+    },
+    {
+      "id": "castle-outer-tower-2",
+      "kind": "tower",
+      "at": [
+        429,
+        1624
+      ],
+      "facing": 160,
+      "width": 14,
+      "height": 36
+    },
+    {
+      "id": "castle-outer-tower-3",
+      "kind": "tower",
+      "at": [
+        377,
+        1590
+      ],
+      "facing": 160,
+      "width": 14,
+      "height": 36
+    },
+    {
+      "id": "castle-outer-tower-4",
+      "kind": "tower",
+      "at": [
+        316,
+        1583
+      ],
+      "facing": 160,
+      "width": 14,
+      "height": 36
+    },
+    {
+      "id": "castle-outer-tower-5",
+      "kind": "tower",
+      "at": [
+        258,
+        1602
+      ],
+      "facing": 160,
+      "width": 14,
+      "height": 36
+    },
+    {
+      "id": "castle-outer-tower-6",
+      "kind": "tower",
+      "at": [
+        214,
+        1645
+      ],
+      "facing": 160,
+      "width": 14,
+      "height": 36
+    },
+    {
+      "id": "castle-outer-tower-7",
+      "kind": "tower",
+      "at": [
+        193,
+        1703
+      ],
+      "facing": 160,
+      "width": 14,
+      "height": 36
+    },
+    {
+      "id": "castle-outer-tower-8",
+      "kind": "tower",
+      "at": [
+        199,
+        1764
+      ],
+      "facing": 160,
+      "width": 14,
+      "height": 36
+    },
+    {
+      "id": "castle-outer-tower-9",
+      "kind": "tower",
+      "at": [
+        231,
+        1816
+      ],
+      "facing": 160,
+      "width": 14,
+      "height": 36
+    },
+    {
+      "id": "castle-outer-tower-10",
+      "kind": "tower",
+      "at": [
+        283,
+        1850
+      ],
+      "facing": 160,
+      "width": 14,
+      "height": 36
+    },
+    {
+      "id": "castle-outer-tower-11",
+      "kind": "tower",
+      "at": [
+        344,
+        1857
+      ],
+      "facing": 160,
+      "width": 14,
+      "height": 36
+    },
+    {
+      "id": "castle-outer-tower-12",
+      "kind": "tower",
+      "at": [
+        402,
+        1838
+      ],
+      "facing": 160,
+      "width": 14,
+      "height": 36
+    },
+    {
+      "id": "castle-outer-tower-13",
+      "kind": "tower",
+      "at": [
+        446,
+        1795
+      ],
+      "facing": 160,
+      "width": 14,
+      "height": 36
+    },
+    {
+      "id": "castle-gate-tower--1",
+      "kind": "tower",
+      "at": [
+        362,
+        1588
+      ],
+      "facing": 160,
+      "width": 20,
+      "height": 50
+    },
+    {
+      "id": "castle-gate-tower-1",
+      "kind": "tower",
+      "at": [
+        390,
+        1599
+      ],
+      "facing": 160,
+      "width": 20,
+      "height": 50
+    },
+    {
+      "id": "castle-inner-wall",
+      "kind": "wall",
       "path": [
         [
-          2300,
-          3100
+          409,
+          1749
         ],
         [
-          2150,
-          2100
+          411,
+          1697
         ],
         [
-          2250,
-          1500
+          382,
+          1654
+        ],
+        [
+          333,
+          1636
+        ],
+        [
+          283,
+          1650
+        ],
+        [
+          251,
+          1691
+        ],
+        [
+          249,
+          1743
+        ],
+        [
+          278,
+          1786
+        ],
+        [
+          327,
+          1804
+        ],
+        [
+          377,
+          1790
+        ],
+        [
+          409,
+          1749
         ]
       ],
-      "width": 6,
-      "span": 26,
-      "deck": [
-        1470,
-        1450
+      "height": 30
+    },
+    {
+      "id": "castle-inner-tower-0",
+      "kind": "tower",
+      "at": [
+        409,
+        1749
       ],
-      "style": "segovia"
+      "facing": 160,
+      "width": 20,
+      "height": 62
+    },
+    {
+      "id": "castle-inner-tower-1",
+      "kind": "tower",
+      "at": [
+        411,
+        1697
+      ],
+      "facing": 160,
+      "width": 15,
+      "height": 46
+    },
+    {
+      "id": "castle-inner-tower-2",
+      "kind": "tower",
+      "at": [
+        382,
+        1654
+      ],
+      "facing": 160,
+      "width": 20,
+      "height": 62
+    },
+    {
+      "id": "castle-inner-tower-3",
+      "kind": "tower",
+      "at": [
+        333,
+        1636
+      ],
+      "facing": 160,
+      "width": 15,
+      "height": 46
+    },
+    {
+      "id": "castle-inner-tower-4",
+      "kind": "tower",
+      "at": [
+        283,
+        1650
+      ],
+      "facing": 160,
+      "width": 20,
+      "height": 62
+    },
+    {
+      "id": "castle-inner-tower-5",
+      "kind": "tower",
+      "at": [
+        251,
+        1691
+      ],
+      "facing": 160,
+      "width": 15,
+      "height": 46
+    },
+    {
+      "id": "castle-inner-tower-6",
+      "kind": "tower",
+      "at": [
+        249,
+        1743
+      ],
+      "facing": 160,
+      "width": 20,
+      "height": 62
+    },
+    {
+      "id": "castle-inner-tower-7",
+      "kind": "tower",
+      "at": [
+        278,
+        1786
+      ],
+      "facing": 160,
+      "width": 15,
+      "height": 46
+    },
+    {
+      "id": "castle-inner-tower-8",
+      "kind": "tower",
+      "at": [
+        327,
+        1804
+      ],
+      "facing": 160,
+      "width": 20,
+      "height": 62
+    },
+    {
+      "id": "castle-inner-tower-9",
+      "kind": "tower",
+      "at": [
+        377,
+        1790
+      ],
+      "facing": 160,
+      "width": 15,
+      "height": 46
+    },
+    {
+      "id": "castle-hall",
+      "kind": "palace",
+      "at": [
+        329,
+        1724
+      ],
+      "facing": 160,
+      "width": 96,
+      "depth": 42,
+      "roof": "#46505c"
+    },
+    {
+      "id": "castle-keep",
+      "kind": "tower",
+      "at": [
+        318,
+        1752
+      ],
+      "facing": 160,
+      "width": 32,
+      "height": 128
+    },
+    {
+      "id": "castle-spire-0",
+      "kind": "tower",
+      "at": [
+        373,
+        1731
+      ],
+      "facing": 160,
+      "width": 11,
+      "height": 84
+    },
+    {
+      "id": "castle-spire-1",
+      "kind": "tower",
+      "at": [
+        361,
+        1688
+      ],
+      "facing": 160,
+      "width": 11,
+      "height": 98
+    },
+    {
+      "id": "castle-spire-2",
+      "kind": "tower",
+      "at": [
+        318,
+        1678
+      ],
+      "facing": 160,
+      "width": 11,
+      "height": 112
+    },
+    {
+      "id": "castle-spire-3",
+      "kind": "tower",
+      "at": [
+        287,
+        1709
+      ],
+      "facing": 160,
+      "width": 11,
+      "height": 84
+    },
+    {
+      "id": "castle-spire-4",
+      "kind": "tower",
+      "at": [
+        299,
+        1752
+      ],
+      "facing": 160,
+      "width": 11,
+      "height": 98
+    },
+    {
+      "id": "castle-spire-5",
+      "kind": "tower",
+      "at": [
+        342,
+        1762
+      ],
+      "facing": 160,
+      "width": 11,
+      "height": 112
+    },
+    {
+      "id": "castle-court",
+      "kind": "plaza",
+      "at": [
+        363,
+        1630
+      ],
+      "radius": 40,
+      "centre": "fountain",
+      "statues": true
+    },
+    {
+      "id": "domed-palace-a8",
+      "kind": "dome",
+      "at": [
+        1075,
+        -1325
+      ],
+      "facing": 159,
+      "scale": 0.7,
+      "roof": "#5f8a78"
+    },
+    {
+      "id": "arena-wall",
+      "kind": "wall",
+      "path": [
+        [
+          2000,
+          250
+        ],
+        [
+          1998,
+          268
+        ],
+        [
+          1993,
+          286
+        ],
+        [
+          1984,
+          304
+        ],
+        [
+          1971,
+          319
+        ],
+        [
+          1956,
+          333
+        ],
+        [
+          1938,
+          345
+        ],
+        [
+          1918,
+          355
+        ],
+        [
+          1896,
+          362
+        ],
+        [
+          1873,
+          367
+        ],
+        [
+          1850,
+          368
+        ],
+        [
+          1827,
+          367
+        ],
+        [
+          1804,
+          362
+        ],
+        [
+          1782,
+          355
+        ],
+        [
+          1762,
+          345
+        ],
+        [
+          1744,
+          333
+        ],
+        [
+          1729,
+          319
+        ],
+        [
+          1716,
+          304
+        ],
+        [
+          1707,
+          286
+        ],
+        [
+          1702,
+          268
+        ],
+        [
+          1700,
+          250
+        ],
+        [
+          1702,
+          232
+        ],
+        [
+          1707,
+          214
+        ],
+        [
+          1716,
+          196
+        ],
+        [
+          1729,
+          181
+        ],
+        [
+          1744,
+          167
+        ],
+        [
+          1762,
+          155
+        ],
+        [
+          1782,
+          145
+        ],
+        [
+          1804,
+          138
+        ],
+        [
+          1827,
+          133
+        ],
+        [
+          1850,
+          132
+        ],
+        [
+          1873,
+          133
+        ],
+        [
+          1896,
+          138
+        ],
+        [
+          1918,
+          145
+        ],
+        [
+          1938,
+          155
+        ],
+        [
+          1956,
+          167
+        ],
+        [
+          1971,
+          181
+        ],
+        [
+          1984,
+          196
+        ],
+        [
+          1993,
+          214
+        ],
+        [
+          1998,
+          232
+        ],
+        [
+          2000,
+          250
+        ]
+      ],
+      "height": 40,
+      "gates": [
+        [
+          2000,
+          250
+        ],
+        [
+          1700,
+          250
+        ]
+      ]
+    },
+    {
+      "id": "arena-colonnade",
+      "kind": "colonnade",
+      "at": [
+        1850,
+        250
+      ],
+      "facing": 0,
+      "radius": 60,
+      "statues": true
+    },
+    {
+      "id": "garden-c",
+      "kind": "palace",
+      "at": [
+        -2377,
+        -1263
+      ],
+      "facing": 147,
+      "width": 96,
+      "depth": 34,
+      "roof": "#6d8a5a"
+    },
+    {
+      "id": "garden-x0",
+      "kind": "palace",
+      "at": [
+        -2321,
+        -1358
+      ],
+      "facing": 147,
+      "width": 96,
+      "depth": 34,
+      "roof": "#6d8a5a"
+    },
+    {
+      "id": "garden-x1",
+      "kind": "palace",
+      "at": [
+        -2260,
+        -1447
+      ],
+      "facing": 147,
+      "width": 96,
+      "depth": 34,
+      "roof": "#6d8a5a"
+    },
+    {
+      "id": "garden-x2",
+      "kind": "palace",
+      "at": [
+        -2199,
+        -1544
+      ],
+      "facing": 147,
+      "width": 96,
+      "depth": 34,
+      "roof": "#6d8a5a"
+    },
+    {
+      "id": "garden-x3",
+      "kind": "palace",
+      "at": [
+        -2134,
+        -1639
+      ],
+      "facing": 147,
+      "width": 96,
+      "depth": 34,
+      "roof": "#6d8a5a"
+    },
+    {
+      "id": "monastery-a11",
+      "kind": "monastery",
+      "at": [
+        -1000,
+        -2250
+      ],
+      "facing": 9
+    },
+    {
+      "id": "fort-k1-wall",
+      "kind": "wall",
+      "path": [
+        [
+          364,
+          -1800
+        ],
+        [
+          347,
+          -1771
+        ],
+        [
+          313,
+          -1771
+        ],
+        [
+          296,
+          -1800
+        ],
+        [
+          313,
+          -1829
+        ],
+        [
+          347,
+          -1829
+        ],
+        [
+          364,
+          -1800
+        ]
+      ],
+      "height": 12
+    },
+    {
+      "id": "fort-k1-keep",
+      "kind": "tower",
+      "at": [
+        330,
+        -1800
+      ],
+      "facing": 285,
+      "width": 22,
+      "height": 44
+    },
+    {
+      "id": "church-k2",
+      "kind": "church",
+      "at": [
+        -520,
+        -2650
+      ],
+      "facing": 76,
+      "scale": 1.3,
+      "culture": "mountain"
+    },
+    {
+      "id": "fort-k3-wall",
+      "kind": "wall",
+      "path": [
+        [
+          1884,
+          -2050
+        ],
+        [
+          1867,
+          -2021
+        ],
+        [
+          1833,
+          -2021
+        ],
+        [
+          1816,
+          -2050
+        ],
+        [
+          1833,
+          -2079
+        ],
+        [
+          1867,
+          -2079
+        ],
+        [
+          1884,
+          -2050
+        ]
+      ],
+      "height": 12
+    },
+    {
+      "id": "fort-k3-keep",
+      "kind": "tower",
+      "at": [
+        1850,
+        -2050
+      ],
+      "facing": 205,
+      "width": 22,
+      "height": 44
+    },
+    {
+      "id": "church-k4",
+      "kind": "church",
+      "at": [
+        40,
+        700
+      ],
+      "facing": 263,
+      "scale": 1.3,
+      "culture": "mountain"
+    },
+    {
+      "id": "fort-k5-wall",
+      "kind": "wall",
+      "path": [
+        [
+          -1666,
+          120
+        ],
+        [
+          -1683,
+          149
+        ],
+        [
+          -1717,
+          149
+        ],
+        [
+          -1734,
+          120
+        ],
+        [
+          -1717,
+          91
+        ],
+        [
+          -1683,
+          91
+        ],
+        [
+          -1666,
+          120
+        ]
+      ],
+      "height": 12
+    },
+    {
+      "id": "fort-k5-keep",
+      "kind": "tower",
+      "at": [
+        -1700,
+        120
+      ],
+      "facing": 20,
+      "width": 22,
+      "height": 44
+    },
+    {
+      "id": "church-k6",
+      "kind": "church",
+      "at": [
+        1500,
+        1150
+      ],
+      "facing": 341,
+      "scale": 1.3,
+      "culture": "mountain"
+    },
+    {
+      "id": "colossus-a1-l",
+      "kind": "statue",
+      "at": [
+        -525,
+        -266
+      ],
+      "facing": 66,
+      "height": 56,
+      "color": "#c8c2b4"
+    },
+    {
+      "id": "colossus-a1-r",
+      "kind": "statue",
+      "at": [
+        -643,
+        -245
+      ],
+      "facing": 322,
+      "height": 56,
+      "color": "#c8c2b4"
+    },
+    {
+      "id": "colossus-a2-l",
+      "kind": "statue",
+      "at": [
+        691,
+        -624
+      ],
+      "facing": 29,
+      "height": 56,
+      "color": "#c8c2b4"
+    },
+    {
+      "id": "colossus-a2-r",
+      "kind": "statue",
+      "at": [
+        569,
+        -678
+      ],
+      "facing": 285,
+      "height": 56,
+      "color": "#c8c2b4"
+    },
+    {
+      "id": "colossus-a3-l",
+      "kind": "statue",
+      "at": [
+        756,
+        743
+      ],
+      "facing": 53,
+      "height": 56,
+      "color": "#c8c2b4"
+    },
+    {
+      "id": "colossus-a3-r",
+      "kind": "statue",
+      "at": [
+        643,
+        747
+      ],
+      "facing": 309,
+      "height": 56,
+      "color": "#c8c2b4"
+    },
+    {
+      "id": "colossus-a4-l",
+      "kind": "statue",
+      "at": [
+        -1149,
+        607
+      ],
+      "facing": 217,
+      "height": 56,
+      "color": "#c8c2b4"
+    },
+    {
+      "id": "colossus-a4-r",
+      "kind": "statue",
+      "at": [
+        -1023,
+        675
+      ],
+      "facing": 113,
+      "height": 56,
+      "color": "#c8c2b4"
+    },
+    {
+      "id": "bridge-a1-a2",
+      "kind": "bridge",
+      "at": [
+        -350,
+        -380
+      ],
+      "to": [
+        497,
+        -651
+      ],
+      "width": 18,
+      "span": 110,
+      "deck": [
+        1400,
+        1400
+      ],
+      "style": "gothic"
+    },
+    {
+      "id": "bridge-a1-a3",
+      "kind": "bridge",
+      "at": [
+        -459,
+        -191
+      ],
+      "to": [
+        565,
+        596
+      ],
+      "width": 18,
+      "span": 110,
+      "deck": [
+        1480,
+        1480
+      ],
+      "style": "renaissance"
+    },
+    {
+      "id": "bridge-a2-a3",
+      "kind": "bridge",
+      "at": [
+        657,
+        -494
+      ],
+      "to": [
+        692,
+        481
+      ],
+      "width": 18,
+      "span": 110,
+      "deck": [
+        1400,
+        1400
+      ],
+      "style": "roman"
+    },
+    {
+      "id": "bridge-a1-a4",
+      "kind": "bridge",
+      "at": [
+        -670,
+        -154
+      ],
+      "to": [
+        -1005,
+        544
+      ],
+      "width": 18,
+      "span": 110,
+      "deck": [
+        1480,
+        1480
+      ],
+      "style": "gothic"
+    },
+    {
+      "id": "bridge-a5-a1",
+      "kind": "bridge",
+      "at": [
+        -1291,
+        -239
+      ],
+      "to": [
+        -847,
+        -278
+      ],
+      "width": 18,
+      "span": 110,
+      "deck": [
+        1400,
+        1400
+      ],
+      "style": "roman"
+    },
+    {
+      "id": "bridge-a4-a6",
+      "kind": "bridge",
+      "at": [
+        -924,
+        903
+      ],
+      "to": [
+        -488,
+        1471
+      ],
+      "width": 18,
+      "span": 110,
+      "deck": [
+        1480,
+        1480
+      ],
+      "style": "renaissance"
+    },
+    {
+      "id": "bridge-a6-a7",
+      "kind": "bridge",
+      "at": [
+        -312,
+        1583
+      ],
+      "to": [
+        92,
+        1669
+      ],
+      "width": 18,
+      "span": 110,
+      "deck": [
+        1480,
+        1480
+      ],
+      "style": "gothic"
+    },
+    {
+      "id": "bridge-a3-a7",
+      "kind": "bridge",
+      "at": [
+        661,
+        807
+      ],
+      "to": [
+        387,
+        1563
+      ],
+      "width": 24,
+      "span": 20,
+      "deck": [
+        1620,
+        1620
+      ],
+      "style": "renaissance"
+    },
+    {
+      "id": "gate-colossus-al",
+      "kind": "statue",
+      "at": [
+        645,
+        818
+      ],
+      "facing": 340,
+      "height": 30,
+      "color": "#c8c2b4"
+    },
+    {
+      "id": "gate-colossus-ar",
+      "kind": "statue",
+      "at": [
+        666,
+        826
+      ],
+      "facing": 340,
+      "height": 30,
+      "color": "#c8c2b4"
+    },
+    {
+      "id": "gate-colossus-bl",
+      "kind": "statue",
+      "at": [
+        382,
+        1544
+      ],
+      "facing": 160,
+      "height": 30,
+      "color": "#c8c2b4"
+    },
+    {
+      "id": "gate-colossus-br",
+      "kind": "statue",
+      "at": [
+        403,
+        1552
+      ],
+      "facing": 160,
+      "height": 30,
+      "color": "#c8c2b4"
+    },
+    {
+      "id": "bridge-a2-a8",
+      "kind": "bridge",
+      "at": [
+        839,
+        -848
+      ],
+      "to": [
+        1356,
+        -1255
+      ],
+      "width": 18,
+      "span": 110,
+      "deck": [
+        1330,
+        1330
+      ],
+      "style": "gothic"
+    },
+    {
+      "id": "bridge-a3-a9",
+      "kind": "bridge",
+      "at": [
+        922,
+        613
+      ],
+      "to": [
+        1577,
+        357
+      ],
+      "width": 18,
+      "span": 110,
+      "deck": [
+        1400,
+        1400
+      ],
+      "style": "renaissance"
+    },
+    {
+      "id": "bridge-a5-a10",
+      "kind": "bridge",
+      "at": [
+        -1496,
+        -292
+      ],
+      "to": [
+        -2332,
+        -1159
+      ],
+      "width": 18,
+      "span": 110,
+      "deck": [
+        1400,
+        1400
+      ],
+      "style": "inhabited"
+    },
+    {
+      "id": "the-dam",
+      "kind": "wall",
+      "path": [
+        [
+          -82,
+          2520
+        ],
+        [
+          218,
+          2520
+        ]
+      ],
+      "height": 125
+    },
+    {
+      "id": "plaza-u0",
+      "kind": "plaza",
+      "at": [
+        -75,
+        -3404
+      ],
+      "radius": 26,
+      "centre": "fountain",
+      "statues": true
+    },
+    {
+      "id": "plaza-u1",
+      "kind": "plaza",
+      "at": [
+        87,
+        -2850
+      ],
+      "radius": 29,
+      "centre": "obelisk",
+      "statues": false
+    },
+    {
+      "id": "plaza-u2",
+      "kind": "plaza",
+      "at": [
+        -189,
+        -2329
+      ],
+      "radius": 32,
+      "centre": "statue",
+      "statues": false
+    },
+    {
+      "id": "plaza-u3",
+      "kind": "plaza",
+      "at": [
+        50,
+        -1784
+      ],
+      "radius": 26,
+      "centre": "fountain",
+      "statues": true
+    },
+    {
+      "id": "plaza-u4",
+      "kind": "plaza",
+      "at": [
+        -2,
+        -1201
+      ],
+      "radius": 29,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u5",
+      "kind": "plaza",
+      "at": [
+        249,
+        -678
+      ],
+      "radius": 32,
+      "centre": "obelisk",
+      "statues": false
+    },
+    {
+      "id": "plaza-u6",
+      "kind": "plaza",
+      "at": [
+        -12,
+        -146
+      ],
+      "radius": 26,
+      "centre": "statue",
+      "statues": true
+    },
+    {
+      "id": "plaza-u7",
+      "kind": "plaza",
+      "at": [
+        3,
+        427
+      ],
+      "radius": 29,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u8",
+      "kind": "plaza",
+      "at": [
+        -195,
+        975
+      ],
+      "radius": 32,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u9",
+      "kind": "plaza",
+      "at": [
+        -311,
+        -3068
+      ],
+      "radius": 26,
+      "centre": "obelisk",
+      "statues": true
+    },
+    {
+      "id": "plaza-u10",
+      "kind": "plaza",
+      "at": [
+        -847,
+        -3231
+      ],
+      "radius": 29,
+      "centre": "statue",
+      "statues": false
+    },
+    {
+      "id": "plaza-u11",
+      "kind": "plaza",
+      "at": [
+        -1367,
+        -2945
+      ],
+      "radius": 32,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u12",
+      "kind": "plaza",
+      "at": [
+        -1854,
+        -3220
+      ],
+      "radius": 26,
+      "centre": "fountain",
+      "statues": true
+    },
+    {
+      "id": "plaza-u13",
+      "kind": "plaza",
+      "at": [
+        -2396,
+        -3292
+      ],
+      "radius": 29,
+      "centre": "obelisk",
+      "statues": false
+    },
+    {
+      "id": "plaza-u14",
+      "kind": "plaza",
+      "at": [
+        -2945,
+        -3194
+      ],
+      "radius": 32,
+      "centre": "statue",
+      "statues": false
+    },
+    {
+      "id": "plaza-u15",
+      "kind": "plaza",
+      "at": [
+        208,
+        -2368
+      ],
+      "radius": 26,
+      "centre": "fountain",
+      "statues": true
+    },
+    {
+      "id": "plaza-u16",
+      "kind": "plaza",
+      "at": [
+        767,
+        -2274
+      ],
+      "radius": 29,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u17",
+      "kind": "plaza",
+      "at": [
+        1300,
+        -2110
+      ],
+      "radius": 32,
+      "centre": "obelisk",
+      "statues": false
+    },
+    {
+      "id": "plaza-u18",
+      "kind": "plaza",
+      "at": [
+        2328,
+        -2240
+      ],
+      "radius": 26,
+      "centre": "statue",
+      "statues": true
+    },
+    {
+      "id": "plaza-u19",
+      "kind": "plaza",
+      "at": [
+        2874,
+        -2186
+      ],
+      "radius": 29,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u20",
+      "kind": "plaza",
+      "at": [
+        -255,
+        -1470
+      ],
+      "radius": 32,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u21",
+      "kind": "plaza",
+      "at": [
+        -822,
+        -1387
+      ],
+      "radius": 26,
+      "centre": "obelisk",
+      "statues": true
+    },
+    {
+      "id": "plaza-u22",
+      "kind": "plaza",
+      "at": [
+        -1382,
+        -1336
+      ],
+      "radius": 29,
+      "centre": "statue",
+      "statues": false
+    },
+    {
+      "id": "plaza-u23",
+      "kind": "plaza",
+      "at": [
+        -1935,
+        -1281
+      ],
+      "radius": 32,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u24",
+      "kind": "plaza",
+      "at": [
+        -2997,
+        -1395
+      ],
+      "radius": 26,
+      "centre": "fountain",
+      "statues": true
+    },
+    {
+      "id": "plaza-u25",
+      "kind": "plaza",
+      "at": [
+        1005,
+        -423
+      ],
+      "radius": 29,
+      "centre": "obelisk",
+      "statues": false
+    },
+    {
+      "id": "plaza-u26",
+      "kind": "plaza",
+      "at": [
+        1557,
+        -468
+      ],
+      "radius": 32,
+      "centre": "statue",
+      "statues": false
+    },
+    {
+      "id": "plaza-u27",
+      "kind": "plaza",
+      "at": [
+        2084,
+        -318
+      ],
+      "radius": 26,
+      "centre": "fountain",
+      "statues": true
+    },
+    {
+      "id": "plaza-u28",
+      "kind": "plaza",
+      "at": [
+        2582,
+        -82
+      ],
+      "radius": 29,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u29",
+      "kind": "plaza",
+      "at": [
+        3068,
+        -401
+      ],
+      "radius": 32,
+      "centre": "obelisk",
+      "statues": false
+    },
+    {
+      "id": "plaza-u30",
+      "kind": "plaza",
+      "at": [
+        -379,
+        272
+      ],
+      "radius": 26,
+      "centre": "statue",
+      "statues": true
+    },
+    {
+      "id": "plaza-u31",
+      "kind": "plaza",
+      "at": [
+        -1948,
+        559
+      ],
+      "radius": 29,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u32",
+      "kind": "plaza",
+      "at": [
+        -2505,
+        590
+      ],
+      "radius": 32,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u33",
+      "kind": "plaza",
+      "at": [
+        187,
+        992
+      ],
+      "radius": 26,
+      "centre": "obelisk",
+      "statues": true
+    },
+    {
+      "id": "plaza-u34",
+      "kind": "plaza",
+      "at": [
+        756,
+        1046
+      ],
+      "radius": 29,
+      "centre": "statue",
+      "statues": false
+    },
+    {
+      "id": "plaza-u35",
+      "kind": "plaza",
+      "at": [
+        1313,
+        1103
+      ],
+      "radius": 32,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u36",
+      "kind": "plaza",
+      "at": [
+        1840,
+        1346
+      ],
+      "radius": 26,
+      "centre": "fountain",
+      "statues": true
+    },
+    {
+      "id": "plaza-u37",
+      "kind": "plaza",
+      "at": [
+        2341,
+        1029
+      ],
+      "radius": 29,
+      "centre": "obelisk",
+      "statues": false
+    },
+    {
+      "id": "plaza-u38",
+      "kind": "plaza",
+      "at": [
+        2800,
+        1348
+      ],
+      "radius": 32,
+      "centre": "statue",
+      "statues": false
+    },
+    {
+      "id": "plaza-u39",
+      "kind": "plaza",
+      "at": [
+        -315,
+        2047
+      ],
+      "radius": 26,
+      "centre": "fountain",
+      "statues": true
+    },
+    {
+      "id": "plaza-u40",
+      "kind": "plaza",
+      "at": [
+        -862,
+        2024
+      ],
+      "radius": 29,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u41",
+      "kind": "plaza",
+      "at": [
+        -1421,
+        1955
+      ],
+      "radius": 32,
+      "centre": "obelisk",
+      "statues": false
+    },
+    {
+      "id": "plaza-u42",
+      "kind": "plaza",
+      "at": [
+        -1951,
+        2021
+      ],
+      "radius": 26,
+      "centre": "statue",
+      "statues": true
+    },
+    {
+      "id": "plaza-u43",
+      "kind": "plaza",
+      "at": [
+        -1746,
+        -933
+      ],
+      "radius": 29,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u44",
+      "kind": "plaza",
+      "at": [
+        -1979,
+        -424
+      ],
+      "radius": 32,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u45",
+      "kind": "plaza",
+      "at": [
+        1707,
+        -835
+      ],
+      "radius": 26,
+      "centre": "obelisk",
+      "statues": true
+    },
+    {
+      "id": "plaza-u46",
+      "kind": "plaza",
+      "at": [
+        2108,
+        -1251
+      ],
+      "radius": 29,
+      "centre": "statue",
+      "statues": false
+    },
+    {
+      "id": "plaza-u47",
+      "kind": "plaza",
+      "at": [
+        1553,
+        1408
+      ],
+      "radius": 32,
+      "centre": "fountain",
+      "statues": false
+    },
+    {
+      "id": "plaza-u48",
+      "kind": "plaza",
+      "at": [
+        1798,
+        1918
+      ],
+      "radius": 26,
+      "centre": "fountain",
+      "statues": true
+    },
+    {
+      "id": "plaza-u49",
+      "kind": "plaza",
+      "at": [
+        2190,
+        2337
+      ],
+      "radius": 29,
+      "centre": "obelisk",
+      "statues": false
+    },
+    {
+      "id": "plaza-u50",
+      "kind": "plaza",
+      "at": [
+        -1916,
+        666
+      ],
+      "radius": 32,
+      "centre": "statue",
+      "statues": false
+    },
+    {
+      "id": "plaza-u51",
+      "kind": "plaza",
+      "at": [
+        -1928,
+        1206
+      ],
+      "radius": 26,
+      "centre": "fountain",
+      "statues": true
+    },
+    {
+      "id": "plaza-up0",
+      "kind": "plaza",
+      "at": [
+        -1330,
+        478
+      ],
+      "radius": 24,
+      "centre": "fountain",
+      "statues": true
+    },
+    {
+      "id": "plaza-up1",
+      "kind": "plaza",
+      "at": [
+        -826,
+        862
+      ],
+      "radius": 24,
+      "centre": "obelisk",
+      "statues": true
+    },
+    {
+      "id": "plaza-up2",
+      "kind": "plaza",
+      "at": [
+        -1196,
+        518
+      ],
+      "radius": 24,
+      "centre": "statue",
+      "statues": true
+    },
+    {
+      "id": "plaza-up3",
+      "kind": "plaza",
+      "at": [
+        652,
+        1698
+      ],
+      "radius": 24,
+      "centre": "fountain",
+      "statues": true
+    },
+    {
+      "id": "plaza-up4",
+      "kind": "plaza",
+      "at": [
+        1496,
+        -1288
+      ],
+      "radius": 24,
+      "centre": "obelisk",
+      "statues": true
+    },
+    {
+      "id": "plaza-up5",
+      "kind": "plaza",
+      "at": [
+        1832,
+        -1252
+      ],
+      "radius": 24,
+      "centre": "statue",
+      "statues": true
     }
   ],
   "views": [
     {
-      "name": "From the slums",
+      "name": "Under the umbrella",
       "at": [
-        260,
+        60,
+        -950,
+        -10
+      ],
+      "heading": 330,
+      "pitch": 12,
+      "note": "The under city: 99% of the people, houses stacked up the valleys in a maze round the cliffs and benches, the great bridges of the upper city roofing it.",
+      "hour": 17,
+      "weather": "cloudy",
+      "season": "winter"
+    },
+    {
+      "name": "Two cities",
+      "at": [
         -700,
-        -5
-      ],
-      "heading": 350,
-      "pitch": 14,
-      "note": "The valley floor: smoke from a thousand chimneys, the cliffs and the walled city above, the high bridge against the sky.",
-      "hour": 17,
-      "weather": "cloudy",
-      "season": "winter"
-    },
-    {
-      "name": "Over the valley",
-      "at": [
         -3300,
-        -4800,
-        2400
+        1800
       ],
-      "heading": 28,
-      "pitch": -17,
-      "note": "The whole hold: slums along the river, the benches and their walls, cathedrals on the heights, lakes in the side valleys.",
+      "heading": 15,
+      "pitch": -26,
+      "note": "The whole hold: a maze of valleys full of the under city, eleven peaks of every shape carrying the upper city at different heights, bridges tying them together.",
       "hour": 17,
       "weather": "cloudy",
       "season": "winter"
     },
     {
-      "name": "The east wall",
+      "name": "The statue bridge",
       "at": [
-        3200,
-        -3500,
-        2050
+        613,
+        939,
+        1633
       ],
-      "heading": 322,
-      "pitch": -15,
-      "note": "The east bench: the colonnade and dome, the walled town, the cliff dropping to the slums.",
+      "heading": 340,
+      "pitch": 2,
+      "note": "A kilometre of bridge lined with statues on both sides, from the Rival Cathedral to the Great Castle.",
       "hour": 17,
       "weather": "cloudy",
       "season": "winter"
     },
     {
-      "name": "The gorge bridge",
+      "name": "The Great Castle",
       "at": [
-        -900,
-        -2700,
-        1260
+        560,
+        1180,
+        1640
       ],
-      "heading": 38,
+      "heading": 340,
       "pitch": -4,
-      "note": "The river leaves the valley through a gorge cut in the barrier; the old bridge spans it.",
+      "note": "The castle at the end of the bridge: two rings of walls, a great keep, spired towers.",
       "hour": 17,
       "weather": "cloudy",
       "season": "winter"
     },
     {
-      "name": "Rival cathedrals",
+      "name": "The arena",
       "at": [
-        -200,
-        3000,
-        1650
+        1500,
+        80,
+        1420
       ],
-      "heading": 180,
+      "heading": 75,
       "pitch": -14,
-      "note": "West and east cathedrals face each other across the valley, the high bridge between them.",
+      "note": "An arena sunk into the bowl, ringed by palazzi.",
+      "hour": 17,
+      "weather": "cloudy",
+      "season": "winter"
+    },
+    {
+      "name": "The cathedral peak",
+      "at": [
+        -880,
+        -300,
+        -150
+      ],
+      "heading": 60,
+      "pitch": 8,
+      "note": "The first cathedral on its crown, looking over the west and main valleys.",
+      "hour": 17,
+      "weather": "cloudy",
+      "season": "winter"
+    },
+    {
+      "name": "The dam and the lake",
+      "at": [
+        60,
+        2300,
+        1420
+      ],
+      "heading": 3,
+      "pitch": -8,
+      "note": "The glacial lake held above the old city by the dam.",
       "hour": 17,
       "weather": "cloudy",
       "season": "winter"
