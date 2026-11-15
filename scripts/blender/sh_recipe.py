@@ -1,8 +1,10 @@
 # Writes examples/stones-hold.json (the Locations recipe) from the same layout the Blender build uses (sh_world.py), so both show one place.
 #   python scripts/blender/sh_recipe.py
-# v3: a mountain RANGE (massif lumps taken from the Blender height field) cut by a maze of twelve valleys, eleven sites with their own shapes and levels
-# (crowns, shelves, terraces, a crescent ridge, a spur, a bowl, a cascade, a mesa), districts that grow from cores along the valleys (so they follow the
-# ground, not rectangles), plazas everywhere, a statue-lined bridge from the Rival Cathedral to the Great Castle, and an alpine lake behind a dam.
+# v4: a mountain RANGE (massif lumps taken from the Blender height field) cut by a maze of twelve valleys; the upper city is seventeen big nodes on the ridge
+# blocks between the valleys (crown, shelf and terrace each at its own level, terraces of one block overlapping at one shared level so a block is one
+# continuous mass), each dense with houses, palaces, towers and plazas round a great building; tall pointed-arch bridges (one row of arches, as in the Blender
+# renders) tie the blocks together, above all a statue-lined bridge from the Rival Cathedral to the Great Castle. Districts of the under city grow from cores
+# along the valleys (so they follow the ground, not rectangles); an alpine lake sits behind a dam.
 import json, math, os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
@@ -40,14 +42,9 @@ cand = sorted(zip(Z[ok].tolist(), GX[ok].tolist(), GY[ok].tolist()), reverse=Tru
 for z, x, y in cand:
     if all(math.hypot(x - a, y - b) > 600 for _, a, b in lumps): lumps.append((z, x, y))
 for i, (z, x, y) in enumerate(lumps): T(id=f'massif-{i + 1}', kind='peak', at=[R(x), R(y)], height=R(ALT + z + 40), radius=480, sharp=1.0)
-# the great upper sites: peaks, a crescent crest, the palace spur, the bowl's shoulder, the cascade's slope, the mesa
+# the upper city's sites: a rock mass under every node (the terraces are cut into it below)
 for n, p in W.PEAK.items():
-    if p['role'] in ('cathedral', 'basilica', 'rival', 'twin', 'needle', 'castle'): T(id=f'peak-{n.lower()}', kind='peak', at=pt(p['c']), height=R(ALT + p['h'] + 80), radius=520, sharp=0.9)
-cres = W.PLATS['A5_c']['poly']; m_ = len(cres) // 2; cmid = [((cres[i][0] + cres[len(cres) - 1 - i][0]) / 2, (cres[i][1] + cres[len(cres) - 1 - i][1]) / 2) for i in range(m_)]
-T(id='crest-a5', kind='ridge', path=[pt(q) for q in cmid], height=R(ALT + 600), width=420)
-T(id='spur-a8', kind='ridge', path=[[1900, -1250], [1480, -1290], [1075, -1325]], height=R(ALT + 380), width=300)
-T(id='shoulder-a9', kind='peak', at=[1850, 250], height=R(ALT + 480), radius=620, sharp=0.7)
-T(id='slope-a10', kind='peak', at=[-2330, -1330], height=R(ALT + 470), radius=650, sharp=0.8)
+    if not n.startswith('K'): T(id=f'peak-{n.lower()}', kind='peak', at=pt(p['c']), height=R(ALT + p['h'] + 80), radius=620, sharp=0.9)
 # the valleys of the under city: one main valley and a maze of side and sub valleys, all draining to the south
 for v in W.VALLEYS:
     if v.name == 'main':
@@ -77,18 +74,18 @@ T(id='the-river', kind='river', path=sample(dn, 9)[::-1] + [[-80, -4790]], width
 # ---------------------------------------------------------------- districts
 # THE UNDER CITY: 99% of the people. Cores every ~650 m along every valley floor; each town grows over the cheapest ground so it follows the benches and cliffs
 for v in W.VALLEYS:
-    s = 260.0 + 90 * (hash(v.name) % 3); k = 0
+    s = 260.0 + 90 * (sum(map(ord, v.name)) % 3); k = 0
     while s < v.L - 200:
         if not lake_side(v, s):
             i = int(np.searchsorted(v.S, s)); P = v.P[i]; big = v.name in ('main', 'sw', 'e1', 'w1', 'e2', 'w2', 'e3', 'w3')
             districts.append(dict(id=f'under-{v.name}-{k}', at=pt(P), radius=R(360 if v.name == 'main' else 320 if big else 260), culture='mountain', density=0.95, wealth=0.06 if v.name == 'main' else 0.1, plan='organic' if big else 'terraced', steep=not big, farms=False))
             k += 1
         s += 650.0
-# THE UPPER CITY: 1%, finer houses on each site's terraces, behind a wall
+# THE UPPER CITY: 1%, a concrete jungle: big masonry blocks over every terrace of every node (terraces of a block join, so there are no walls between nodes)
 for n, p in W.PEAK.items():
-    if n.startswith('K') or p['role'] == 'cascade' or p['role'] == 'mesa': continue
+    if n.startswith('K'): continue
     key = p['tiers'].get('2') or p['tiers'].get('1'); pl = W.PLATS[key]
-    districts.append(dict(id=f'upper-{n.lower()}', area=poly(pl['poly']), culture='central', density=0.7, wealth=0.9, plan='radial', farms=False, walls=True))
+    districts.append(dict(id=f'upper-{n.lower()}', area=poly(pl['poly']), culture='central', density=1.0, wealth=0.9, plan='radial', farms=False, walls=False))
 
 # ---------------------------------------------------------------- structures
 def face_valley(c):
@@ -99,60 +96,76 @@ def face_valley(c):
     return bearing(best[1][0] - c[0], best[1][1] - c[1])
 def toward(a, b): return bearing(W.PEAK[b]['anchor'][0] - W.PEAK[a]['anchor'][0], W.PEAK[b]['anchor'][1] - W.PEAK[a]['anchor'][1])
 SB = W.STATUE_BRIDGE
+USED = []                                      # (x, y, radius) of everything placed so far on the upper city, so the plazas keep clear
+def ring_pts(p, n, margin=58.0, shift=0.5):
+    """n points round a node's terrace rim, each with the direction pointing out; starts towards the nearest valley."""
+    pl = W.PLATS[p['tiers'].get('2') or p['tiers'].get('1')]; f = face_valley(p['c']); base = math.atan2(math.cos(math.radians(f)), math.sin(math.radians(f))); out = []
+    for k in range(n):
+        ang = base + 2 * math.pi * (k + shift) / n
+        for m_ in (margin, margin + 40.0):
+            q = rim(p['c'], ang, pl['poly'], m_)
+            if all(float(W.poly_sdf(q[0], q[1], o['poly'])) > 75.0 for o in W.PLATS.values() if o['h'] > pl['h'] + 5 and o['bb'][0] - 90 < q[0] < o['bb'][1] + 90 and o['bb'][2] - 90 < q[1] < o['bb'][3] + 90): out.append((q, ang)); break
+    return out
+def castle(tag, c, f, d, R2, scale=1.0):
+    """A castle: two rings of towered wall, a hall, a great keep, spired towers; local +y (d) is the gate side."""
+    ux, uy = d; px, py = -uy, ux
+    def L(lx, ly): return [R(c[0] + px * lx + ux * ly), R(c[1] + py * lx + uy * ly)]
+    n2 = 14; ringo = [L(R2 * math.cos(2 * math.pi * k / n2 + math.pi / n2), R2 * math.sin(2 * math.pi * k / n2 + math.pi / n2)) for k in range(n2)]
+    S(id=f'{tag}-outer-wall', kind='wall', path=ringo + [ringo[0]], height=18, gates=[L(0, R2 * math.cos(math.pi / n2))])
+    for k, q in enumerate(ringo): S(id=f'{tag}-outer-tower-{k}', kind='tower', at=q, facing=f, width=14, height=36)
+    for sg in (-1, 1): S(id=f'{tag}-gate-tower-{sg}', kind='tower', at=L(sg * 15, R2 * math.cos(math.pi / n2)), facing=f, width=20, height=50)
+    r1 = R2 * 0.61; n1 = 10; ringi = [L(r1 * math.cos(2 * math.pi * k / n1), r1 * math.sin(2 * math.pi * k / n1)) for k in range(n1)]
+    S(id=f'{tag}-inner-wall', kind='wall', path=ringi + [ringi[0]], height=30)
+    for k, q in enumerate(ringi): S(id=f'{tag}-inner-tower-{k}', kind='tower', at=q, facing=f, width=20 if k % 2 == 0 else 15, height=62 if k % 2 == 0 else 46)
+    S(id=f'{tag}-hall', kind='palace', at=L(0, -4), facing=f, width=96, depth=42, roof='#46505c')
+    S(id=f'{tag}-keep', kind='tower', at=L(0, -34), facing=f, width=32, height=128 * scale)
+    for k in range(6): a = 2 * math.pi * k / 6 + 0.1; S(id=f'{tag}-spire-{k}', kind='tower', at=L(R2 * 0.32 * math.cos(a), R2 * 0.32 * math.sin(a)), facing=f, width=11, height=84 + (k % 3) * 14)
+    S(id=f'{tag}-court', kind='plaza', at=L(0, R2 * 0.55 + 20), radius=40, centre='fountain', statues=True)
+ROOFS = ['#5f8a78', '#6d7a8a', '#8a6a58', '#6d8a5a', '#7a6a8a']
 for n, p in W.PEAK.items():
     c = p['c']; i = n.lower(); role = p['role']; f = face_valley(c); at = pt(c)
     if n in (SB[0], SB[2]): f = toward(n, SB[2] if n == SB[0] else SB[0])
-    if role == 'cathedral': S(id=f'cathedral-{i}', kind='cathedral', at=at, facing=f, scale=1.5)
-    elif role == 'basilica': S(id=f'basilica-{i}', kind='basilica', at=at, facing=f, scale=0.5)
-    elif role == 'rival': S(id=f'rival-basilica-{i}', kind='basilica', at=at, facing=f, scale=0.55)
+    if role == 'cathedral': S(id=f'cathedral-{i}', kind='cathedral', at=at, facing=f, scale=1.75)
+    elif role == 'basilica': S(id=f'basilica-{i}', kind='basilica', at=at, facing=f, scale=0.62)
+    elif role == 'rival': S(id=f'rival-basilica-{i}', kind='basilica', at=at, facing=f, scale=0.68)
     elif role == 'twin':
-        S(id=f'cathedral-{i}', kind='cathedral', at=at, facing=f, scale=1.25); S(id=f'basilica-{i}-b', kind='basilica', at=pt(p['c2']), facing=f, scale=0.42)
-    elif role == 'palace': S(id=f'domed-palace-{i}', kind='dome', at=at, facing=f, scale=0.7, roof='#5f8a78')
-    elif role == 'needle': S(id=f'needle-{i}', kind='tower', at=at, facing=f, width=16, height=190)
+        S(id=f'cathedral-{i}', kind='cathedral', at=at, facing=f, scale=1.5); S(id=f'basilica-{i}-b', kind='basilica', at=pt(p['c2']), facing=f, scale=0.5)
+    elif role == 'palace': S(id=f'domed-palace-{i}', kind='dome', at=at, facing=f, scale=0.85, roof='#5f8a78')
+    elif role == 'needle': S(id=f'needle-{i}', kind='tower', at=at, facing=f, width=18, height=240)
     elif role == 'mesa': S(id=f'monastery-{i}', kind='monastery', at=at, facing=f)
     elif role == 'church': S(id=f'church-{i}', kind='church', at=at, facing=f, scale=1.3, culture='mountain')
     elif role == 'fort':
         ring_ = [[R(c[0] + 34 * math.cos(2 * math.pi * k / 6)), R(c[1] + 34 * math.sin(2 * math.pi * k / 6))] for k in range(7)]
         S(id=f'fort-{i}-wall', kind='wall', path=ring_, height=12); S(id=f'fort-{i}-keep', kind='tower', at=at, facing=f, width=22, height=44)
-    elif role == 'crescent':                                                         # a rampart along the crest, towers every other bay, three great ones
-        S(id='rampart-wall', kind='wall', path=[pt(q) for q in cmid], height=30)
-        for k, q in enumerate(cmid):
-            if k in (0, len(cmid) - 1): continue
-            big = k in (0, len(cmid) // 2, len(cmid) - 1); S(id=f'rampart-tower-{k}', kind='tower', at=pt(q), facing=f, width=24 if big else 14, height=106 if big else 62)
     elif role == 'bowl':                                                             # an arena: a tall ringed wall round a colonnaded oval
-        a_, b_ = 150.0, 118.0; S(id='arena-wall', kind='wall', path=[[R(c[0] + a_ * math.cos(2 * math.pi * k / 40)), R(c[1] + b_ * math.sin(2 * math.pi * k / 40))] for k in range(41)], height=40, gates=[[R(c[0] + a_), R(c[1])], [R(c[0] - a_), R(c[1])]])
-        S(id='arena-colonnade', kind='colonnade', at=at, facing=0, radius=60, statues=True)
-    elif role == 'cascade':                                                          # five garden palaces, one per step, facing down the slope
-        dn_ = np.array([62.0, -96.0]); dn_ /= np.hypot(*dn_)
-        for k in ['c'] + p['extras']:
-            pl = W.PLATS[p['tiers'][k]]; cx_ = sum(q[0] for q in pl['poly']) / len(pl['poly']); cy_ = sum(q[1] for q in pl['poly']) / len(pl['poly'])
-            ex, ey = rim((cx_, cy_), math.atan2(dn_[1], dn_[0]), pl['poly'], 40.0); S(id=f'garden-{k}', kind='palace', at=pt((ex, ey)), facing=bearing(dn_[0], dn_[1]), width=96, depth=34, roof='#6d8a5a')
-    elif role == 'castle':                                                           # THE GREAT CASTLE: two rings of towered wall, a hall, a great keep, spired towers; the gate faces the statue bridge
-        o = np.array(W.PEAK[SB[0]]['anchor'], float) - np.array(c, float); d = o / np.hypot(*o)
-        ux, uy = d; px, py = -uy, ux                                                  # local +y points at the bridge (gate side), local x is across
-        def L(lx, ly): return [R(c[0] + px * lx + ux * ly), R(c[1] + py * lx + uy * ly)]
-        n2 = 14; R2 = 138.0; ringo = [L(R2 * math.cos(2 * math.pi * k / n2 + math.pi / n2), R2 * math.sin(2 * math.pi * k / n2 + math.pi / n2)) for k in range(n2)]
-        S(id='castle-outer-wall', kind='wall', path=ringo + [ringo[0]], height=18, gates=[L(0, R2 * math.cos(math.pi / n2))])
-        for k, q in enumerate(ringo): S(id=f'castle-outer-tower-{k}', kind='tower', at=q, facing=f, width=14, height=36)
-        for sg in (-1, 1): S(id=f'castle-gate-tower-{sg}', kind='tower', at=L(sg * 15, R2 * math.cos(math.pi / n2)), facing=f, width=20, height=50)
-        n1 = 10; ringi = [L(84 * math.cos(2 * math.pi * k / n1), 84 * math.sin(2 * math.pi * k / n1)) for k in range(n1)]
-        S(id='castle-inner-wall', kind='wall', path=ringi + [ringi[0]], height=30)
-        for k, q in enumerate(ringi): S(id=f'castle-inner-tower-{k}', kind='tower', at=q, facing=f, width=20 if k % 2 == 0 else 15, height=62 if k % 2 == 0 else 46)
-        S(id='castle-hall', kind='palace', at=L(0, -4), facing=f, width=96, depth=42, roof='#46505c')
-        S(id='castle-keep', kind='tower', at=L(0, -34), facing=f, width=32, height=128)
-        for k in range(6): a = 2 * math.pi * k / 6 + 0.1; S(id=f'castle-spire-{k}', kind='tower', at=L(44 * math.cos(a), 44 * math.sin(a)), facing=f, width=11, height=84 + (k % 3) * 14)
-        S(id='castle-court', kind='plaza', at=L(0, R2 * 0.55 + 20), radius=40, centre='fountain', statues=True)
+        a_, b_ = 130.0, 102.0; S(id='arena-wall', kind='wall', path=[[R(c[0] + a_ * math.cos(2 * math.pi * k / 40)), R(c[1] + b_ * math.sin(2 * math.pi * k / 40))] for k in range(41)], height=40, gates=[[R(c[0] + a_), R(c[1])], [R(c[0] - a_), R(c[1])]])
+        S(id='arena-colonnade', kind='colonnade', at=at, facing=0, radius=52, statues=True)
+    elif role == 'gardens':                                                          # terraced palaces round a colonnaded garden court
+        S(id=f'garden-court-{i}', kind='colonnade', at=at, facing=f, radius=64, statues=True); S(id=f'garden-fountain-{i}', kind='plaza', at=at, radius=30, centre='fountain', statues=True)
+    elif role == 'citadel':                                                          # a second castle, facing the valley
+        a = math.atan2(math.cos(math.radians(f)), math.sin(math.radians(f))); castle(f'citadel-{i}', c, f, (math.cos(a), math.sin(a)), 112.0, 0.9)
+    elif role == 'agora':                                                            # an open forum: a colonnade round an obelisk, two great towers
+        S(id=f'agora-colonnade-{i}', kind='colonnade', at=at, facing=f, radius=58, statues=True); S(id=f'agora-obelisk-{i}', kind='plaza', at=at, radius=32, centre='obelisk', statues=True)
+    elif role == 'castle':                                                           # THE GREAT CASTLE: the gate faces the statue bridge
+        o = np.array(W.PEAK[SB[0]]['anchor'], float) - np.array(c, float); d = o / np.hypot(*o); castle('castle', c, f, (d[0], d[1]), 138.0, 1.0)
+    if n.startswith('K'): continue
+    # the node's own palaces and towers round the terrace rim, looking out over the under city
+    ring_n = 4 if role == 'agora' else 7
+    for k, (q, ang) in enumerate(ring_pts(p, ring_n)):
+        if k % 2 == 0: S(id=f'rim-palace-{i}-{k}', kind='palace', at=pt(q), facing=bearing(math.cos(ang), math.sin(ang)), width=84 + 10 * (k % 3), depth=46, roof=ROOFS[(k + len(structures)) % len(ROOFS)]); USED.append((q[0], q[1], 60.0))
+        else: S(id=f'rim-tower-{i}-{k}', kind='tower', at=pt(q), facing=bearing(math.cos(ang), math.sin(ang)), width=14 + 2 * (k % 3), height=84 + 18 * (k % 4)); USED.append((q[0], q[1], 24.0))
+    USED.append((c[0], c[1], 190.0))
 # colossi on the crowns' rims, looking out over the under city; gate colossi at both ends of the statue bridge (below)
 for n in ('A1', 'A2', 'A3', 'A4'):
     p = W.PEAK[n]; c = p['c']; f = face_valley(c); base = math.atan2(math.cos(math.radians(f)), math.sin(math.radians(f)))
     for sg in (-1, 1):
         ang = base + sg * 0.9; x, y = rim(c, ang, p['crown'], 44.0); S(id=f'colossus-{n.lower()}-{"l" if sg < 0 else "r"}', kind='statue', at=pt((x, y)), facing=bearing(math.cos(ang), math.sin(ang)), height=56, color='#c8c2b4')
 
-# bridges at shared deck levels; the statue bridge is a renaissance bridge with a statue on every pier, piers every 20 m
-styles = ['gothic', 'renaissance', 'roman', 'gothic', 'roman', 'renaissance', 'gothic', 'roman', 'gothic', 'renaissance', 'inhabited']
+# bridges at shared deck levels, in the style of the renders: one row of tall pointed arches on slender piers (gothic), gate towers at both ends.
+# The statue bridge has a figure on each parapet every 8.5 m
 for k, (a, ka, b, kb) in enumerate(W.BRIDGES):
     p0, p1, deck, u = bridge_ends(a, ka, b, kb); statue_b = (a, ka, b, kb) == tuple(SB)
-    S(id=f'bridge-{a.lower()}-{b.lower()}', kind='bridge', at=pt(p0), to=pt(p1), width=24 if statue_b else 18, span=20 if statue_b else 110, deck=[R(ALT + deck + 1.7), R(ALT + deck + 1.7)], style='renaissance' if statue_b else styles[k % len(styles)])
+    S(id=f'bridge-{a.lower()}-{b.lower()}', kind='bridge', at=pt(p0), to=pt(p1), width=24 if statue_b else 18, span=90 if statue_b else 85, tiers=1, deck=[R(ALT + deck + 1.7), R(ALT + deck + 1.7)], style='gothic', **(dict(statueEvery=8.5) if statue_b else dict(statues=False)))
     if statue_b:
         for sg, e in ((-1, p0), (1, p1)):
             for sd in (-1, 1):
@@ -180,27 +193,33 @@ up = 0
 for key, p in W.PLATS.items():
     if not p['fab'] or p['peak'].startswith('K'): continue
     b = p['bb']; cand = []
-    for x in np.arange(b[0], b[1], 12.0):
-        for y in np.arange(b[2], b[3], 12.0):
+    for x in np.arange(b[0], b[1], 14.0):
+        for y in np.arange(b[2], b[3], 14.0):
             sd = float(W.poly_sdf(x, y, p['poly']))
-            if sd > -62 or sd < -140 or any(float(W.poly_sdf(x, y, inn)) < 52 for inn in p['inner']) or dseg(x, y) < 60: continue
+            if sd > -110 or sd < -240 or any(float(W.poly_sdf(x, y, inn)) < 60 for inn in p['inner']) or dseg(x, y) < 60 or any(math.hypot(x - ux_, y - uy_) < ur_ + 50 for ux_, uy_, ur_ in USED): continue
             cand.append((x, y))
-    rg.shuffle(cand); got = []
+    rg.shuffle(cand); got = []; want = 3 if p['tier'] == 2 else 2
     for x, y in cand:
-        if len(got) >= 2: break
-        if all(math.hypot(x - g[0], y - g[1]) > 170 for g in got): got.append((x, y)); S(id=f'plaza-up{up}', kind='plaza', at=pt((x, y)), radius=24, centre=['fountain', 'obelisk', 'statue'][up % 3], statues=True); up += 1
+        if len(got) >= want: break
+        if all(math.hypot(x - g[0], y - g[1]) > 190 for g in got): got.append((x, y)); USED.append((x, y, 34.0)); S(id=f'plaza-up{up}', kind='plaza', at=pt((x, y)), radius=26 + 4 * (up % 3), centre=['fountain', 'garden', 'obelisk', 'garden', 'statue'][up % 5], statues=up % 5 != 1 and up % 5 != 3); up += 1
 
+_A3 = np.array(W.PEAK['A3']['anchor'], float); _A7 = np.array(W.PEAK['A7']['anchor'], float); _sd = (_A7 - _A3) / np.hypot(*(_A7 - _A3)); _sh = bearing(_sd[0], _sd[1])
+_sb0, _sb1, _sbdeck, _ = bridge_ends(*SB); _cam = np.array(_sb0) + _sd * 90
+H17 = dict(hour=17, weather='cloudy', season='winter')
 views = [
-    dict(name='Under the umbrella', at=[60, -950, -10], heading=330, pitch=12, note='The under city: 99% of the people, houses stacked up the valleys in a maze round the cliffs and benches, the great bridges of the upper city roofing it.', hour=17, weather='cloudy', season='winter'),
-    dict(name='Two cities', at=[-700, -3300, 1800], heading=15, pitch=-26, note='The whole hold: a maze of valleys full of the under city, eleven peaks of every shape carrying the upper city at different heights, bridges tying them together.', hour=17, weather='cloudy', season='winter'),
-    dict(name='The statue bridge', at=[613, 939, R(ALT + 618.7 - 1.3 + 16)], heading=bearing(-0.341, 0.94), pitch=2, note='A kilometre of bridge lined with statues on both sides, from the Rival Cathedral to the Great Castle.', hour=17, weather='cloudy', season='winter'),
-    dict(name='The Great Castle', at=[560, 1180, R(ALT + 640)], heading=bearing(-0.341, 0.94), pitch=-4, note='The castle at the end of the bridge: two rings of walls, a great keep, spired towers.', hour=17, weather='cloudy', season='winter'),
-    dict(name='The arena', at=[1500, 80, R(ALT + 420)], heading=75, pitch=-14, note='An arena sunk into the bowl, ringed by palazzi.', hour=17, weather='cloudy', season='winter'),
-    dict(name='The cathedral peak', at=[-880, -300, -150], heading=60, pitch=8, note='The first cathedral on its crown, looking over the west and main valleys.', hour=17, weather='cloudy', season='winter'),
-    dict(name='The dam and the lake', at=[60, 2300, R(ALT + 420)], heading=3, pitch=-8, note='The glacial lake held above the old city by the dam.', hour=17, weather='cloudy', season='winter'),
+    dict(name='Under the umbrella', at=[60, -950, -10], heading=330, pitch=12, note='The under city: 99% of the people, houses stacked up the valleys in a maze round the cliffs and benches, the great bridges of the upper city roofing it.', **H17),
+    dict(name='Two cities', at=[-700, -3300, 1800], heading=15, pitch=-26, note='The whole hold: a maze of valleys full of the under city, and on the ridge blocks between them the upper city, seventeen dense nodes tied together by bridges.', **H17),
+    dict(name='The upper city', at=[3000, -2000, R(ALT + 1100)], heading=bearing(-1700, 2300), pitch=-18, note='A concrete jungle on the heights: the eastern blocks seen from the south-east, palaces, towers, plazas and bridges all joined.', **H17),
+    dict(name='Over the great block', at=[250, -450, R(ALT + 980)], heading=bearing(530, 900), pitch=-26, note='The Rival Cathedral on its block, the bridges to the Great Castle and the basilica.', **H17),
+    dict(name='The statue bridge', at=[R(_cam[0]), R(_cam[1]), R(ALT + _sbdeck + 18)], heading=_sh, pitch=2, note='A kilometre and a half of bridge lined with statues on both sides, from the Rival Cathedral to the Great Castle.', **H17),
+    dict(name='The Great Castle', at=[R(_A7[0] - _sd[0] * 190), R(_A7[1] - _sd[1] * 190), R(ALT + 640)], heading=_sh, pitch=-4, note='The castle at the end of the bridge: two rings of walls, a great keep, spired towers.', **H17),
+    dict(name='The arena', at=[1380, -330, R(ALT + 760)], heading=36, pitch=-10, note='The arena block from the south-west: an arena, a citadel and a forum, terraces of houses between them.', **H17),
+    dict(name='The bridges', at=[-250, -900, R(ALT + 560)], heading=25, pitch=-14, note='Tall pointed arches in one row, bridges at shared levels tying the blocks of the upper city together over the roofs of the under city.', **H17),
+    dict(name='The cathedral peak', at=[-880, -300, -150], heading=60, pitch=8, note='The first cathedral on its crown, looking over the west and main valleys.', **H17),
+    dict(name='The dam and the lake', at=[60, 2300, R(ALT + 420)], heading=3, pitch=-8, note='The glacial lake held above the old city by the dam.', **H17),
 ]
-doc = dict(id='stones-hold', name='Stones Hold', seed='stones-hold-3', size=9600,
-    note='Stones Hold is two cities in a mountain range. The UNDER CITY (99% of the people) fills a maze of twelve valleys wall to wall, its streets running round every cliff and bench, with an alpine lake held above it by a dam. The UPPER CITY (1%) sits on eleven sites of different shapes and heights: crowns, shelves and terraces, a crescent crest, a palace spur, an arena bowl, a cascade of garden terraces, a monastery mesa; with cathedrals, basilicas, a great castle, plazas and statues everywhere, and bridges at shared levels tying them together, above all a statue-lined bridge from the Rival Cathedral to the Great Castle. Same layout as the Blender build (scripts/blender/sh_world.py); regenerate with scripts/blender/sh_recipe.py.',
+doc = dict(id='stones-hold', name='Stones Hold', seed='stones-hold-4', size=9600,
+    note='Stones Hold is two cities in a mountain range. The UNDER CITY (99% of the people) fills a maze of twelve valleys wall to wall, its streets running round every cliff and bench, with an alpine lake held above it by a dam. The UPPER CITY (1%) is a concrete jungle on seventeen big nodes along the ridge blocks between the valleys: each a crown with a great building, a shelf and a terrace at different heights, packed with palaces, towers, houses and plazas, terraces of one block running together, and tall pointed-arch bridges at shared levels tying the blocks together, above all a statue-lined bridge from the Rival Cathedral to the Great Castle. Same layout as the Blender build (scripts/blender/sh_world.py); regenerate with scripts/blender/sh_recipe.py.',
     base=1000, relief=160, snowline=2300, climate='alpine', culture='central', rock='granite', wealth=[1000, 1300], farms=False, forest=0.5, hour=17, weather='cloudy', season='winter',
     terrain=terrain, districts=districts, structures=structures, views=views)
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'examples', 'stones-hold.json')

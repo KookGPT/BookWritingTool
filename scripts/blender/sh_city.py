@@ -57,35 +57,13 @@ def place_plazas():
             if best: PLAZAS.append(dict(x=best[1], y=best[2], r=best[3], kind=['fountain', 'obelisk', 'statue', 'church', 'fountain', 'tower'][len(PLAZAS) % 6], upper=False))
             s += rng.uniform(170, 260)
 place_plazas(); log(f'plazas {len(PLAZAS)}')
-def place_upper_plazas():
-    """1 to 4 round plazas on each upper platform, 52+ m inside the rim (behind the palazzo ring), clear of the hero's footprint and of the bridge heads."""
-    BLs = [(np.array(W.PEAK[a]['anchor'], float), np.array(W.PEAK[b]['anchor'], float)) for a, ka, b, kb in W.BRIDGES]
-    def dseg(x, y):
-        d = 1e9
-        for a_, b_ in BLs:
-            t = float(np.clip(((x - a_[0]) * (b_[0] - a_[0]) + (y - a_[1]) * (b_[1] - a_[1])) / (np.hypot(*(b_ - a_)) ** 2), 0, 1)); d = min(d, math.hypot(x - (a_[0] + t * (b_[0] - a_[0])), y - (a_[1] + t * (b_[1] - a_[1]))))
-        return d
-    for key, p in W.PLATS.items():
-        if not p['fab'] or p['peak'].startswith('K'): continue
-        b = p['bb']; cand = []
-        for x in np.arange(b[0], b[1], 12.0):
-            for y in np.arange(b[2], b[3], 12.0):
-                sd = float(W.poly_sdf(x, y, p['poly']))
-                if sd > -54 or sd < -150: continue
-                if any(float(W.poly_sdf(x, y, inn)) < 36 for inn in p['inner']) or dseg(x, y) < 54: continue
-                cand.append((x, y))
-        rng.shuffle(cand); got = []
-        for x, y in cand:
-            if len(got) >= 4: break
-            if all(math.hypot(x - g[0], y - g[1]) > 150 for g in got):
-                got.append((x, y)); PLAZAS.append(dict(x=x, y=y, r=float(rng.integers(17, 24)), kind='grand' if len(got) == 1 else ['fountain', 'obelisk', 'statue'][len(got) % 3], upper=True))
-place_upper_plazas(); log(f'plazas incl. upper {len(PLAZAS)}')
 for q in PLAZAS:                                                  # plazas are not city ground for streets and houses
     b = q['r'] + 3.0; j0, k0 = gidx(q['x'] - b, q['y'] - b); j1, k1 = gidx(q['x'] + b, q['y'] + b); sub = np.hypot(GXg[j0:j1 + 1, k0:k1 + 1] - q['x'], GYg[j0:j1 + 1, k0:k1 + 1] - q['y']) < b; HAB[j0:j1 + 1, k0:k1 + 1] &= ~sub
 
 # ---- streamlines (Jobard-Lefer): evenly spaced contour streets
-def trace_streets():
-    cell = DSEP * 0.9; dtest = DSEP * 0.7; dseed = DSEP * 0.88; grid = {}; lines = []; shp = HAB.shape
+def trace_streets(HABm=None, DX=None, DY=None, dsep=None, seeds=None, rg=None, maxst=170):
+    HABm = HAB if HABm is None else HABm; DX = DXg if DX is None else DX; DY = DYg if DY is None else DY; dsep = DSEP if dsep is None else dsep; rg = rng if rg is None else rg
+    cell = dsep * 0.9; dtest = dsep * 0.7; dseed = dsep * 0.88; grid = {}; lines = []; shp = HABm.shape
     def near_any(x, y, lid=-1, idx=0, own=None):
         cx0, cy0 = int(x // cell), int(y // cell); d2m = dtest * dtest
         for gx_ in (cx0 - 1, cx0, cx0 + 1):
@@ -107,15 +85,15 @@ def trace_streets():
         return True
     def okp(x, y):
         j = int((y - GY0) / GC + 0.5); k = int((x - GX0) / GC + 0.5)
-        return 0 <= j < shp[0] and 0 <= k < shp[1] and HAB[j, k]
+        return 0 <= j < shp[0] and 0 <= k < shp[1] and HABm[j, k]
     def trace(x0, y0):
         own = {}; segs = []
         for direction in (1, -1):
-            x, y = x0, y0; j = int((y - GY0) / GC + 0.5); k = int((x - GX0) / GC + 0.5); dx, dy = direction * float(DXg[j, k]), direction * float(DYg[j, k]); seg = []
-            for st in range(1, 170):
+            x, y = x0, y0; j = int((y - GY0) / GC + 0.5); k = int((x - GX0) / GC + 0.5); dx, dy = direction * float(DX[j, k]), direction * float(DY[j, k]); seg = []
+            for st in range(1, maxst):
                 j = int((y + dy * 2 - GY0) / GC + 0.5); k = int((x + dx * 2 - GX0) / GC + 0.5)
                 if not (0 <= j < shp[0] and 0 <= k < shp[1]): break
-                fx, fy = float(DXg[j, k]), float(DYg[j, k])
+                fx, fy = float(DX[j, k]), float(DY[j, k])
                 if fx * dx + fy * dy < 0: fx, fy = -fx, -fy
                 nx, ny = 0.45 * dx + 0.55 * fx, 0.45 * dy + 0.55 * fy; L = math.hypot(nx, ny) or 1.0; dx, dy = nx / L, ny / L
                 x += dx * STEP; y += dy * STEP
@@ -123,15 +101,16 @@ def trace_streets():
                 seg.append((x, y)); c = (int(x // cell), int(y // cell)); own.setdefault(c, []).append((x, y, direction * st))
             segs.append(seg)
         return segs[1][::-1] + [(x0, y0)] + segs[0]
-    seeds = []
-    for v in W.VALLEYS:
+    if seeds is None:
+      seeds = []
+      for v in W.VALLEYS:
         for s in np.arange(30.0, v.L - 30.0, 110.0):
             if v.name == 'main' and s > W.DAM_S - 200: break
             i = int(np.searchsorted(v.S, s)); P = v.P[i]; N = v.N[i]
             for off in (-1, 1): seeds.append((P[0] + off * N[0] * (v.hw[i] * 0.45 + 20.0), P[1] + off * N[1] * (v.hw[i] * 0.45 + 20.0)))
-    rng.shuffle(seeds); lid = 0; tried = 0
+    rg.shuffle(seeds); lid = 0; tried = 0
     while seeds:
-        j_ = int(rng.integers(0, len(seeds))); seeds[j_], seeds[-1] = seeds[-1], seeds[j_]; x, y = seeds.pop(); tried += 1
+        j_ = int(rg.integers(0, len(seeds))); seeds[j_], seeds[-1] = seeds[-1], seeds[j_]; x, y = seeds.pop(); tried += 1
         if not okp(x, y) or not free(x, y, dseed * dseed): continue
         pts = trace(x, y)
         if len(pts) < 6: continue
@@ -139,8 +118,8 @@ def trace_streets():
         lines.append(np.array(pts)); lid += 1
         for i in range(2, len(pts) - 2, 4):
             tx, ty = pts[i + 1][0] - pts[i - 1][0], pts[i + 1][1] - pts[i - 1][1]; L = math.hypot(tx, ty) or 1.0; nx, ny = -ty / L, tx / L
-            for sg in (-1, 1): seeds.append((pts[i][0] + sg * nx * DSEP, pts[i][1] + sg * ny * DSEP))
-    log(f'streamlines {len(lines)} ({sum(len(l) for l in lines) * STEP / 1000:.0f} km), seeds tried {tried}')
+            for sg in (-1, 1): seeds.append((pts[i][0] + sg * nx * dsep, pts[i][1] + sg * ny * dsep))
+    if HABm is HAB: log(f'streamlines {len(lines)} ({sum(len(l) for l in lines) * STEP / 1000:.0f} km), seeds tried {tried}')
     return lines, grid
 LINES, SGRID = trace_streets()
 
@@ -212,34 +191,7 @@ def accept(cands, upper, bridges=None):
         keep.append((x, y, w, d, yaw)); OCC.setdefault((int(x // 7), int(y // 7)), []).append((x, y, r))
     return keep
 
-def upper_lines():
-    """Rows along inward offsets of each terrace rim (the palazzo ring takes the first 38 m), clear of the hero's footprint, the bridge heads and the plazas."""
-    lines = []
-    for key, p in W.PLATS.items():
-        if not p['fab']: continue
-        P = np.array(p['poly']);
-        if W.poly_sdf(np.array([P[:, 0].mean()]), np.array([P[:, 1].mean()]), p['poly'])[0] > 0 and False: pass
-        ar = 0.5 * sum(P[i][0] * P[(i + 1) % len(P)][1] - P[(i + 1) % len(P)][0] * P[i][1] for i in range(len(P)))
-        if ar < 0: P = P[::-1]
-        D = [];
-        for i in range(len(P)):
-            a = P[i]; b = P[(i + 1) % len(P)]; n = max(1, int(np.hypot(*(b - a)) / 2.0)); D += [a + (b - a) * t / n for t in range(n)]
-        D = np.array(D); T = np.gradient(D, axis=0); T = T / (np.hypot(T[:, 0], T[:, 1])[:, None] + 1e-9); T = np.stack([np.convolve(np.pad(T[:, c], 6, mode='wrap'), np.ones(13) / 13, mode='valid') for c in (0, 1)], 1); T = T / (np.hypot(T[:, 0], T[:, 1])[:, None] + 1e-9)
-        Nn = np.stack([-T[:, 1], T[:, 0]], 1)
-        for kk in range(6):
-            dd = 40.0 + kk * 21.5; Q = D + Nn * dd; sd = W.poly_sdf(Q[:, 0], Q[:, 1], p['poly']); ok = np.abs(sd + dd) < 1.8
-            for inner in p['inner']: ok &= W.poly_sdf(Q[:, 0], Q[:, 1], inner) > 17
-            run = []
-            for i in range(len(Q) + 1):
-                if i < len(Q) and ok[i]: run.append(Q[i])
-                else:
-                    if len(run) >= 8: lines.append(np.array(run))
-                    run = []
-    return lines
-UP = []
-for L_ in upper_lines():
-    for c in along(L_, True): UP.append(c)
-log(f'upper candidate houses {len(UP)}')
+load('sh_upper.py')
 
 def bridge_lines():
     out = []
@@ -251,13 +203,10 @@ def fabric():
     for L_ in LINES: cand += along(L_, False)
     log(f'under candidate houses {len(cand)}'); rng.shuffle(cand)
     under = accept(cand, False)
-    up = [c for c in UP if all((lambda t: math.hypot(c[0] - (a[0] + t * (b[0] - a[0])), c[1] - (a[1] + t * (b[1] - a[1]))))(float(np.clip(((c[0] - a[0]) * (b[0] - a[0]) + (c[1] - a[1]) * (b[1] - a[1])) / (np.hypot(*(b - a)) ** 2), 0, 1))) > 30 for a, b in BL)]
-    up = [c for c in up if all(math.hypot(c[0] - q['x'], c[1] - q['y']) > q['r'] + 6 for q in PLAZAS if q['upper'])]
-    rng.shuffle(up); upk = accept(up, True); upk = [c for c in upk if rng.random() > 0.2]
-    A = np.array(under + [(c[0], c[1], c[2], c[3], c[4]) for c in upk]); upf = np.concatenate([np.zeros(len(under)), np.ones(len(upk))])
-    cx, cy, w, d, yaw = A.T; gz = H(cx, cy); fl = np.where(upf > 0.5, gz - 100.0, W.near(cx, cy)[1])
-    log(f'houses: under {len(under)}, upper {len(upk)}')
-    streets = [np.column_stack([L_[::2, 0], L_[::2, 1], np.full(len(L_[::2]), 4.4)]) for L_ in LINES] + [np.column_stack([L_[:, 0], L_[:, 1], np.full(len(L_), 2.8)]) for L_ in STAIRS]
+    A = np.array(under); upf = np.zeros(len(under))
+    cx, cy, w, d, yaw = A.T; gz = H(cx, cy); fl = W.near(cx, cy)[1]
+    log(f'houses: under {len(under)}')
+    streets = [np.column_stack([L_[::2, 0], L_[::2, 1], np.full(len(L_[::2]), 4.4)]) for L_ in LINES] + [np.column_stack([L_[:, 0], L_[:, 1], np.full(len(L_), 2.8)]) for L_ in STAIRS] + [np.column_stack([L_[::2, 0], L_[::2, 1], np.full(len(L_[::2]), 8.0)]) for L_ in ULINES]
     return (cx, cy, w, d, yaw, gz, fl, upf), streets
 
 def build_houses():
@@ -324,6 +273,48 @@ def smoke(cx, cy, zr, ch, a, b, yw):
     if tri: mk_obj('smoke', np.concatenate(tri), 'smoke', smooth=False)
 
 cx, cy, zt, zr, ch, zs, yw, a, b = build_houses(); smoke(cx, cy, zr, ch, a, b, yw)
+
+# ---- the upper city's blocks: big masonry, flat roofs (some green), spires on the tall ones; floors rise away from the rim
+def cone_tris(x, y, z0, rad, hgt, seg=8):
+    n = len(x); ang = np.arange(seg) * 2 * math.pi / seg; ang2 = ang + 2 * math.pi / seg
+    A = np.stack([x[:, None] + rad[:, None] * np.cos(ang), y[:, None] + rad[:, None] * np.sin(ang), np.broadcast_to(z0[:, None], (n, seg))], -1); B = np.stack([x[:, None] + rad[:, None] * np.cos(ang2), y[:, None] + rad[:, None] * np.sin(ang2), np.broadcast_to(z0[:, None], (n, seg))], -1)
+    T = np.stack([np.broadcast_to(x[:, None], (n, seg)), np.broadcast_to(y[:, None], (n, seg)), np.broadcast_to((z0 + hgt)[:, None], (n, seg))], -1)
+    return np.stack([A, B, T], 2).reshape(-1, 3, 3)
+def build_upper_houses(cands):
+    r = np.random.default_rng(78); n = len(cands)
+    if n == 0: return
+    Ar = np.array(cands); cx, cy, w, d, yaw = Ar.T
+    j = np.clip(((cy - GY0) / GC + 0.5).astype(int), 0, HAB.shape[0] - 1); k = np.clip(((cx - GX0) / GC + 0.5).astype(int), 0, HAB.shape[1] - 1); dop = DOWN[j, k]; z0 = OWNU[j, k] + 0.2; crd = CRU[j, k]
+    fl = np.clip(np.round(5 + (dop - 38) / 17.0 + r.normal(0, 2.0, n)), 3, 18)
+    def sdist(x0, y0, x1, y1):
+        dx, dy = x1 - x0, y1 - y0; t = np.clip(((cx - x0) * dx + (cy - y0) * dy) / (dx * dx + dy * dy + 1e-9), 0, 1); return np.hypot(cx - (x0 + t * dx), cy - (y0 + t * dy))
+    dh = np.min([sdist(x0, y0, x1, y1) - hw for x0, y0, x1, y1, hw in HEROES_C], axis=0); fl = np.where(dh < 70, np.minimum(fl, 8), fl)     # the great buildings stand over a lower fabric
+    tall = r.random(n) < 0.07; fl = np.where(tall & (dh > 70), fl + r.integers(4, 9, n), fl)
+    flat = r.random(n) < 0.74; green = flat & (r.random(n) < 0.2); a = w; b = d
+    zb = z0 - 0.8; zt = z0 + fl * STOREY; rh = np.where(flat, 0.45, np.clip(np.minimum(w, d) * r.uniform(0.26, 0.36, n), 3.0, 6.5)); zr = zt + rh
+    tone = r.uniform(0.15, 1.0, n); lit = r.uniform(0.45, 1.0, n); cvec = np.stack([tone, lit, np.zeros(n), np.ones(n)], 1); ca, sa = np.cos(yaw), np.sin(yaw)
+    def R(lx, ly): return cx + lx * ca - ly * sa, cy + lx * sa + ly * ca
+    corners = [(-a / 2, -b / 2), (a / 2, -b / 2), (a / 2, b / 2), (-a / 2, b / 2)]; W4 = []; U4 = []
+    for q in range(4):
+        (x0, y0), (x1, y1) = corners[q], corners[(q + 1) % 4]; L = np.hypot(x1 - x0, y1 - y0); X0, Y0_ = R(x0, y0); X1, Y1_ = R(x1, y1)
+        W4.append(np.stack([np.stack([X0, Y0_, zb], 1), np.stack([X1, Y1_, zb], 1), np.stack([X1, Y1_, zt], 1), np.stack([X0, Y0_, zt], 1)], 1)); U4.append(np.stack([np.stack([np.zeros(n), zb - z0], 1), np.stack([L, zb - z0], 1), np.stack([L, zt - z0], 1), np.stack([np.zeros(n), zt - z0], 1)], 1))
+    walls = np.concatenate(W4); uvs = np.concatenate(U4); cw = np.concatenate([cvec] * 4); gabs = []
+    for sx in (-1, 1):
+        X0, Y0_ = R(sx * a / 2, -b / 2); X1, Y1_ = R(sx * a / 2, b / 2); Xm, Ym = R(sx * a / 2, 0 * a); gabs.append(np.stack([np.stack([X0, Y0_, zt], 1), np.stack([X1, Y1_, zt], 1), np.stack([Xm, Ym, zr], 1)], 1))
+    gab = np.concatenate(gabs); gu = np.concatenate([np.stack([np.stack([np.zeros(n), zt - z0], 1), np.stack([b, zt - z0], 1), np.stack([b / 2, zr - z0], 1)], 1)] * 2); gc = np.concatenate([cvec] * 2); roofs = []; ov = 0.9
+    for sy in (-1, 1):
+        xa, ya = R(-a / 2 - ov, sy * (b / 2 + ov)); xb, yb = R(a / 2 + ov, sy * (b / 2 + ov)); xc_, yc_ = R(a / 2 + ov, 0 * a); xd, yd = R(-a / 2 - ov, 0 * a)
+        roofs.append(np.stack([np.stack([xa, ya, zt - 0.5 * ov], 1), np.stack([xb, yb, zt - 0.5 * ov], 1), np.stack([xc_, yc_, zr + 0.1], 1), np.stack([xd, yd, zr + 0.1], 1)], 1))
+    roof = np.concatenate(roofs); rc = np.concatenate([cvec] * 2)
+    mk_obj('up_walls', walls, 'upperwall', uvs, cw); mk_obj('up_gables', gab, 'upperwall', gu, gc)
+    for nm, sel, mat in (('up_roof', ~flat, 'uproof'), ('up_flat', flat & ~green, 'upflat'), ('up_green', green, 'greenroof')):
+        sg = np.tile(sel, 2); mk_obj(nm, roof[sg], mat, None, rc[sg])
+    sp = (fl >= 9) & (r.random(n) < 0.55) | (r.random(n) < 0.03)
+    if sp.any(): mk_obj('up_spires', cone_tris(cx[sp], cy[sp], zr[sp], np.minimum(w, d)[sp] * 0.28, r.uniform(11, 26, int(sp.sum())), 8), 'copper', smooth=False)
+    log(f'upper houses {n}: floors mean {fl.mean():.1f}, flat {flat.mean() * 100:.0f}% (green {green.mean() * 100:.0f}%), spires {int(sp.sum())}')
+
+UPK = accept_up(UPC); build_upper_houses(UPK)
+if opt('--dbg'): np.savez(os.path.join(OUT, 'dbg_upper.npz'), habu=HABU, own=OWNU, down=DOWN, lots=np.array(UPK), x0=GX0, y0=GY0, gc=GC, streets=np.array([np.array(l) for l in ULINES], dtype=object), plz=np.array([[q['x'], q['y'], q['r']] for q in UPL]), parks=np.array([[q['x'], q['y'], q['r']] for q in PARKS]))
 
 # ---- forest: conifers on the slopes round the city (not on the city's ground, not on the platforms), thinning to the tree line; the lake's shore gets them too
 def build_forest():

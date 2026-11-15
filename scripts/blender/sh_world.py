@@ -3,7 +3,7 @@
 # different sites on the heights (crowns, a crescent ridge, a spur, a bowl, a cascade, a mesa, twin peaks, a needle, a great castle crag,
 # low knolls) at different levels, tied by great bridges. Metres, x east, y north, z up.
 import numpy as np, math, zlib, struct, sys, os
-TERRAIN_VERSION = 'v3c'      # bump when height() changes: the Blender build caches the height grids under this name
+TERRAIN_VERSION = 'v4b'      # bump when height() changes: the Blender build caches the height grids under this name
 
 def sstep(a, b, x): t = np.clip((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t)
 def hsh(x, y, s):
@@ -124,30 +124,34 @@ def tangent(X, Y):
 def xc(y): i = int(np.argmin(np.abs(MAIN.P[:, 1] - y))); return float(MAIN.P[i][0])
 def floor_h(y): return float(np.interp(y, MAIN.P[:, 1], MAIN.F))
 
-# ---------------------------------------------------------------- the upper city's sites: shapes, levels, roles
+# ---------------------------------------------------------------- the upper city's sites: big fat nodes on the ridge blocks between the valleys
+# v4: the upper city is a "concrete jungle". Every ridge block between two valleys carries a chain of nodes whose lowest terraces share one level and
+# overlap, so each block is one continuous masonry mass; crowns (heroes), shelves and terraces sit at different levels; bridges tie the blocks together.
 def blob(cx, cy, r, seed, n=12, stretch=1.0, ang=0.0, wob=0.16):
-    rg = np.random.default_rng(seed); pts = []
+    """A lobed outline: a few low harmonics (big lobes and bays, never a circle or an oval) plus a little jitter, stretched along ang."""
+    rg = np.random.default_rng(seed); ph = rg.uniform(0, 2 * math.pi, 3); am = rg.uniform(0.6, 1.0, 3); pts = []
     for i in range(n):
-        a = 2 * math.pi * i / n; rr = r * (1 - wob / 2 + wob * rg.random()); x, y = rr * math.cos(a) * stretch, rr * math.sin(a); c, s_ = math.cos(ang), math.sin(ang); pts.append((cx + x * c - y * s_, cy + x * s_ + y * c))
+        a = 2 * math.pi * i / n; k = 1 + wob * (0.55 * am[0] * math.sin(2 * a + ph[0]) + 0.4 * am[1] * math.sin(3 * a + ph[1]) + 0.3 * am[2] * math.sin(5 * a + ph[2])) + 0.03 * (rg.random() - 0.5)
+        rr = r * k; x, y = rr * math.cos(a) * stretch, rr * math.sin(a); c, s_ = math.cos(ang), math.sin(ang); pts.append((cx + x * c - y * s_, cy + x * s_ + y * c))
     return pts
-def crescent(cx, cy, R, thick, a0, a1, n=14, seed=0):
-    rg = np.random.default_rng(seed); outer = []; inner = []
-    for i in range(n + 1):
-        t = i / n; a = a0 + (a1 - a0) * t; th = thick * (0.55 + 0.45 * math.sin(math.pi * t) ** 0.7) * (0.9 + 0.2 * rg.random()); rr = R + 18 * math.sin(t * 7 + seed)
-        outer.append((cx + (rr + th / 2) * math.cos(a), cy + (rr + th / 2) * math.sin(a))); inner.append((cx + (rr - th / 2) * math.cos(a), cy + (rr - th / 2) * math.sin(a)))
-    return outer + inner[::-1]
-def spur(p0, p1, w0, w1, seed=0, n=7):
-    rg = np.random.default_rng(seed); d = np.array(p1) - np.array(p0); L = float(np.hypot(*d)); u = d / L; nrm = np.array([-u[1], u[0]]); left = []; right = []
-    for i in range(n + 1):
-        t = i / n; w = (w0 + (w1 - w0) * t) / 2 * (0.88 + 0.24 * rg.random()); c = np.array(p0) + d * t + nrm * 16 * math.sin(t * 5 + seed); left.append(tuple(c + nrm * w)); right.append(tuple(c - nrm * w))
-    tip = [tuple(np.array(p1) + u * w1 * 0.42)]; return left + tip + right[::-1]
 def circle(cx, cy, r, n=30, seed=0, wob=0.04):
     rg = np.random.default_rng(seed); return [(cx + r * (1 + wob * (rg.random() - 0.5)) * math.cos(2 * math.pi * i / n), cy + r * (1 + wob * (rg.random() - 0.5)) * math.sin(2 * math.pi * i / n)) for i in range(n)]
 
 PEAK = {}          # name -> site: c (the hero's centre), h (crown), role, anchor (a point inside every tier), tiers {'c','1','2',...: key into PLATS}
 PLATS = {}         # key -> platform: h, K (fill slope), poly, peak, tier (0 crown, 1 shelf, 2 terrace, 3+ extras), inner (polygons the houses keep out of), fab (the upper city's houses go here)
+def fit_ridge(poly, margin=22.0):
+    """Pull every vertex that falls into (or too near) a valley back toward the outline's middle, then smooth: a terrace ends where the ridge does."""
+    P = np.array(poly, float); c0 = P.mean(0); n = len(P); sc = np.ones(n)
+    for i in range(n):
+        for f in np.arange(1.0, 0.25, -0.03):
+            q = c0 + (P[i] - c0) * f
+            if float(near(np.array([q[0]]), np.array([q[1]]))[0][0]) >= margin: sc[i] = f; break
+        else: sc[i] = 0.25
+    sc = np.minimum(sc, np.minimum(np.roll(sc, 1), np.roll(sc, -1))); sc = (np.roll(sc, 1) + 2 * sc + np.roll(sc, -1)) / 4
+    return [tuple(c0 + (P[i] - c0) * sc[i]) for i in range(n)]
 def add_site(name, role, c, crown_h, crown_poly, t1=None, t2=None, anchor=None, extra=(), K=22, seed=0):
     p = dict(name=name, role=role, c=tuple(c), h=crown_h, anchor=tuple(anchor or c), seed=seed, tiers={}, extras=[]); PEAK[name] = p
+    if not name.startswith('K'): crown_poly = fit_ridge(crown_poly); t1 = (fit_ridge(t1[0]), t1[1]) if t1 else None; t2 = (fit_ridge(t2[0]), t2[1]) if t2 else None
     def put(k, poly, h, tier, inner, fab):
         PLATS[f'{name}_{k}'] = dict(h=h, K=K, poly=poly, peak=name, tier=tier, inner=inner, fab=fab, order={'2': 1, '1': 2, 'c': 3}.get(k, 0)); p['tiers'][k] = f'{name}_{k}'
     if t2: put('2', t2[0], t2[1], 2, [crown_poly] + ([t1[0]] if t1 else []), True)
@@ -155,46 +159,41 @@ def add_site(name, role, c, crown_h, crown_poly, t1=None, t2=None, anchor=None, 
     for i, (poly, h, fab) in enumerate(extra): put(f'x{i}', poly, h, 3 + i, [], fab); p['extras'].append(f'x{i}')
     put('c', crown_poly, crown_h, 0, [], False); p['crown'] = crown_poly; p['t1'] = t1[0] if t1 else None; p['t2'] = t2[0] if t2 else None; p['h1'] = t1[1] if t1 else crown_h; p['h2'] = t2[1] if t2 else crown_h
     return p
+def node(name, role, c, hc, h1, h2, rc, r1, r2, ang=0.0, st=1.2, seed=1, o1=(0.0, 0.0), o2=(0.0, 0.0), crown=None, anchor=None, **kw):
+    """A site: a crown (the hero), a shelf and a terrace, each its own polygon (not concentric: the shelf and terrace lean along `ang` by o1 / o2)."""
+    cx, cy = c
+    return add_site(name, role, c, hc, crown or blob(cx, cy, rc * 1.28, seed, 20, 1.0, ang, 0.13), (blob(cx + o1[0], cy + o1[1], r1 * 1.06, seed + 1, 28, st, ang, 0.2), h1), (blob(cx + o2[0], cy + o2[1], r2 * 1.03, seed + 2, 32, st * 1.04, ang, 0.24), h2), anchor=anchor or c, seed=seed, **kw)
 
-# 1. Cathedral Crown (west of the trunk), 2. Basilica Mount (east), 3. Rival Crown (north-east)
-def S_(name, role, cx, cy, rc, r1, r2, h, h1, h2, seed, st=1.0, ang=0.0, **kw): return add_site(name, role, (cx, cy), h, blob(cx, cy, rc, seed, 11, st, ang), (blob(cx, cy, r1, seed + 1, 13, st * 1.06, ang), h1), (blob(cx, cy, r2, seed + 2, 15, st * 1.1, ang), h2), **kw)
-S_('A1', 'cathedral', -600, -300, 118, 176, 238, 560, 480, 400, 101, 1.05, 0.4)
-S_('A2', 'basilica', 650, -700, 130, 185, 245, 500, 400, 330, 111, 1.1, 1.2)
-S_('A3', 'rival', 700, 700, 120, 175, 235, 620, 480, 400, 121, 1.0, 0.2)
-# twin peaks (two crowns on a shared saddle) at the north-west
-S_('A4', 'twin', -1080, 700, 105, 175, 255, 600, 480, 400, 131, 1.5, 0.9, anchor=(-1080, 700))
-PEAK['A4']['c2'] = (-1210, 540); PEAK['A4']['h_c2'] = 540
-PLATS['A4_c2'] = dict(h=540, K=22, poly=blob(-1210, 540, 90, 139, 10), peak='A4', tier=0, inner=[], fab=False, order=3); PEAK['A4']['tiers']['c2'] = 'A4_c2'
-# crescent ridge (a rampart city along an arc)
-_cres = crescent(-1750, -850, 700, 150, 0.55, 1.65, 16, 7)
-add_site('A5', 'crescent', (-1750 + 700 * math.cos(1.1), -850 + 700 * math.sin(1.1)), 560, crescent(-1750, -850, 700, 66, 0.62, 1.58, 14, 8), (_cres, 400), None, anchor=(-1750 + 700 * math.cos(1.1), -850 + 700 * math.sin(1.1)), seed=9)
-# needle rock (a slender crag) and the great castle crag above the dam, 6. the great castle
-add_site('A6', 'needle', (-420, 1560), 700, circle(-420, 1560, 54, 20, 15), (circle(-420, 1560, 120, 22, 16), 480), None, seed=15)
-S_('A7', 'castle', 330, 1720, 160, 215, 280, 620, 480, 400, 141, 1.25, -0.3)
-# palace spur: a long tongue off the massif reaching out over the trunk, ending in a crown
-_sp = spur((1900, -1250), (1010, -1330), 150, 130, 17)
-add_site('A8', 'palace', (1075, -1325), 430, circle(1075, -1325, 82, 20, 18), (_sp, 330), None, anchor=(1400, -1290), seed=17)
-# the bowl: a stepped amphitheatre sunk into a shoulder, a ring of palazzi round its rim
-add_site('A9', 'bowl', (1850, 250), 400, circle(1850, 250, 235, 36, 21, 0.03), (circle(1850, 250, 300, 40, 22), 400), None, anchor=(1850, 250), seed=21)
-PLATS['A9_c']['inner'] = []; PLATS['A9_c']['h'] = 352; PEAK['A9']['h'] = 352
-PLATS['A9_x0'] = dict(h=368, K=22, poly=circle(1850, 250, 268, 40, 23, 0.03), peak='A9', tier=3, inner=[], fab=False, order=2); PLATS['A9_1']['order'] = 1; PEAK['A9']['tiers']['x0'] = 'A9_x0'
-# the cascade: gardens falling down a slope in five steps (each its own platform), the great stair between
-_cs = [(-2400 + 62 * k, -1230 - 96 * k, 400 - 38 * k) for k in range(5)]
-add_site('A10', 'cascade', (_cs[0][0], _cs[0][1]), 400, blob(_cs[0][0], _cs[0][1], 82, 31, 10, 1.7, 0.3), None, None, extra=[(blob(x, y, 78 - 3 * i, 32 + i, 10, 1.7, 0.3), h, False) for i, (x, y, h) in enumerate(_cs[1:])], seed=31)
-# monastery mesa: a big flat-topped table with sheer sides
-add_site('A11', 'mesa', (-1000, -2250), 330, blob(-1000, -2250, 210, 41, 16, 1.25, 0.2, 0.1), None, None, K=40, seed=41)
-# low knolls inside the under city: small hill forts and churches (their heights are set above the local floor below)
+# West block F3 (between w2 and w3), west block F2 (w1..w2), west block F1 (sw..w1); east blocks F1 (e1..e2), F2 (e2..e3), F3 (north of e3)
+node('A4', 'twin', (-1250, 1050), 600, 480, 330, 175, 330, 410, 0.5, 1.27, 131, o1=(60, 20), o2=(-30, 20))
+PEAK['A4']['c2'] = (-1410, 890); PEAK['A4']['h_c2'] = 540
+PLATS['A4_c2'] = dict(h=540, K=22, poly=blob(-1410, 890, 100, 139, 11), peak='A4', tier=0, inner=[], fab=False, order=3); PEAK['A4']['tiers']['c2'] = 'A4_c2'
+node('A6', 'needle', (-760, 1520), 700, 480, 330, 90, 240, 320, 0.3, 1.12, 151, o1=(-20, 0), o2=(-20, 0))
+node('B3', 'agora', (-2700, 1250), 500, 480, 330, 100, 250, 360, 0.0, 1.32, 311)
+node('A1', 'cathedral', (-600, -300), 560, 480, 400, 190, 340, 430, 0.4, 1.32, 101, o1=(-50, -30), o2=(-60, -40))
+node('A5', 'citadel', (-1280, -700), 580, 480, 400, 160, 300, 390, 0.1, 1.22, 161, o1=(-30, -30), o2=(-20, -20))
+node('B2', 'agora', (-2650, -520), 540, 480, 400, 100, 250, 360, 0.0, 1.27, 211)
+node('A11', 'mesa', (-1000, -2250), 480, 400, 330, 150, 300, 400, 0.2, 1.32, 411, o1=(40, 10), o2=(30, 30))
+node('B1', 'agora', (-1650, -2250), 480, 400, 330, 100, 250, 360, 0.0, 1.32, 111)
+node('A10', 'gardens', (-2300, -2250), 460, 400, 330, 130, 280, 380, 0.0, 1.32, 311, o1=(0, 40), o2=(-20, 30))
+node('A2', 'basilica', (750, -1100), 520, 400, 330, 175, 320, 410, 0.3, 1.32, 111, o1=(30, 30), o2=(50, 30))
+node('A8', 'palace', (1300, -1450), 480, 400, 330, 130, 280, 380, 0.4, 1.27, 171, o1=(40, 0), o2=(60, 0))
+node('A3', 'rival', (780, 450), 620, 480, 400, 190, 330, 400, 0.2, 1.27, 121, o1=(-40, 20), o2=(-30, 10), anchor=(780, 450))
+node('B6', 'agora', (1350, 380), 540, 480, 400, 100, 260, 380, 0.0, 1.27, 611)
+node('A9', 'bowl', (1950, 330), 560, 480, 400, 150, 300, 380, 0.0, 1.27, 211, o1=(30, 0), o2=(20, 0))
+node('B5', 'agora', (2700, 330), 540, 480, 400, 100, 250, 360, 0.0, 1.32, 511)
+node('A7', 'castle', (650, 1950), 620, 480, 330, 175, 340, 430, -0.1, 1.32, 141, o1=(60, -30), o2=(80, -40), anchor=(650, 1950))
+node('B7', 'agora', (1250, 1900), 520, 480, 330, 100, 240, 320, 0.0, 1.12, 711)
 KNOLLS = [('K1', 'fort', 330, -1800, 58), ('K2', 'church', -520, -2650, 50), ('K3', 'fort', 1850, -2050, 54), ('K4', 'church', 40, 700, 46), ('K5', 'fort', -1700, 120, 52), ('K6', 'church', 1500, 1150, 48)]
 for nm, role, kx, ky, kr in KNOLLS:
     fl = float(near(np.array([kx]), np.array([ky]))[1][0])
     add_site(nm, role, (kx, ky), fl + 78, circle(kx, ky, kr * 0.66, 18, int(abs(kx)) + 3), (circle(kx, ky, kr, 20, int(abs(ky)) + 5), fl + 62), None, K=30, seed=int(abs(kx)))
 # bridges: (site, platform key, site, platform key). Each pair shares a deck level, so a bridge is a plain level span (the user's favourite).
-BRIDGES = [('A1', '2', 'A2', '1'), ('A1', '1', 'A3', '1'), ('A2', '1', 'A3', '2'), ('A1', '1', 'A4', '1'), ('A5', '1', 'A1', '2'), ('A4', '1', 'A6', '1'), ('A6', '1', 'A7', '1'),
-           ('A3', 'c', 'A7', 'c'), ('A2', '2', 'A8', '1'), ('A3', '2', 'A9', '1'), ('A5', '1', 'A10', 'c')]
-STATUE_BRIDGE = ('A3', 'c', 'A7', 'c')     # crown to crown at 620 m: the Rival Cathedral to the Great Castle, 1 km of statues
+BRIDGES = [('A1', '1', 'A3', '1'), ('A1', '2', 'A2', '1'), ('A2', '1', 'A3', '2'), ('A1', '1', 'A4', '1'), ('A5', '1', 'A4', '1'), ('A5', '2', 'A11', '1'), ('A6', '1', 'A7', '1'), ('A3', 'c', 'A7', 'c'),
+           ('A9', '1', 'B7', '1'), ('B6', '1', 'B7', '1'), ('A5', '1', 'B2', '1'), ('A4', '1', 'B3', '1')]
+STATUE_BRIDGE = ('A3', 'c', 'A7', 'c')     # crown to crown at 620 m: the Rival Cathedral to the Great Castle, a kilometre of statues
 for p in PLATS.values():
     xs = [q[0] for q in p['poly']]; ys = [q[1] for q in p['poly']]; p['bb'] = (min(xs), max(xs), min(ys), max(ys))
-# knolls rise from the local valley floor: fix their heights from the terrain (below, after base() exists)
 
 # ---------------------------------------------------------------- the rock
 def massif(X, Y):
@@ -227,7 +226,7 @@ def natural(X, Y):
     return z
 def height(X, Y):
     X = np.asarray(X, float); Y = np.asarray(Y, float); z = natural(X, Y)
-    for key in sorted(PLATS, key=lambda k: PLATS[k]['order']):      # extras, terraces, shelves, crown
+    for key in sorted(PLATS, key=lambda k: (PLATS[k]['order'], PLATS[k]['h'])):      # extras, terraces, shelves, crown; the higher one wins an overlap
         p = PLATS[key]; b = p['bb']; m = (X > b[0] - 420) & (X < b[1] + 420) & (Y > b[2] - 420) & (Y < b[3] + 420)
         if not m.any(): continue
         d = poly_sdf(X[m], Y[m], p['poly']); h = p['h']; zz = z[m]

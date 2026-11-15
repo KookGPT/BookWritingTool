@@ -43,6 +43,7 @@ def platform_wall(name, p):
             zf = min(feet); mx_, my_ = p0[0] + ux * (ua + ub) / 2 + nx * 4.0, p0[1] + uy * (ua + ub) / 2 + ny * 4.0
             for q in W.PLATS.values():                         # a lower tier right outside: the wall stops on its terrace
                 if q is not p and q['h'] < h and q['bb'][0] - 10 < mx_ < q['bb'][1] + 10 and q['bb'][2] - 10 < my_ < q['bb'][3] + 10 and float(W.poly_sdf(mx_, my_, q['poly'])) < 0: zf = max(zf, q['h'])
+            if any(q is not p and q['h'] >= h - 0.5 and q['bb'][0] - 10 < mx_ < q['bb'][1] + 10 and q['bb'][2] - 10 < my_ < q['bb'][3] + 10 and float(W.poly_sdf(mx_, my_, q['poly'])) < 0 for q in W.PLATS.values()): continue   # inside a neighbouring platform at this level or higher: no wall (the terraces of a block merge)
             if h - zf < 8: continue
             f = F((p0[0] + ux * ua, p0[1] + uy * ua, 0.0), math.atan2(-nx, ny) if False else math.atan2(nx, -ny)); wl = step
             # F frame: u along the edge, v up, w outward (yaw so that local w points along (nx, ny)); check orientation once
@@ -82,8 +83,8 @@ def platform_wall(name, p):
             else: lamp(x, y, z + 1.0, 0.24)
     if p['tier'] in (1, 2):
         for k, e in enumerate(info['edges']):                  # the upper city's palazzo ring along the rim, facing out over the under city
-            if k % 3 == 2 or e['L'] < 14: continue
-            fo = F((e['f'].p(0, 0, -6.0)[0], e['f'].p(0, 0, -6.0)[1], h), e['f'].yaw); palazzo(fo, e['L'], RNG.choice([15, 19, 23, 28]), 21.0, RNG.choice(['slate', 'copper', 'tile']), None, 0.5)
+            if k % 4 == 3 or e['L'] < 14: continue
+            fo = F((e['f'].p(0, 0, -6.0)[0], e['f'].p(0, 0, -6.0)[1], h), e['f'].yaw); palazzo(fo, e['L'], RNG.choice([18, 23, 29, 36]), RNG.choice([24.0, 28.0, 32.0]), RNG.choice(['slate', 'copper', 'tile']), None, 0.55)
     PLAT_INFO[name] = info; return worst
 
 def platform_top(name, p):

@@ -595,6 +595,10 @@ export type ArcadeStyle = typeof BRIDGE_STYLES[number] | typeof AQUEDUCT_STYLES[
 export interface ArcadeOpts {
   width: number; span: number; deckT: number; aqueduct?: boolean; statues?: boolean; towers?: boolean; col: Col; seed: number
   style?: ArcadeStyle
+  /** Most tiers of arches stacked under the deck where the valley is deep (default 6; a bridge is one row of tall arches). */
+  tiers?: number
+  /** Statues stand on the parapets every this many metres (instead of on every second pier), both sides. */
+  statueEvery?: number
   /** How much higher the middle of the deck rises than a straight line between its ends (hump-backed bridges), m. */
   hump?: number
   /** World (x, z) stands in water: piers there get cutwaters. */
@@ -671,7 +675,7 @@ export function arcade(b: Builder, ax: number, az: number, ha: number, bx: numbe
   for (let j = 0; j < n; j++) {
     const u0 = j * s + pw / 2, u1 = (j + 1) * s - pw / 2, uc = (u0 + u1) / 2, gLo = Math.min(gs[j], gs[j + 1]), gHi = Math.max(gs[j], gs[j + 1])
     let T = bigTop(uc)
-    for (let k = 0; k < 6 && T > gLo + 2; k++) {
+    for (let k = 0; k < (o.tiers ?? 6) && T > gLo + 2; k++) {
       const crown = T - band, spring = crown - rise, last = spring - legs < gHi
       const arc = shape === 'horseshoe' ? archPts('round', r, spring, uc) : archPts(shape, r, spring, uc)
       b.box('stone', u0, crown, -W / 2, u1, T, W / 2, k ? C2 : C)
@@ -743,11 +747,18 @@ export function arcade(b: Builder, ax: number, az: number, ha: number, bx: numbe
   if (!aq && style !== 'inhabited') for (let i = 0; i <= n; i++) {
     const u = i * s, y = deck(u)
     for (const sd of [-1, 1]) {
-      if (o.statues && i % (style === 'renaissance' ? 1 : 2) === 0 && i > 0 && i < n) b.fine(1, () => statue(b, u, y + 0.2, pz(sd), sd > 0 ? 0 : Math.PI, Math.max(3.5, W * 0.28), o.seed + i * 7 + sd, MARBLE))
+      if (o.statues && !o.statueEvery && i % (style === 'renaissance' ? 1 : 2) === 0 && i > 0 && i < n) b.fine(1, () => statue(b, u, y + 0.2, pz(sd), sd > 0 ? 0 : Math.PI, Math.max(3.5, W * 0.28), o.seed + i * 7 + sd, MARBLE))
       else b.fine(1, () => {
         b.box('stone', u - 0.5, y, pz(sd) - 0.5, u + 0.5, y + 1.8, pz(sd) + 0.5, C); b.pyr('stone', u, y + 1.8, pz(sd), 0.6, 1.4, 4, C)
         if (i % 2) { b.beam('metal', [u, y + 1.8, pz(sd)], [u, y + 5, pz(sd)], 0.15, 0.15, Z, IRON, true); b.lamp(u, y + 5.2, pz(sd)) }
       })
+    }
+  }
+  if (o.statues && o.statueEvery && !aq && style !== 'inhabited') { // a row of figures down both parapets, a lamp between each pair
+    const e = Math.max(4, o.statueEvery), m = Math.floor((L - 8) / e)
+    for (let q = 0; q <= m; q++) {
+      const u = 4 + (q * (L - 8)) / Math.max(1, m), y = deck(u)
+      for (const sd of [-1, 1]) b.fine(1, () => statue(b, u, y + 0.2, pz(sd), sd > 0 ? 0 : Math.PI, Math.max(3.5, W * 0.28), o.seed + q * 7 + sd, MARBLE))
     }
   }
   if (style === 'inhabited') { // shops and houses in a row down both sides, jutting out over the water on brackets
@@ -974,7 +985,7 @@ export function domeChurch(b: Builder, x: number, y: number, z: number, yaw: num
 
 // ---------- plazas ----------
 /** A round raised plaza (a podium down to `bottom`) with a balustrade, statues around the edge and a centrepiece. */
-export function plaza(b: Builder, x: number, y: number, z: number, r: number, bottom: number, centre: 'fountain' | 'obelisk' | 'statue' | 'none', statues: boolean, seed: number, C: Col) {
+export function plaza(b: Builder, x: number, y: number, z: number, r: number, bottom: number, centre: 'fountain' | 'obelisk' | 'statue' | 'garden' | 'none', statues: boolean, seed: number, C: Col) {
   b.frame(x, y, z, 0)
   const C2 = mix(C, [0, 0, 0], 0.15), sides = Math.max(24, Math.round(r / 2))
   b.cyl('stone', 0, bottom - y, 0, r + 1, r, y - bottom, sides, C2, false)
@@ -988,6 +999,19 @@ export function plaza(b: Builder, x: number, y: number, z: number, r: number, bo
   if (centre === 'fountain') fountain(b, x, y, z, Math.max(1, r / 25))
   else if (centre === 'obelisk') { b.box('stone', -2, 0.15, -2, 2, 3, 2, C2); const ob: V[] = []; for (let k = 0; k < 8; k++) { const s2 = k & 2 ? 0.7 : 1.1; ob.push([(k & 1 ? 1 : -1) * s2, k & 2 ? 22 : 3, (k & 4 ? 1 : -1) * s2]) } b.hexa('stone', ob, lin('#c9b48a')); b.pyr('stone', 0, 22, 0, 0.99, 1.8, 4, lin('#c9b48a')) }
   else if (centre === 'statue') statue(b, 0, 0.15, 0, 0, Math.max(6, r * 0.3), seed, BRONZE)
+  else if (centre === 'garden') { // a lawn, clipped hedges in a cross, a ring of trees, a small fountain in the middle
+    const G = lin('#3b5f2b'), Hd = lin('#2c4a22'), R = rng(seed)
+    b.cyl('leaf', 0, 0.2, 0, r - 1.6, r - 1.6, 0.3, sides, G, false)
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) b.box('leaf', dx * r * 0.52 - (dx ? r * 0.22 : 0.9), 0.4, dz * r * 0.52 - (dz ? r * 0.22 : 0.9), dx * r * 0.52 + (dx ? r * 0.22 : 0.9), 1.5, dz * r * 0.52 + (dz ? r * 0.22 : 0.9), Hd)
+    b.fine(1, () => {
+      const n = Math.max(6, Math.round(r / 3)), rr = r * 0.78
+      for (let k = 0; k < n; k++) {
+        const t = (k / n) * Math.PI * 2, tx = Math.cos(t) * rr, tz = Math.sin(t) * rr, h = 6 + R() * 3
+        b.cyl('wood', tx, 0.3, tz, 0.35, 0.25, h * 0.5, 6, lin('#4a3626'), false); b.ico('leaf', tx, h * 0.8, tz, 2.4 + R(), h * 0.4, 2.4 + R(), jit(lin('#3e5a2c'), R, 0.3))
+      }
+    })
+    fountain(b, x, y, z, Math.max(0.8, r / 40))
+  }
 }
 
 // ---------- palaces ----------

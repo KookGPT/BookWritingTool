@@ -159,6 +159,7 @@ def make_materials2():
         m, nt, bs = base_mat(nm); wallpaper(m, nt, bs, NN(nt, 'ShaderNodeTexCoord'), lit_p=lp, strength=st, pal=pal); MATS[nm] = m
     m, nt, bs = base_mat('upperwall'); wallpaper(m, nt, bs, NN(nt, 'ShaderNodeTexCoord'), lit_p=0.55, strength=9.0, pal=((0.2, 0.185, 0.16), (0.33, 0.3, 0.25), (0.46, 0.41, 0.34))); MATS['upperwall'] = m
     MATS['slumroof'] = roof_mat('slumroof', ((0.02, 0.022, 0.028), (0.05, 0.048, 0.05), (0.15, 0.06, 0.04)), 0.2); MATS['uproof'] = roof_mat('uproof', ((0.06, 0.1, 0.1), (0.12, 0.16, 0.15), (0.2, 0.11, 0.08)), 0.2); MATS['midroof'] = roof_mat('midroof', ((0.05, 0.06, 0.08), (0.16, 0.07, 0.05), (0.24, 0.1, 0.06)), 0.25)
+    MATS['upflat'] = roof_mat('upflat', ((0.10, 0.095, 0.09), (0.16, 0.15, 0.13), (0.24, 0.2, 0.16)), 0.15); MATS['greenroof'] = roof_mat('greenroof', ((0.03, 0.07, 0.025), (0.05, 0.11, 0.035), (0.09, 0.15, 0.05)), 0.1)
     MATS['smoke'] = smoke_mat(); MATS['falls'] = foam_mat()
     wm, nt, bs = base_mat('water'); nz = NN(nt, 'ShaderNodeTexNoise'); nz.inputs['Scale'].default_value = 0.05; nz.inputs['Detail'].default_value = 6; g = NN(nt, 'ShaderNodeNewGeometry'); nt.links.new(g.outputs['Position'], nz.inputs['Vector'])
     bm_ = NN(nt, 'ShaderNodeBump'); bm_.inputs['Strength'].default_value = 0.1; bm_.inputs['Distance'].default_value = 0.5; nt.links.new(nz.outputs['Fac'], bm_.inputs['Height']); nt.links.new(bm_.outputs['Normal'], bs.inputs['Normal'])
@@ -262,9 +263,9 @@ SH_SHOTS = {
     'sbridge3': ((538, 1145, 633), (330, 1720, 690), 30),
     'castle': ((622, 1383, 709), (330, 1720, 660), 30),
     'arena': ((1300, -100, 700), (1850, 250, 380), 32),
-    'cascade': ((-1500, -1900, 650), (-2300, -1330, 330), 32),
-    'crescent': ((-700, -900, 800), (-1450, -250, 450), 32),
-    'spur': ((300, -2200, 700), (1250, -1300, 330), 32),
+    'east': ((3300, -2400, 1100), (1300, 300, 420), 30),           # the eastern chain of blocks from the south-east
+    'west': ((-3400, 1700, 1000), (-1300, 100, 420), 30),          # the western chain from the north-west
+    'south': ((-200, -3400, 900), (500, -800, 400), 30),           # the southern blocks from the mouth
     'cathedral': ((-1100, -900, 800), (-600, -300, 560), 32),
     'lake3': ((-250, 2450, 330), (350, 4300, 300), 30),
     'maze_a': ((-1200, -1700, 430), (-200, -1200, 120), 34),

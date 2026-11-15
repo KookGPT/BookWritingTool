@@ -49,7 +49,9 @@ export interface District {
 export interface Structure {
   id: string; kind: typeof STRUCTURE_KINDS[number]; name?: string; note?: string
   at?: XY; to?: XY; path?: XY[]; facing?: number; scale?: number; height?: number; width?: number; depth?: number; radius?: number; span?: number
-  level?: number; deck?: [number, number]; color?: string; roof?: string; statues?: boolean; centre?: 'fountain' | 'obelisk' | 'statue' | 'none'; gates?: XY[]; culture?: Culture
+  /** Bridges: rows of arches stacked under the deck in a deep valley (default 1, one row of tall arches); statueEvery: metres between figures down both parapets. */
+  tiers?: number; statueEvery?: number
+  level?: number; deck?: [number, number]; color?: string; roof?: string; statues?: boolean; centre?: 'fountain' | 'obelisk' | 'statue' | 'garden' | 'none'; gates?: XY[]; culture?: Culture
   /** Bridges: roman, gothic, renaissance, inhabited; aqueducts: roman, segovia, moorish (default: chosen by the seed). */
   style?: typeof BRIDGE_STYLES[number] | typeof AQUEDUCT_STYLES[number]
 }
@@ -64,7 +66,7 @@ export interface LocationDoc {
   terrain: TerrainFeature[]; districts: District[]; structures: Structure[]; views?: View[]
 }
 /** Bump when the generator changes, so builds saved in the browser are redone. */
-export const BUILD_VERSION = 33
+export const BUILD_VERSION = 35
 export const TSTRIDE = 6 // trees: x y z scale kind shade
 export const TREE = { broadleaf: 0, spruce: 1, pine: 2, cypress: 3, larch: 4, orchard: 5, bush: 6, olive: 7, palm: 8 } as const
 const DEG = Math.PI / 180
@@ -939,7 +941,7 @@ function structure(b: Builder, st: Structure, T: TerrainFn, gW: (x: number, z: n
       const l = Math.hypot(path[i + 1][0] - path[i][0], path[i + 1][1] - path[i][1]), [ax, az] = W(path[i]), [bx, bz] = W(path[i + 1])
       arcade(b, ax, az, lerp(h0, h1, run / total), bx, bz, lerp(h0, h1, (run + l) / total), gW, {
         width: st.width ?? (st.kind === 'bridge' ? 14 : 5), span: st.span ?? (st.kind === 'bridge' ? 60 : 22), deckT: st.kind === 'bridge' ? 3 : 2,
-        aqueduct: st.kind === 'aqueduct', statues: st.statues ?? st.kind === 'bridge', towers: st.kind === 'bridge' && i === 0 && path.length === 2, col: C, seed: sd + i, style, wet,
+        aqueduct: st.kind === 'aqueduct', statues: st.statues ?? st.kind === 'bridge', tiers: st.kind === 'bridge' ? st.tiers ?? 1 : st.tiers, statueEvery: st.statueEvery, towers: st.kind === 'bridge' && i === 0 && path.length === 2, col: C, seed: sd + i, style, wet,
         hump: st.kind === 'bridge' && !st.deck ? Math.min(14, total * 0.035) : 0, // old bridges are hump-backed: up from the streets, high over the water
       })
       run += l
@@ -1168,8 +1170,9 @@ Structures (kind: fields; facing is a compass bearing the front faces, 0 = north
 - church: at, facing, scale, culture (a parish church); market: at, facing (along its length), width, depth (a market square)
 - palace: at, facing, width (80), depth (64), roof colour; monastery: at, facing
 - colonnade: at, facing (the open side), radius (oval half-width, 120); tower: at, facing, width (12), height (70)
-- plaza: at, radius (40), centre fountain|obelisk|statue|none, statues; statue: at, facing, height (20), color ("bronze" or hex)
-- bridge: at, to, width (14), span (60), deck [altA, altB], style (${BRIDGE_STYLES.join('|')}: round arches with cutwaters; pointed arches,
+- plaza: at, radius (40), centre fountain|obelisk|statue|garden (a lawn with hedges, trees and a fountain)|none, statues; statue: at, facing, height (20), color ("bronze" or hex)
+- bridge: at, to, width (14), span (60), deck [altA, altB], tiers (1: one row of tall arches on full-height piers; more stack rows in a deep valley),
+  statueEvery (metres between figures down both parapets; default a figure on every second pier), style (${BRIDGE_STYLES.join('|')}: round arches with cutwaters; pointed arches,
   refuges and gate towers; flat arches, oculi, a balustrade and statues; a row of houses on brackets; default from the seed)
 - aqueduct: path, width (5), span (22), deck [start, end], style (${AQUEDUCT_STYLES.join('|')}: tiers of arches under small ones carrying a
   covered channel; slender stepped piers; striped horseshoe arches); it falls gently (about 0.3%) from its source to the town

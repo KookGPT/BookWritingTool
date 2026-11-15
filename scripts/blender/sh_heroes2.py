@@ -166,6 +166,55 @@ def garden_terrace(Lk=96.0, dep=34.0):
     lbox(f, -Lk / 2 + 2, Lk / 2 - 2, 10.8, 11.5, -dep + 3, -dep + 18, 'leaf')
     B('falls').add([(-4, -0.6, 12.0), (4, -0.6, 12.0), (4.6, -0.3, 1.0), (-4.6, -0.3, 1.0)], [(0, 1, 2, 3), (3, 2, 1, 0)])
 
+
+# ---------------------------------------------------------------- the upper city's open spaces: agora, parks, avenues
+MATS['lawn'] = simple('lawn', (0.045, 0.1, 0.035), 0.9, noise_bump=0.4, scale=3.0)
+def tree(x, y, z, h):
+    cone_between('bark', (x, y, z), (x, y, z + h * 0.55), h * 0.045, h * 0.03, 5, False); sph('leaf', (x, y, z + h * 0.68), h * 0.3, (1.0, 1.0, 1.15), RNG.uniform(0, 3), 0.0, 6)
+def agora():
+    """A great paved forum for a node with no cathedral: an obelisk fountain, a ring of columns and a ring of figures on plinths (local origin = the crown's centre)."""
+    R = 66.0; cyl('cobble', (0, 0, -3.0), R + 10, R + 10, 3.4, 40); annulus('pale', 0, 0, 0.45, R - 5, R - 1, 40); annulus('pale', 0, 0, 0.45, R * 0.4, R * 0.4 + 3, 36)
+    n = 22
+    for k in range(n):
+        a = 2 * PI * k / n; x, y = R * math.cos(a), R * math.sin(a); column(x, y, 0.4, 15, 1.2, 'pale')
+        b = 2 * PI * (k + 1) / n; bar('pale', (x, y), (R * math.cos(b), R * math.sin(b)), 15.4, 17.6, 3.2)
+    cyl('pale', (0, 0, 0.4), R * 0.2, R * 0.2, 1.6, 28); ppoly('water', disc_pts(0, 0, 1.7, R * 0.18, 28)); box('wallstone', (0, 0, 2.0), 7.0, 7.0, 3.0, 0.4)
+    cone_between('pale', (0, 0, 5.0), (0, 0, 46.0), 2.6, 0.9, 4, True); cone_between('gold', (0, 0, 46.0), (0, 0, 52.0), 0.9, 0.0, 4)
+    for k in range(10): a = 2 * PI * k / 10 + 0.3; on_plinth(R * 0.7 * math.cos(a), R * 0.7 * math.sin(a), 0.4, 8.0, a + PI, k)
+    for k in range(4):
+        a = k * PI / 2 + PI / 4; x, y = R * 0.42 * math.cos(a), R * 0.42 * math.sin(a); cyl('pale', (x, y, 0.4), 3.4, 3.2, 1.0, 14); ppoly('water', disc_pts(x, y, 1.35, 3.0, 14)); cypress(x * 1.5, y * 1.5, 0.4, 13)
+def park(q):
+    """A walled garden on the platform top: a lawn with paths and a fountain (formal) or a grove (wood)."""
+    x, y, r = q['x'], q['y'], q['r']; ang = np.linspace(0, 2 * PI, 12, endpoint=False); z0 = float(np.max(H(x + r * np.cos(ang), y + r * np.sin(ang)))) + 0.2
+    ppoly('lawn', disc_pts(x, y, z0, r, 28)); annulus('pale', x, y, z0 + 0.05, r - 1.6, r, 28)
+    rg = np.random.default_rng(int(abs(x * 7 + y * 3)) % 100000)
+    if q['kind'] == 'formal':
+        for k in range(2): a = k * PI / 2 + 0.3; bar('flag', (x - r * 0.9 * math.cos(a), y - r * 0.9 * math.sin(a)), (x + r * 0.9 * math.cos(a), y + r * 0.9 * math.sin(a)), z0 + 0.04, z0 + 0.1, 2.6)
+        annulus('flag', x, y, z0 + 0.07, r * 0.2, r * 0.5, 24); cyl('pale', (x, y, z0), r * 0.17, r * 0.17, 0.9, 20); ppoly('water', disc_pts(x, y, z0 + 0.8, r * 0.15, 20)); cyl('pale', (x, y, z0 + 0.9), 0.5, 0.35, 3.0, 8)
+        m = int(2 * PI * r * 0.8 / 9)
+        for k in range(m): a = 2 * PI * k / m; cypress(x + r * 0.8 * math.cos(a), y + r * 0.8 * math.sin(a), z0, 9 + (k % 3))
+        for k in range(8): a = 2 * PI * k / 8 + 0.4; tree(x + r * 0.58 * math.cos(a), y + r * 0.58 * math.sin(a), z0, 9 + rg.random() * 3)
+    else:
+        for k in range(int(r * r / 55)):
+            a = rg.uniform(0, 2 * PI); rr = r * math.sqrt(rg.uniform(0.02, 0.8)); (tree if rg.random() < 0.6 else cypress)(x + rr * math.cos(a), y + rr * math.sin(a), z0, 8 + rg.random() * 8)
+        ppoly('water', [(x + r * 0.28 * math.cos(t) * (1 + 0.18 * math.sin(3 * t)), y + r * 0.2 * math.sin(t), z0 + 0.12) for t in np.linspace(0, 2 * PI, 18, endpoint=False)])
+    for k in range(8): a = 2 * PI * k / 8; lamp(x + (r - 0.8) * math.cos(a), y + (r - 0.8) * math.sin(a), z0 + 2.4, 0.26)
+def avenue(av):
+    """A paved boulevard along a tier's floor: flagstones, lamps and trees down both sides, a figure on a plinth every ~80 m."""
+    x0, y0, x1, y1, h = av['x0'], av['y0'], av['x1'], av['y1'], av['h']; L = math.hypot(x1 - x0, y1 - y0); ux, uy = (x1 - x0) / L, (y1 - y0) / L; nx, ny = -uy, ux; n = max(1, int(L // 30))
+    for i in range(n):
+        a0, a1 = L * i / n, L * (i + 1) / n; q0 = (x0 + ux * a0, y0 + uy * a0); q1 = (x0 + ux * a1, y0 + uy * a1)
+        ppoly('flag', [(q0[0] + nx * 9, q0[1] + ny * 9, h + 0.18), (q1[0] + nx * 9, q1[1] + ny * 9, h + 0.18), (q1[0] - nx * 9, q1[1] - ny * 9, h + 0.18), (q0[0] - nx * 9, q0[1] - ny * 9, h + 0.18)])
+    k = 0; t = 10.0
+    while t < L - 8:
+        for sg in (-1, 1):
+            px, py = x0 + ux * t + nx * sg * 11.0, y0 + uy * t + ny * sg * 11.0
+            if k % 4 == 0: lamp(px, py, h + 4.4, 0.3); cyl('iron', (px, py, h + 0.2), 0.14, 0.1, 4.0, 6)
+            elif k % 4 == 2: (cypress if (k // 4) % 2 else tree)(px, py, h + 0.2, 13.0)
+            if k % 12 == 6 and sg > 0 and av['node'] not in ('B1', 'B2', 'B3', 'B5', 'B6', 'B7'): on_plinth(px + nx * 3.0, py + ny * 3.0, h + 0.2, 7.0, yaw_of(-nx, -ny), k)
+        k += 1; t += 12.0
+
+
 # ================================================================ placing everything
 def face_dir(c):
     c = np.asarray(c, float); best = None
@@ -175,8 +224,9 @@ def face_dir(c):
     return best[1]
 def face_yaw_pt(c): d = face_dir(c); return yaw_of(d[0], d[1])
 def gothic(): west_front(); tower_faces(1); tower_faces(-1); nave_run(Y0, 3.0); nave_run(17.0, 50.0); transept(); crossing_tower(); choir_and_apse()
-HEROES = {'cathedral': (gothic, 1.1, 60.0), 'basilica': (basilica_square, 0.72, 40.0), 'rival': (rival_cathedral, 1.0, 70.0), 'needle': (needle, 1.5, 0.0), 'palace': (domed_palace, 0.6, 20.0),
-          'castle': (great_castle, 1.0, 0.0), 'bowl': (arena, 0.95, 0.0), 'mesa': (monastery, 1.0, 0.0), 'fort': (fort, 1.0, 0.0), 'church': (small_church, 1.7, -8.0)}
+HEROES = {'cathedral': (gothic, 1.35, 60.0), 'basilica': (basilica_square, 0.92, 40.0), 'rival': (rival_cathedral, 1.25, 70.0), 'needle': (needle, 2.0, 0.0), 'palace': (domed_palace, 0.95, 20.0),
+          'castle': (great_castle, 1.1, 0.0), 'bowl': (arena, 1.3, 0.0), 'mesa': (monastery, 1.0, 0.0), 'fort': (fort, 1.0, 0.0), 'church': (small_church, 1.7, -8.0),
+          'gardens': (hanging_gardens, 1.0, 0.0), 'citadel': (citadel, 1.45, 0.0), 'agora': (agora, 1.0, 0.0)}
 def rim_pt(c, ang, poly, margin=8.0):
     last = (c[0], c[1])
     for r in np.arange(4.0, 500.0, 2.0):
@@ -228,19 +278,9 @@ def build_sites():
         c = pk['c']; role = pk['role']; z = pk['h']; yaw = None
         if (name == W.STATUE_BRIDGE[0]) or (name == W.STATUE_BRIDGE[2]):                 # the two ends of the statue bridge look at each other
             o = W.STATUE_BRIDGE[2] if name == W.STATUE_BRIDGE[0] else W.STATUE_BRIDGE[0]; d = np.array(W.PEAK[o]['anchor'], float) - np.array(c, float); yaw = yaw_of(d[0], d[1])
-        if role in ('cathedral', 'basilica', 'rival', 'castle', 'palace', 'twin'): crown_dress(pk['tiers']['c']); (crown_dress(pk['tiers']['c2'], 36.0) if role == 'twin' else None)
+        if role in ('cathedral', 'basilica', 'rival', 'castle', 'palace', 'twin', 'citadel', 'gardens', 'bowl', 'mesa', 'needle'): crown_dress(pk['tiers']['c'], 34.0); (crown_dress(pk['tiers']['c2'], 36.0) if role == 'twin' else None)
         if role in HEROES: hero_at(c, z, role, yaw)
-        elif role == 'twin': hero_at(c, z, 'rival', scale=0.85); hero_at(pk['c2'], pk['h_c2'], 'cathedral', scale=0.8)
-        elif role == 'crescent': rampart(pk)
-        elif role == 'cascade':
-            dirn = np.array([62.0, -96.0]); dirn /= np.hypot(*dirn)
-            for k in ['c'] + pk['extras']:
-                p = W.PLATS[pk['tiers'][k]]; cx_ = sum(q[0] for q in p['poly']) / len(p['poly']); cy_ = sum(q[1] for q in p['poly']) / len(p['poly'])
-                ex, ey = rim_pt((cx_, cy_), math.atan2(dirn[1], dirn[0]), p['poly'], 7.0)
-                with placed((ex, ey, p['h']), yaw_of(dirn[0], dirn[1]), 0.8): garden_terrace()
-        if role == 'palace':                                              # the spur's promenade: cypress avenue and lamps along its spine
-            a0 = np.array([1880.0, -1255.0]); a1 = np.array([1110.0, -1320.0])
-            for i, t in enumerate(np.linspace(0, 1, 52)): q = a0 + (a1 - a0) * t; cypress(q[0], q[1] + 9, pk['h1'], 12 + (i % 3)); cypress(q[0], q[1] - 9, pk['h1'], 12 + ((i + 1) % 3)); lamp(q[0], q[1] + 4.5, pk['h1'] + 3.4, 0.28)
+        elif role == 'twin': hero_at(c, z, 'rival', scale=1.0); hero_at(pk['c2'], pk['h_c2'], 'cathedral', scale=0.95)
         if role in ('cathedral', 'basilica', 'rival', 'twin'):               # colossi on the crown's rim, looking out over the city
             fy = face_yaw_pt(c); base = math.atan2(-math.cos(fy), math.sin(fy))
             for sg in (-1, 1):
@@ -256,10 +296,16 @@ def build_dam():
     with placed((W.DAM_X + (l0 + r0) / 2, W.DAM_Y, 0), 0, 1.0): dam(r0 - l0 + 30.0, crest, float(W.F_DAM) - 10.0, 30.0)
 
 if HEROTEST:
-    tests = {'dam': dam, 'basilica': basilica_square, 'rival': rival_cathedral, 'palace': domed_palace, 'gardens': hanging_gardens, 'citadel': citadel, 'needle': needle, 'colossus': lambda: colossus_on_plinth(0, 0, 0, 110, 0),
+    tests = {'cathedral': gothic, 'dam': dam, 'basilica': basilica_square, 'rival': rival_cathedral, 'palace': domed_palace, 'gardens': hanging_gardens, 'citadel': citadel, 'needle': needle, 'colossus': lambda: colossus_on_plinth(0, 0, 0, 110, 0),
              'castle': great_castle, 'arena': arena, 'monastery': monastery, 'terrace': garden_terrace, 'church': small_church, 'fort': fort, 'angel': lambda: angel(0, 0, 0, 12, 0), 'knight': lambda: knight(0, 0, 0, 12, 0),
              'figures': lambda: [on_plinth(k * 9, 0, 0, 7.2, 0, k) for k in range(8)], 'plaza': lambda: plaza(dict(x=0, y=0, r=30, kind='fountain', upper=True))}
     tests[HEROTEST]()
+    _vs = np.array([v for a in BMS.values() for v in a.v]); log(f'BBOX {HEROTEST}: x {_vs[:, 0].min():.0f}..{_vs[:, 0].max():.0f}  y {_vs[:, 1].min():.0f}..{_vs[:, 1].max():.0f}  z {_vs[:, 2].min():.0f}..{_vs[:, 2].max():.0f}')
 else:
-    build_sites(); build_bridges(); build_dam()
+    build_sites(); log('sites'); build_bridges(); build_dam(); log('bridges')
     for q in PLAZAS: plaza(q)
+    log(f'plazas {len(PLAZAS)}')
+    for q in PARKS: park(q)
+    log(f'parks {len(PARKS)}')
+    for av in AVENUES: avenue(av)
+    log(f'avenues {len(AVENUES)}')

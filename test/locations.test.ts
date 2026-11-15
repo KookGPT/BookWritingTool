@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { buildCity, terrainOf, TREE, TSTRIDE, validate, type LocationDoc } from '../src/locations/city.ts'
 import { PART, PSTRIDE, ROOF_PARTS } from '../src/locations/buildings.ts'
 import { RoadIndex, planRoads } from '../src/locations/roads.ts'
-import { MATS } from '../src/locations/kit.ts'
+import { MATS, Builder, arcade } from '../src/locations/kit.ts'
 import { pathNear, pathNearFast, resample, type XY } from '../src/locations/terrain.ts'
 import { carveRiver, makeLake } from '../src/locations/hydro.ts'
 import { volumeField, volumeTerrain } from '../src/locations/volume.ts'
@@ -200,5 +200,12 @@ assert.ok(idx.near(roads[0].pts[3][0], roads[0].pts[3][2]).d < 0, 'a point on th
   assert.ok(shots.every(([, at, h, p]) => at.every(Number.isFinite) && h >= 0 && h < 360 && p > -90 && p < 90), 'poses are sane')
   const bridge = shots.find((s) => s[0] === 'structure-old-bridge')!
   assert.ok(Math.hypot(bridge[1][0] - 520, bridge[1][1] + 2500) < 400, 'the bridge is shot from close by')
+}
+{ // a bridge over a deep valley is one row of tall arches by default; more rows only when asked; statues can run along the parapets
+  const mk = (o: Partial<Parameters<typeof arcade>[9]>) => { const b = new Builder(); arcade(b, 0, 0, 200, 300, 0, 200, () => 0, { width: 16, span: 60, deckT: 3, col: [0.5, 0.5, 0.5], seed: 1, style: 'gothic', ...o }); return b.tiers[0].stone.pos.length }
+  assert.ok(mk({ tiers: 3 }) > mk({ tiers: 1 }) * 1.3, 'extra tiers add arches')
+  assert.equal(mk({}), mk({ tiers: 6 }), 'the kit default stays six tiers (aqueducts)')
+  const fine = (o: Partial<Parameters<typeof arcade>[9]>) => { const b = new Builder(); arcade(b, 0, 0, 200, 300, 0, 200, () => 0, { width: 16, span: 60, deckT: 3, col: [0.5, 0.5, 0.5], seed: 1, style: 'gothic', tiers: 1, statues: true, ...o }); return b.tiers[1].stone.pos.length }
+  assert.ok(fine({ statueEvery: 8 }) > fine({}) * 1.5, 'statueEvery lines the parapets with figures')
 }
 console.log('locations ok')
